@@ -1,6 +1,7 @@
 package com.example.util
 
-import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -11,24 +12,38 @@ import com.example.model.ReadingStreakData
 
 object SocialShareHelper {
 
-    const val CREATOR_HANDLE = "@ahex0_01"
     const val APP_NAME = "A-Hex streak"
-    const val INSTAGRAM_URL = "https://instagram.com/ahex0_01"
 
     fun formatStatsShareText(streakData: ReadingStreakData): String {
         return """
-🔥 A-Hex Reading Streak Update! 🔥
+🔥 My Reading Streak & Stats on $APP_NAME!
 
-⚡ Current Streak: ${streakData.currentStreakDays} Days
+⚡ Current Streak: ${streakData.currentStreakDays} Consecutive Days
+🎯 Daily Goal: ${streakData.dailyGoalMinutes} min/day
 📖 Total Pages Read: ${streakData.totalPagesRead} Pages
 📚 Books Finished: ${streakData.totalBooksRead} Books
-⏱️ Avg Session: ${(streakData.avgSessionMinutes).toInt()} mins / session
+⏱️ Avg Session: ${(streakData.avgSessionMinutes).toInt()} mins
 🚀 Reading Speed: ${streakData.readingSpeedWpm} WPM
 
-Building unbreakable reading habits with A-Hex streak!
-Tagging creator $CREATOR_HANDLE
+Building consistent daily reading habits with $APP_NAME! 📚✨
+#ReadingStreak #BookLover #ReadingHabits #DailyReading #Bookworm
+        """.trimIndent()
+    }
 
-#AHexStreak #ReadingStreak #BookLover #ReadingHabits #DailyReading #Ahex
+    fun formatDailyGoalShareText(goalMinutes: Int, todayMinutes: Int, streakDays: Int): String {
+        val statusText = if (todayMinutes >= goalMinutes) {
+            "🎉 Goal Completed! I crushed my daily reading goal of $goalMinutes mins by reading $todayMinutes mins today!"
+        } else {
+            "🎯 In Progress: Read $todayMinutes of $goalMinutes mins today!"
+        }
+        return """
+$statusText
+
+🔥 Active Reading Streak: $streakDays Days
+📱 Tracked with $APP_NAME
+
+Stay consistent and make reading a daily ritual! 📖✨
+#DailyReadingGoal #ReadingStreak #BookCommunity #ReadingHabits #Consistency
         """.trimIndent()
     }
 
@@ -40,71 +55,84 @@ Tagging creator $CREATOR_HANDLE
 "${highlight.text}"
 $noteSection
 🔖 ${highlight.chapterTitle} • Saved on $APP_NAME
-Tagging $CREATOR_HANDLE
 
-#AHexStreak #BookQuotes #ReadingInspiration #Literature #BookNotes
+#BookQuotes #ReadingInspiration #Literature #BookNotes #Bookworm
         """.trimIndent()
     }
 
     fun formatBookProgressShareText(book: Book, streakData: ReadingStreakData): String {
         val percent = (book.readingProgress * 100).toInt()
         return """
-📖 Reading Progress Update: '${book.title}' by ${book.author}
+📖 Reading Progress: '${book.title}' by ${book.author}
 
 📊 Progress: $percent% (${book.currentPage}/${book.totalPages} pages)
 🔥 Active Streak: ${streakData.currentStreakDays} days on $APP_NAME
 🎯 Today's Reading: ${streakData.todayMinutesRead} min
 
-Stay consistent with your reading goals! Tagging $CREATOR_HANDLE
-
-#AHexStreak #CurrentlyReading #BookCommunity #ReadingGoals
+#CurrentlyReading #BookCommunity #ReadingGoals #ReadingStreak
         """.trimIndent()
     }
 
-    fun shareToSocialPlatform(
+    fun formatAchievementShareText(title: String, description: String, streakDays: Int): String {
+        return """
+🏆 New Reading Achievement Unlocked! 🏆
+
+⭐ $title
+📝 $description
+🔥 Active Streak: $streakDays Days on $APP_NAME
+
+Keep reading every day! 📚🚀
+#ReadingAchievement #BookLover #Milestone #ReadingHabits
+        """.trimIndent()
+    }
+
+    /**
+     * Universal Share: Opens the system share sheet (chooser) letting the user pick
+     * any app installed on their device (WhatsApp, Twitter/X, Instagram, Messages, Notes, Gmail, Telegram, etc.)
+     */
+    fun shareContent(
         context: Context,
         content: String,
-        targetInstagram: Boolean = false
+        subject: String = "$APP_NAME - Reading Progress"
     ) {
-        if (targetInstagram) {
-            val instagramIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, content)
-                `package` = "com.instagram.android"
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            try {
-                context.startActivity(instagramIntent)
-                return
-            } catch (_: ActivityNotFoundException) {
-                // Fallback to regular chooser if Instagram is not installed
-            }
-        }
-
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "$APP_NAME - Reading Share")
+            putExtra(Intent.EXTRA_SUBJECT, subject)
             putExtra(Intent.EXTRA_TEXT, content)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
-        val chooser = Intent.createChooser(shareIntent, "Share with $CREATOR_HANDLE on...")
+        val chooser = Intent.createChooser(shareIntent, "Share your achievement via...")
         chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         try {
             context.startActivity(chooser)
         } catch (e: Exception) {
-            Toast.makeText(context, "Unable to share content", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Unable to launch share chooser", Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun openInstagramProfile(context: Context) {
-        val uri = Uri.parse(INSTAGRAM_URL)
+    /**
+     * Helper to copy text directly to clipboard
+     */
+    fun copyToClipboard(context: Context, text: String, label: String = "Reading Progress") {
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText(label, text)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to copy text", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun openCreatorProfile(context: Context) {
+        val uri = Uri.parse("https://instagram.com/ahex0_01")
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         try {
             context.startActivity(intent)
         } catch (_: Exception) {
-            Toast.makeText(context, "Visiting $CREATOR_HANDLE...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Opening @ahex0_01...", Toast.LENGTH_SHORT).show()
         }
     }
 }

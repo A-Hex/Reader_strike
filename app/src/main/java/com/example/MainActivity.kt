@@ -15,23 +15,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.viewmodel.MainViewModel
 
 enum class NavigationTab(
-    val title: String,
+    val stringKey: String,
+    val defaultTitle: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
-    LIBRARY("Library", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    STREAK("Streak", Icons.Filled.LocalFireDepartment, Icons.Outlined.LocalFireDepartment),
-    HIGHLIGHTS("Highlights", Icons.Filled.Highlight, Icons.Outlined.Highlight),
-    DISCOVER("Discover", Icons.Filled.Public, Icons.Outlined.Public),
-    SYNC("Cloud", Icons.Filled.Sync, Icons.Outlined.Sync),
-    SETTINGS("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    LIBRARY("tab_library", "Library", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
+    COMMUNITY("tab_club", "Club", Icons.Filled.Groups, Icons.Outlined.Groups),
+    STREAK("tab_streak", "Streak", Icons.Filled.LocalFireDepartment, Icons.Outlined.LocalFireDepartment),
+    HIGHLIGHTS("tab_highlights", "Highlights", Icons.Filled.Highlight, Icons.Outlined.Highlight),
+    DISCOVER("tab_discover", "Discover", Icons.Filled.Public, Icons.Outlined.Public),
+    SETTINGS("tab_settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
 class MainActivity : ComponentActivity() {
@@ -52,104 +57,110 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppContent(viewModel: MainViewModel) {
     val currentBook by viewModel.currentBook.collectAsState()
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
     var currentTab by remember { mutableStateOf(NavigationTab.LIBRARY) }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        AnimatedContent(
-            targetState = currentBook != null,
-            transitionSpec = {
-                if (targetState) {
-                    (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
-                } else {
-                    (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { it } + fadeOut())
-                }
-            },
-            label = "ReaderTransition"
-        ) { isReading ->
-            if (isReading) {
-                ReaderScreen(
-                    viewModel = viewModel,
-                    onClose = { viewModel.closeReader() }
-                )
-            } else {
-                Scaffold(
-                    bottomBar = {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            tonalElevation = 4.dp
-                        ) {
-                            NavigationTab.entries.forEach { tab ->
-                                val isSelected = currentTab == tab
-                                val streakData by viewModel.streakData.collectAsState()
+    val layoutDirection = if (currentLanguage.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-                                NavigationBarItem(
-                                    selected = isSelected,
-                                    onClick = { currentTab = tab },
-                                    icon = {
-                                        BadgedBox(
-                                            badge = {
-                                                if (tab == NavigationTab.STREAK && streakData.currentStreakDays > 0) {
-                                                    Badge(
-                                                        containerColor = Color(0xFFB4CCB9),
-                                                        contentColor = Color(0xFF1E281F)
-                                                    ) {
-                                                        Text("${streakData.currentStreakDays}")
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            AnimatedContent(
+                targetState = currentBook != null,
+                transitionSpec = {
+                    if (targetState) {
+                        (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
+                    } else {
+                        (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { it } + fadeOut())
+                    }
+                },
+                label = "ReaderTransition"
+            ) { isReading ->
+                if (isReading) {
+                    ReaderScreen(
+                        viewModel = viewModel,
+                        onClose = { viewModel.closeReader() }
+                    )
+                } else {
+                    Scaffold(
+                        bottomBar = {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                tonalElevation = 4.dp
+                            ) {
+                                NavigationTab.entries.forEach { tab ->
+                                    val isSelected = currentTab == tab
+                                    val streakData by viewModel.streakData.collectAsState()
+                                    val tabTitle = AppStrings.get(tab.stringKey, currentLanguage)
+
+                                    NavigationBarItem(
+                                        selected = isSelected,
+                                        onClick = { currentTab = tab },
+                                        icon = {
+                                            BadgedBox(
+                                                badge = {
+                                                    if (tab == NavigationTab.STREAK && streakData.currentStreakDays > 0) {
+                                                        Badge(
+                                                            containerColor = Color(0xFFB4CCB9),
+                                                            contentColor = Color(0xFF1E281F)
+                                                        ) {
+                                                            Text("${streakData.currentStreakDays}")
+                                                        }
                                                     }
                                                 }
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                                    contentDescription = tabTitle,
+                                                    tint = if (isSelected) {
+                                                        MaterialTheme.colorScheme.primary
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                    }
+                                                )
                                             }
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                                contentDescription = tab.title,
-                                                tint = if (isSelected) {
-                                                    MaterialTheme.colorScheme.primary
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                }
+                                        },
+                                        label = {
+                                            Text(
+                                                text = tabTitle,
+                                                fontSize = 11.sp,
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                             )
-                                        }
-                                    },
-                                    label = {
-                                        Text(
-                                            text = tab.title,
-                                            fontSize = 11.sp,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                )
+                                }
                             }
                         }
-                    }
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        when (currentTab) {
-                            NavigationTab.LIBRARY -> LibraryScreen(
-                                viewModel = viewModel,
-                                onNavigateToDiscover = { currentTab = NavigationTab.DISCOVER },
-                                onNavigateToStreak = { currentTab = NavigationTab.STREAK }
-                            )
-                            NavigationTab.STREAK -> StreakStatsScreen(viewModel = viewModel)
-                            NavigationTab.HIGHLIGHTS -> HighlightsScreen(viewModel = viewModel)
-                            NavigationTab.DISCOVER -> DiscoverStoreScreen(
-                                viewModel = viewModel,
-                                onBack = { currentTab = NavigationTab.LIBRARY }
-                            )
-                            NavigationTab.SYNC -> CloudSyncScreen(viewModel = viewModel)
-                            NavigationTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            when (currentTab) {
+                                NavigationTab.LIBRARY -> LibraryScreen(
+                                    viewModel = viewModel,
+                                    onNavigateToDiscover = { currentTab = NavigationTab.DISCOVER },
+                                    onNavigateToStreak = { currentTab = NavigationTab.STREAK }
+                                )
+                                NavigationTab.COMMUNITY -> CommunityScreen(viewModel = viewModel)
+                                NavigationTab.STREAK -> StreakStatsScreen(viewModel = viewModel)
+                                NavigationTab.HIGHLIGHTS -> HighlightsScreen(viewModel = viewModel)
+                                NavigationTab.DISCOVER -> DiscoverStoreScreen(
+                                    viewModel = viewModel,
+                                    onBack = { currentTab = NavigationTab.LIBRARY }
+                                )
+                                NavigationTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
+                            }
                         }
                     }
                 }

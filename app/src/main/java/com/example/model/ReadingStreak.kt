@@ -45,3 +45,34 @@ data class ReadingStreakData(
     val monthlyStats: List<DayReadingStat> = emptyList(),
     val badges: List<StreakBadge> = emptyList()
 )
+
+data class ActiveSessionState(
+    val isSessionRunning: Boolean = false,
+    val isPaused: Boolean = false,
+    val isIdle: Boolean = false,
+    val currentBookId: String? = null,
+    val currentBookTitle: String = "",
+    val sessionDurationSeconds: Long = 0L,
+    val sessionPagesRead: Int = 0,
+    val todayMinutesAccumulated: Int = 0,
+    val dailyGoalMinutes: Int = 20,
+    val idleSecondsCount: Int = 0,
+    val isDailyGoalReached: Boolean = false
+) {
+    val formattedDuration: String
+        get() {
+            val minutes = sessionDurationSeconds / 60
+            val seconds = sessionDurationSeconds % 60
+            return String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
+        }
+
+    val goalProgressFraction: Float
+        get() {
+            val totalSeconds = (todayMinutesAccumulated * 60L) + sessionDurationSeconds
+            val goalSeconds = (dailyGoalMinutes * 60L).coerceAtLeast(1L)
+            return (totalSeconds.toFloat() / goalSeconds.toFloat()).coerceIn(0f, 1f)
+        }
+
+    val currentTotalTodayMinutes: Int
+        get() = todayMinutesAccumulated + (sessionDurationSeconds / 60).toInt()
+}

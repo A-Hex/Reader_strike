@@ -15,6 +15,7 @@ import com.example.model.*
 import com.example.reader.EpubParser
 import com.example.reader.PdfManager
 import com.example.reader.TtsManager
+import com.example.util.AppLanguage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -52,6 +53,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isGridView = MutableStateFlow(true)
     val isGridView: StateFlow<Boolean> = _isGridView.asStateFlow()
+
+    private val prefs = context.getSharedPreferences("ahex_reader_prefs", Context.MODE_PRIVATE)
+    private val _dailyGoalMinutes = MutableStateFlow(prefs.getInt("daily_goal_minutes", 20))
+    val dailyGoalMinutes: StateFlow<Int> = _dailyGoalMinutes.asStateFlow()
+
+    fun updateDailyGoal(minutes: Int) {
+        val validMinutes = minutes.coerceIn(5, 240)
+        _dailyGoalMinutes.value = validMinutes
+        prefs.edit().putInt("daily_goal_minutes", validMinutes).apply()
+
+        val currentToday = _streakData.value.todayMinutesRead
+        _activeSessionState.value = _activeSessionState.value.copy(
+            dailyGoalMinutes = validMinutes,
+            isDailyGoalReached = currentToday >= validMinutes
+        )
+        refreshStreakData()
+        Toast.makeText(context, "Daily reading goal set to $validMinutes minutes", Toast.LENGTH_SHORT).show()
+    }
+
+    private val _currentLanguage = MutableStateFlow(
+        when (prefs.getString("app_language", "en")) {
+            "ar" -> AppLanguage.ARABIC
+            "fr" -> AppLanguage.FRENCH
+            else -> AppLanguage.ENGLISH
+        }
+    )
+    val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
+
+    fun setLanguage(language: AppLanguage) {
+        _currentLanguage.value = language
+        prefs.edit().putString("app_language", language.code).apply()
+        Toast.makeText(context, "Language changed to ${language.displayName}", Toast.LENGTH_SHORT).show()
+    }
 
     // Filtered Books
     val filteredBooks: StateFlow<List<Book>> = combine(
@@ -121,6 +155,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _inBookSearchResults = MutableStateFlow<List<String>>(emptyList())
     val inBookSearchResults: StateFlow<List<String>> = _inBookSearchResults.asStateFlow()
 
+    // Active Reading Session State & Precise Timer
+    private val _activeSessionState = MutableStateFlow(ActiveSessionState())
+    val activeSessionState: StateFlow<ActiveSessionState> = _activeSessionState.asStateFlow()
+
+    private var sessionAccumulatedSeconds: Long = 0L
+    private var sessionPagesTurned: Int = 0
+    private var isGoalCelebratedThisSession: Boolean = false
+
     // Highlights & Bookmarks
     val allHighlights = bookRepository.allHighlights.stateIn(
         scope = viewModelScope,
@@ -184,7 +226,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshStreakData() {
         viewModelScope.launch {
-            _streakData.value = bookRepository.calculateStreakData()
+            _streakData.value = bookRepository.calculateStreakData(dailyGoalMinutes = _dailyGoalMinutes.value)
         }
     }
 
@@ -248,7 +290,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _currentChapterIndex.value = 0
-        startReadingSession(book.id)
+        startReadingSession(book)
     }
 
     fun closeReader() {
@@ -257,12 +299,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentBook.value = null
     }
 
+    fun recordUserInteraction() {
+        if (_activeSessionState.value.isIdle || _activeSessionState.value.idleSecondsCount > 0) {
+            _activeSessionState.value = _activeSessionState.value.copy(
+                isIdle = false,
+                idleSecondsCount = 0
+            )
+        }
+    }
+
+    fun toggleActiveSessionPause() {
+        val current = _activeSessionState.value
+        val newPaused = !current.isPaused
+        _activeSessionState.value = current.copy(
+            isPaused = newPaused,
+            isIdle = false,
+            idleSecondsCount = 0
+        )
+        if (newPaused && ttsManager.isPlaying.value) {
+            ttsManager.pause()
+        }
+    }
+
     fun selectChapter(index: Int) {
         if (index in 0 until _currentChapters.value.size) {
             _currentChapterIndex.value = index
             val book = _currentBook.value ?: return
             val progress = (index + 1).toFloat() / _currentChapters.value.size.toFloat()
             _currentPage.value = ((index + 1) * (book.totalPages / _currentChapters.value.size.coerceAtLeast(1))).coerceIn(1, book.totalPages)
+            recordUserInteraction()
             viewModelScope.launch {
                 bookRepository.updateReadingProgress(book.id, _currentPage.value, progress, 1)
                 refreshStreakData()
@@ -276,6 +341,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentPage.value = newPage
         val progress = newPage.toFloat() / book.totalPages.toFloat()
         
+        sessionPagesTurned++
+        _activeSessionState.value = _activeSessionState.value.copy(
+            sessionPagesRead = sessionPagesTurned,
+            isIdle = false,
+            idleSecondsCount = 0
+        )
+
         // Auto chapter switch if paged
         if (_currentChapters.value.isNotEmpty()) {
             val chapterIdx = ((newPage - 1).toFloat() / book.totalPages * _currentChapters.value.size).toInt().coerceIn(0, _currentChapters.value.size - 1)
@@ -294,6 +366,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentPage.value = newPage
         val progress = newPage.toFloat() / book.totalPages.toFloat()
 
+        recordUserInteraction()
+
         if (_currentChapters.value.isNotEmpty()) {
             val chapterIdx = ((newPage - 1).toFloat() / book.totalPages * _currentChapters.value.size).toInt().coerceIn(0, _currentChapters.value.size - 1)
             _currentChapterIndex.value = chapterIdx
@@ -309,6 +383,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val validPage = page.coerceIn(1, book.totalPages)
         _currentPage.value = validPage
         val progress = validPage.toFloat() / book.totalPages.toFloat()
+
+        recordUserInteraction()
 
         if (_currentChapters.value.isNotEmpty()) {
             val chapterIdx = ((validPage - 1).toFloat() / book.totalPages * _currentChapters.value.size).toInt().coerceIn(0, _currentChapters.value.size - 1)
@@ -528,37 +604,111 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun shareReadingStats(targetInstagram: Boolean = false) {
+    fun shareReadingStats() {
         val shareText = com.example.util.SocialShareHelper.formatStatsShareText(_streakData.value)
-        com.example.util.SocialShareHelper.shareToSocialPlatform(context, shareText, targetInstagram)
+        com.example.util.SocialShareHelper.shareContent(context, shareText, "My Reading Streak Stats")
     }
 
-    fun shareHighlightQuote(highlight: Highlight, targetInstagram: Boolean = false) {
+    fun shareDailyGoalProgress() {
+        val shareText = com.example.util.SocialShareHelper.formatDailyGoalShareText(
+            goalMinutes = _dailyGoalMinutes.value,
+            todayMinutes = _streakData.value.todayMinutesRead,
+            streakDays = _streakData.value.currentStreakDays
+        )
+        com.example.util.SocialShareHelper.shareContent(context, shareText, "Daily Reading Goal Milestone")
+    }
+
+    fun shareHighlightQuote(highlight: Highlight) {
         val shareText = com.example.util.SocialShareHelper.formatHighlightShareText(highlight)
-        com.example.util.SocialShareHelper.shareToSocialPlatform(context, shareText, targetInstagram)
+        com.example.util.SocialShareHelper.shareContent(context, shareText, "Favorite Reading Highlight")
     }
 
-    fun shareBookProgress(book: Book, targetInstagram: Boolean = false) {
+    fun shareBookProgress(book: Book) {
         val shareText = com.example.util.SocialShareHelper.formatBookProgressShareText(book, _streakData.value)
-        com.example.util.SocialShareHelper.shareToSocialPlatform(context, shareText, targetInstagram)
+        com.example.util.SocialShareHelper.shareContent(context, shareText, "Book Reading Progress")
     }
 
     fun openInstagramProfile() {
-        com.example.util.SocialShareHelper.openInstagramProfile(context)
+        com.example.util.SocialShareHelper.openCreatorProfile(context)
     }
 
-    private fun startReadingSession(bookId: String) {
-        sessionSecondsRead = 0
+    private fun startReadingSession(book: Book) {
+        sessionAccumulatedSeconds = 0L
+        sessionPagesTurned = 0
+        isGoalCelebratedThisSession = false
+        val todayMinutes = _streakData.value.todayMinutesRead
+        val dailyGoal = _streakData.value.dailyGoalMinutes
+
+        _activeSessionState.value = ActiveSessionState(
+            isSessionRunning = true,
+            isPaused = false,
+            isIdle = false,
+            currentBookId = book.id,
+            currentBookTitle = book.title,
+            sessionDurationSeconds = 0L,
+            sessionPagesRead = 0,
+            todayMinutesAccumulated = todayMinutes,
+            dailyGoalMinutes = dailyGoal,
+            idleSecondsCount = 0,
+            isDailyGoalReached = todayMinutes >= dailyGoal
+        )
+
         readingSessionJob?.cancel()
         readingSessionJob = viewModelScope.launch {
             while (true) {
                 delay(1000)
-                sessionSecondsRead++
-                if (sessionSecondsRead % 60 == 0) {
-                    val minutes = 1
-                    val progress = (_currentPage.value.toFloat() / (_currentBook.value?.totalPages ?: 100).toFloat()).coerceIn(0f, 1f)
-                    bookRepository.updateReadingProgress(bookId, _currentPage.value, progress, minutes)
-                    refreshStreakData()
+                val current = _activeSessionState.value
+                val isTtsPlaying = ttsManager.isPlaying.value
+
+                if (isTtsPlaying) {
+                    sessionAccumulatedSeconds++
+                    val newTotalTodayMinutes = todayMinutes + (sessionAccumulatedSeconds / 60).toInt()
+                    val goalMet = newTotalTodayMinutes >= dailyGoal
+
+                    if (goalMet && !isGoalCelebratedThisSession && !current.isDailyGoalReached) {
+                        isGoalCelebratedThisSession = true
+                        Toast.makeText(context, "🔥 Daily Streak Goal Achieved! ($dailyGoal min completed)", Toast.LENGTH_SHORT).show()
+                    }
+
+                    _activeSessionState.value = current.copy(
+                        sessionDurationSeconds = sessionAccumulatedSeconds,
+                        isIdle = false,
+                        idleSecondsCount = 0,
+                        isDailyGoalReached = goalMet
+                    )
+
+                    if (sessionAccumulatedSeconds % 30 == 0L) {
+                        val progress = (_currentPage.value.toFloat() / (_currentBook.value?.totalPages ?: 100).toFloat()).coerceIn(0f, 1f)
+                        bookRepository.updateReadingProgress(book.id, _currentPage.value, progress, 1)
+                        refreshStreakData()
+                    }
+                } else if (!current.isPaused) {
+                    if (current.idleSecondsCount < 90) {
+                        sessionAccumulatedSeconds++
+                        val newIdleCount = current.idleSecondsCount + 1
+                        val newTotalTodayMinutes = todayMinutes + (sessionAccumulatedSeconds / 60).toInt()
+                        val goalMet = newTotalTodayMinutes >= dailyGoal
+
+                        if (goalMet && !isGoalCelebratedThisSession && !current.isDailyGoalReached) {
+                            isGoalCelebratedThisSession = true
+                            Toast.makeText(context, "🔥 Daily Streak Goal Achieved! ($dailyGoal min completed)", Toast.LENGTH_SHORT).show()
+                        }
+
+                        _activeSessionState.value = current.copy(
+                            sessionDurationSeconds = sessionAccumulatedSeconds,
+                            idleSecondsCount = newIdleCount,
+                            isIdle = false,
+                            isDailyGoalReached = goalMet
+                        )
+
+                        if (sessionAccumulatedSeconds % 30 == 0L) {
+                            val progress = (_currentPage.value.toFloat() / (_currentBook.value?.totalPages ?: 100).toFloat()).coerceIn(0f, 1f)
+                            bookRepository.updateReadingProgress(book.id, _currentPage.value, progress, 1)
+                            refreshStreakData()
+                        }
+                    } else {
+                        _activeSessionState.value = current.copy(isIdle = true)
+                    }
                 }
             }
         }
@@ -567,9 +717,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun stopReadingSession() {
         readingSessionJob?.cancel()
         readingSessionJob = null
-        val book = _currentBook.value ?: return
-        if (sessionSecondsRead > 15) {
-            val minutes = (sessionSecondsRead / 60).coerceAtLeast(1)
+        val book = _currentBook.value
+        val totalSecs = sessionAccumulatedSeconds
+        val pages = sessionPagesTurned.coerceAtLeast(1)
+
+        _activeSessionState.value = _activeSessionState.value.copy(
+            isSessionRunning = false,
+            isPaused = false
+        )
+
+        if (book != null && totalSecs >= 10) {
+            val minutes = (totalSecs / 60).toInt().coerceAtLeast(1)
             val progress = (_currentPage.value.toFloat() / book.totalPages.toFloat()).coerceIn(0f, 1f)
             viewModelScope.launch {
                 bookRepository.updateReadingProgress(book.id, _currentPage.value, progress, minutes)

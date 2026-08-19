@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.viewmodel.MainViewModel
 
 @Composable
@@ -31,6 +33,20 @@ fun SettingsScreen(
 ) {
     val books by viewModel.allBooks.collectAsState()
     val highlights by viewModel.allHighlights.collectAsState()
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
+    val dailyGoalMinutes by viewModel.dailyGoalMinutes.collectAsState()
+    var showGoalPickerDialog by remember { mutableStateOf(false) }
+
+    if (showGoalPickerDialog) {
+        DailyGoalPickerDialog(
+            currentGoalMinutes = dailyGoalMinutes,
+            onGoalSelected = { newGoal ->
+                viewModel.updateDailyGoal(newGoal)
+                showGoalPickerDialog = false
+            },
+            onDismiss = { showGoalPickerDialog = false }
+        )
+    }
 
     LazyColumn(
         modifier = modifier
@@ -78,6 +94,64 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalDarkTextMuted
                         )
+                    }
+                }
+            }
+        }
+
+        // Daily Reading Goal Target Setting
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.TrackChanges, contentDescription = null, tint = NaturalPrimary)
+                            Text(
+                                text = "Daily Reading Goal Target",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Surface(
+                            color = NaturalPrimary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "$dailyGoalMinutes min / day",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = NaturalPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Customize your daily target minutes. This target determines your daily streak progress bar and celebration milestones.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    Button(
+                        onClick = { showGoalPickerDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                    ) {
+                        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Customize Target Minutes", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -148,6 +222,87 @@ fun SettingsScreen(
                         Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Open @ahex0_01 on Instagram", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        // Application Language Switcher (EN, AR, FR)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Language, contentDescription = null, tint = NaturalPrimary)
+                            Text(
+                                text = AppStrings.get("language_title", currentLanguage),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Surface(
+                            color = NaturalPrimary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "${currentLanguage.flag} ${currentLanguage.nativeName}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = NaturalPrimary,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = AppStrings.get("language_desc", currentLanguage),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AppLanguage.entries.forEach { lang ->
+                            val isSelected = currentLanguage == lang
+                            FilledTonalButton(
+                                onClick = { viewModel.setLanguage(lang) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (isSelected) NaturalPrimary else NaturalDarkBackground
+                                )
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "${lang.flag} ${lang.nativeName}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) NaturalOnPrimary else NaturalDarkText
+                                        )
+                                    )
+                                    Text(
+                                        text = lang.displayName,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            color = if (isSelected) NaturalOnPrimary.copy(alpha = 0.8f) else NaturalDarkTextMuted
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

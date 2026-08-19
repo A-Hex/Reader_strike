@@ -353,7 +353,7 @@ fun HighlightCard(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     IconButton(onClick = onShare, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Share, contentDescription = "Share quote to Instagram", tint = NaturalPrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Share, contentDescription = "Share quote", tint = NaturalPrimary, modifier = Modifier.size(16.dp))
                     }
                     IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = NaturalDarkTextMuted, modifier = Modifier.size(16.dp))

@@ -30,7 +30,10 @@ import com.example.model.Book
 import com.example.model.BookRecommendation
 import com.example.ui.components.BookCoverImage
 import com.example.ui.components.BookReviewsSheet
+import com.example.ui.components.TrustedBookSearchDialog
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.viewmodel.MainViewModel
 
 @Composable
@@ -43,11 +46,13 @@ fun DiscoverStoreScreen(
     val downloadedBooks by viewModel.allBooks.collectAsState()
     val recommendations by viewModel.bookRecommendations.collectAsState()
     val allReviews by viewModel.allReviews.collectAsState()
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
 
     val downloadedIds = remember(downloadedBooks) { downloadedBooks.map { it.id }.toSet() }
 
     var selectedBookForReviews by remember { mutableStateOf<Book?>(null) }
     var selectedGenreFilter by remember { mutableStateOf("All") }
+    var showTrustedSearchDialog by remember { mutableStateOf(false) }
 
     val genres = remember(catalogBooks) {
         listOf("All") + catalogBooks.map { it.genre }.distinct()
@@ -126,6 +131,66 @@ fun DiscoverStoreScreen(
                             text = "Curated public domain classics with AI recommendation engine",
                             style = MaterialTheme.typography.bodySmall.copy(color = NaturalDarkTextMuted)
                         )
+                    }
+                }
+            }
+        }
+
+        // Trusted Search Engine Card (Google Books, PDF Files, Gutenberg, Open Library)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showTrustedSearchDialog = true },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.7f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(NaturalPrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.TravelExplore,
+                            contentDescription = null,
+                            tint = NaturalOnPrimary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Trusted Book & PDF Search Engine",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "Search Google Books, Google PDF files, Project Gutenberg, and Open Library",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NaturalDarkTextMuted
+                        )
+                    }
+
+                    FilledTonalIconButton(
+                        onClick = { showTrustedSearchDialog = true },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = NaturalPrimary.copy(alpha = 0.2f))
+                    ) {
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Open Search", tint = NaturalPrimary)
                     }
                 }
             }
@@ -346,6 +411,14 @@ fun DiscoverStoreScreen(
                 }
             }
         }
+    }
+
+    if (showTrustedSearchDialog) {
+        TrustedBookSearchDialog(
+            initialQuery = "",
+            currentLanguage = currentLanguage,
+            onDismiss = { showTrustedSearchDialog = false }
+        )
     }
 }
 

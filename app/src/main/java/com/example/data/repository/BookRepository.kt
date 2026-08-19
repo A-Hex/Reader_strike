@@ -292,7 +292,7 @@ class BookRepository(private val context: Context, private val database: AppData
         bookDao.insertBook(BookEntity.fromModel(downloadedBook))
     }
 
-    suspend fun calculateStreakData(): ReadingStreakData = withContext(Dispatchers.IO) {
+    suspend fun calculateStreakData(dailyGoalMinutes: Int = 20): ReadingStreakData = withContext(Dispatchers.IO) {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val dayNameFormat = SimpleDateFormat("EEE", Locale.getDefault())
         val today = System.currentTimeMillis()
@@ -321,7 +321,7 @@ class BookRepository(private val context: Context, private val database: AppData
                 todayPages = pages
             }
 
-            val goalReached = minutes >= 20
+            val goalReached = minutes >= dailyGoalMinutes
             weeklyStats.add(
                 DayReadingStat(
                     date = dateStr,
@@ -349,7 +349,7 @@ class BookRepository(private val context: Context, private val database: AppData
                     dayOfWeek = dayName,
                     minutesRead = minutes,
                     pagesRead = pages,
-                    isGoalReached = minutes >= 20
+                    isGoalReached = minutes >= dailyGoalMinutes
                 )
             )
         }
@@ -389,8 +389,8 @@ class BookRepository(private val context: Context, private val database: AppData
             totalBooksInLibrary = books.size,
             avgSessionMinutes = avgSessionMinutes,
             totalSessionsCount = totalSessionsCount,
-            dailyGoalMinutes = 20,
-            dailyGoalPages = 25,
+            dailyGoalMinutes = dailyGoalMinutes,
+            dailyGoalPages = (dailyGoalMinutes * 1.25f).toInt(),
             todayMinutesRead = if (todayMinutes > 0) todayMinutes else 22,
             todayPagesRead = if (todayPages > 0) todayPages else 28,
             readingSpeedWpm = 240,

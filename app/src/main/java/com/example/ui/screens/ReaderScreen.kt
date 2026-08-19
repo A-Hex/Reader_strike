@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.*
 import com.example.ui.components.*
+import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,6 +53,7 @@ fun ReaderScreen(
     val inBookSearchResults by viewModel.inBookSearchResults.collectAsState()
     val allReviews by viewModel.allReviews.collectAsState()
     val streakData by viewModel.streakData.collectAsState()
+    val activeSessionState by viewModel.activeSessionState.collectAsState()
 
     var showControls by remember { mutableStateOf(true) }
     var showThemeSheet by remember { mutableStateOf(false) }
@@ -61,6 +63,8 @@ fun ReaderScreen(
     var showTtsBar by remember { mutableStateOf(false) }
     var showReviewsSheet by remember { mutableStateOf(false) }
     var showShareModal by remember { mutableStateOf(false) }
+    var showSpeedReader by remember { mutableStateOf(false) }
+    var showAiAssistant by remember { mutableStateOf(false) }
     var selectedTextForHighlight by remember { mutableStateOf("") }
 
     val coroutineScope = rememberCoroutineScope()
@@ -77,6 +81,13 @@ fun ReaderScreen(
                 delay(300)
                 listState.scrollBy(12f)
             }
+        }
+    }
+
+    // Active reading interaction tracking on scroll
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            viewModel.recordUserInteraction()
         }
     }
 
@@ -117,6 +128,7 @@ fun ReaderScreen(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = {
+                            viewModel.recordUserInteraction()
                             showControls = !showControls
                         }
                     )
@@ -290,7 +302,17 @@ fun ReaderScreen(
                     }
 
                     // Action Icons
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                        // AI Assistant
+                        IconButton(onClick = { showAiAssistant = true }) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Reading Assistant", tint = NaturalOchreAccent)
+                        }
+
+                        // RSVP Speed Reader
+                        IconButton(onClick = { showSpeedReader = true }) {
+                            Icon(Icons.Default.Bolt, contentDescription = "Speed Reader (RSVP)", tint = activeTheme.accentColor)
+                        }
+
                         // TTS Audio Playback
                         IconButton(onClick = {
                             showTtsBar = !showTtsBar
@@ -312,11 +334,6 @@ fun ReaderScreen(
                         // Share Progress
                         IconButton(onClick = { showShareModal = true }) {
                             Icon(Icons.Default.Share, contentDescription = "Share Reading Progress", tint = activeTheme.textColor)
-                        }
-
-                        // Add Bookmark
-                        IconButton(onClick = { viewModel.addBookmark() }) {
-                            Icon(Icons.Default.BookmarkBorder, contentDescription = "Bookmark", tint = activeTheme.textColor)
                         }
 
                         // Table of Contents
@@ -341,6 +358,23 @@ fun ReaderScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 74.dp)
+            )
+        }
+
+        // Floating Active Session Timer HUD
+        AnimatedVisibility(
+            visible = showControls || activeSessionState.isIdle || activeSessionState.isPaused,
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = if (showControls && !showTtsBar) 68.dp else if (showTtsBar) 140.dp else 24.dp)
+        ) {
+            ActiveSessionTimerHUD(
+                sessionState = activeSessionState,
+                streakData = streakData,
+                onTogglePause = { viewModel.toggleActiveSessionPause() },
+                onUserInteraction = { viewModel.recordUserInteraction() }
             )
         }
 
@@ -498,6 +532,29 @@ fun ReaderScreen(
         SocialShareModal(
             contentType = ShareContentType.BookProgress(currentBookObj, streakData),
             onDismiss = { showShareModal = false }
+        )
+    }
+
+    if (showSpeedReader) {
+        val currentChapter = chapters.getOrNull(currentChapterIndex)
+        SpeedReaderModal(
+            chapterTitle = currentChapter?.title ?: currentBookObj.title,
+            content = currentChapter?.content ?: "Start reading ${currentBookObj.title}...",
+            onDismiss = { showSpeedReader = false }
+        )
+    }
+
+    if (showAiAssistant) {
+        val currentChapter = chapters.getOrNull(currentChapterIndex) ?: BookChapter(
+            index = 0,
+            title = currentBookObj.title,
+            content = "Chapter overview for ${currentBookObj.title}",
+            wordCount = 1200
+        )
+        AiAssistantSheet(
+            book = currentBookObj,
+            chapter = currentChapter,
+            onDismiss = { showAiAssistant = false }
         )
     }
 }

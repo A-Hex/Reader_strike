@@ -39,7 +39,10 @@ import com.example.ui.components.BookCoverImage
 import com.example.ui.components.BookReviewsSheet
 import com.example.ui.components.ShareContentType
 import com.example.ui.components.SocialShareModal
+import com.example.ui.components.TrustedBookSearchDialog
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,11 +63,13 @@ fun LibraryScreen(
     val isGridView by viewModel.isGridView.collectAsState()
     val streakData by viewModel.streakData.collectAsState()
     val allReviews by viewModel.allReviews.collectAsState()
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
 
     val context = LocalContext.current
     var showSortMenu by remember { mutableStateOf(false) }
     var selectedBookForReviews by remember { mutableStateOf<Book?>(null) }
     var bookToShare by remember { mutableStateOf<Book?>(null) }
+    var showTrustedSearchDialog by remember { mutableStateOf(false) }
 
     // Find the most recently active or reading book for the Natural Tones Hero banner
     val currentlyReadingBook = remember(allBooks) {
@@ -146,6 +151,21 @@ fun LibraryScreen(
                     // Top Action Icons
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IconButton(
+                            onClick = { showTrustedSearchDialog = true },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(NaturalPrimary)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TravelExplore,
+                                contentDescription = "Search Trusted Books & PDFs",
+                                tint = NaturalOnPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        IconButton(
                             onClick = { viewModel.triggerSync() },
                             modifier = Modifier
                                 .size(36.dp)
@@ -179,16 +199,21 @@ fun LibraryScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Search Bar
+                // Search Bar with Trusted Web & PDF shortcut
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("Search title, author, genre, tag...", color = NaturalDarkTextMuted, fontSize = 14.sp) },
+                    placeholder = { Text(AppStrings.get("search_hint", currentLanguage), color = NaturalDarkTextMuted, fontSize = 14.sp) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = NaturalDarkTextMuted) },
                     trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear")
+                                }
+                            }
+                            IconButton(onClick = { showTrustedSearchDialog = true }) {
+                                Icon(Icons.Default.Language, contentDescription = "Trusted Search", tint = NaturalPrimary)
                             }
                         }
                     },
@@ -667,6 +692,14 @@ fun LibraryScreen(
         SocialShareModal(
             contentType = ShareContentType.BookProgress(book, streakData),
             onDismiss = { bookToShare = null }
+        )
+    }
+
+    if (showTrustedSearchDialog) {
+        TrustedBookSearchDialog(
+            initialQuery = searchQuery,
+            currentLanguage = currentLanguage,
+            onDismiss = { showTrustedSearchDialog = false }
         )
     }
 }
