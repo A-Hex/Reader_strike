@@ -1,0 +1,6 @@
+{
+  "name": "A-Hex streak",
+  "description": "Books reader and library manager with offline access, EPUB & PDF reading, customizable themes, highlight system, full library search, and reading streak statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,52 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Alpine Charcoal & Bronze Nietzsche Background -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#1C1917"
+                android:endColor="#44403C"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Bronze Geometric Frame -->
+    <path
+        android:pathData="M24,24 L276,24 L276,376 L24,376 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#D6D3D1"
+        android:fillColor="#00000000"/>
+
+    <!-- Mountain Peaks / Eagle Motif (Zarathustra / Beyond Good and Evil) -->
+    <!-- Far Mountain -->
+    <path
+        android:pathData="M70,230 L150,120 L230,230 Z"
+        android:fillColor="#78716C"/>
+        
+    <!-- Snow peak -->
+    <path
+        android:pathData="M125,155 L150,120 L175,155 L160,165 L150,150 L140,165 Z"
+        android:fillColor="#F5F5F4"/>
+
+    <!-- Foreground Mountain Peak -->
+    <path
+        android:pathData="M110,240 L180,150 L250,240 Z"
+        android:fillColor="#57534E"/>
+
+    <!-- Sun / Will to Power disk -->
+    <path
+        android:pathData="M150,85 A25,25 0 1,1 150,135 A25,25 0 1,1 150,85"
+        android:fillColor="#FBBF24"/>
+
+    <!-- Book Spine Highlight -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>

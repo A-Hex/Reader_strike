@@ -1,0 +1,62 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Art Deco Emerald Dark Background -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#064E3B"
+                android:endColor="#047857"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Art Deco Golden Geometric Patterns -->
+    <path
+        android:pathData="M20,20 L280,20 L280,380 L20,380 Z"
+        android:strokeWidth="3"
+        android:strokeColor="#FBBF24"
+        android:fillColor="#00000000"/>
+        
+    <path
+        android:pathData="M30,30 L270,30 L270,370 L30,370 Z"
+        android:strokeWidth="1"
+        android:strokeColor="#FDE68A"
+        android:fillColor="#00000000"/>
+
+    <!-- Art Deco Sunburst Rays -->
+    <path
+        android:pathData="M150,160 L90,110 M150,160 L110,90 M150,160 L150,80 M150,160 L190,90 M150,160 L210,110"
+        android:strokeWidth="2"
+        android:strokeColor="#FBBF24"
+        android:fillColor="#00000000"/>
+
+    <!-- Gatsby Eyes / Chandelier Motif -->
+    <path
+        android:pathData="M120,160 Q150,140 180,160 Q150,180 120,160 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FDE68A"
+        android:fillColor="#10B981"/>
+
+    <path
+        android:pathData="M150,155 A5,5 0 1,1 150,165 A5,5 0 1,1 150,155"
+        android:fillColor="#FBBF24"/>
+
+    <!-- Decorative Diamond Center -->
+    <path
+        android:pathData="M150,220 L180,250 L150,280 L120,250 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FBBF24"
+        android:fillColor="#047857"/>
+
+    <!-- Book Spine Highlight -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>

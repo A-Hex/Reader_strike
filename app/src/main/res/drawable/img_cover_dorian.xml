@@ -1,0 +1,47 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Deep Orchid Purple Gothic Background -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#4A044E"
+                android:endColor="#86198F"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Ornate Victorian Portrait Frame -->
+    <path
+        android:pathData="M150,70 C220,70 240,110 240,170 C240,240 210,270 150,270 C90,270 60,240 60,170 C60,110 80,70 150,70 Z"
+        android:strokeWidth="3"
+        android:strokeColor="#F0ABFC"
+        android:fillColor="#00000000"/>
+
+    <path
+        android:pathData="M150,85 C205,85 225,115 225,170 C225,225 200,255 150,255 C100,255 75,225 75,170 C75,115 95,85 150,85 Z"
+        android:strokeWidth="1"
+        android:strokeColor="#E879F9"
+        android:fillColor="#00000000"/>
+
+    <!-- Silhouette Profile of Dorian Gray -->
+    <path
+        android:pathData="M140,125 C155,125 165,135 165,150 C165,158 160,165 155,170 C165,185 175,200 178,215 L122,215 C125,200 135,185 145,170 C140,165 135,158 135,150 C135,135 145,125 140,125 Z"
+        android:fillColor="#FDF4FF"/>
+
+    <!-- Rose at base of portrait -->
+    <path
+        android:pathData="M150,260 C140,260 135,270 145,280 C155,290 165,275 150,260 Z"
+        android:fillColor="#F43F5E"/>
+
+    <!-- Book Spine Highlight -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>

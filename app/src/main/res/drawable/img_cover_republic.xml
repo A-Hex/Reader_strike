@@ -1,0 +1,64 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Classical Greek Sapphire / Navy Background -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#0F172A"
+                android:endColor="#1E293B"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Greek Key Meander Pattern Frame -->
+    <path
+        android:pathData="M20,20 L280,20 L280,380 L20,380 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#94A3B8"
+        android:fillColor="#00000000"/>
+
+    <!-- Parthenon / Greek Temple Columns Motif -->
+    <!-- Pediment -->
+    <path
+        android:pathData="M80,130 L150,90 L220,130 Z"
+        android:fillColor="#CBD5E1"/>
+
+    <!-- Architrave -->
+    <path
+        android:pathData="M75,130 L225,130 L225,140 L75,140 Z"
+        android:fillColor="#E2E8F0"/>
+
+    <!-- 4 Pillars -->
+    <path
+        android:pathData="M90,140 L102,140 L102,230 L90,230 Z"
+        android:fillColor="#94A3B8"/>
+    <path
+        android:pathData="M125,140 L137,140 L137,230 L125,230 Z"
+        android:fillColor="#CBD5E1"/>
+    <path
+        android:pathData="M163,140 L175,140 L175,230 L163,230 Z"
+        android:fillColor="#CBD5E1"/>
+    <path
+        android:pathData="M198,140 L210,140 L210,230 L198,230 Z"
+        android:fillColor="#94A3B8"/>
+
+    <!-- Base Steps -->
+    <path
+        android:pathData="M70,230 L230,230 L230,240 L70,240 Z"
+        android:fillColor="#E2E8F0"/>
+    <path
+        android:pathData="M60,240 L240,240 L240,250 L60,250 Z"
+        android:fillColor="#CBD5E1"/>
+
+    <!-- Book Spine Highlight -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>

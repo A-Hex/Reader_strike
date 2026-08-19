@@ -1,0 +1,51 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Olive Garden Stoic Canvas Background -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#1A2E05"
+                android:endColor="#3F6212"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Border Frame -->
+    <path
+        android:pathData="M22,22 L278,22 L278,378 L22,378 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#A3E635"
+        android:fillColor="#00000000"/>
+
+    <!-- Roman Wax Seal / Scroll Motif -->
+    <!-- Scroll body -->
+    <path
+        android:pathData="M110,120 C110,110 130,110 150,110 C170,110 190,110 190,120 L190,240 C190,250 170,250 150,250 C130,250 110,250 110,240 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#D9F99D"
+        android:fillColor="#4D7C0F"/>
+
+    <!-- Scroll Lines -->
+    <path
+        android:pathData="M125,145 L175,145 M125,165 L175,165 M125,185 L175,185 M125,205 L160,205"
+        android:strokeWidth="2"
+        android:strokeColor="#BEF264"
+        android:fillColor="#00000000"/>
+
+    <!-- Laurel Leaves -->
+    <path
+        android:pathData="M80,180 Q95,150 100,120 Q105,150 100,180 Z M220,180 Q205,150 200,120 Q195,150 200,180 Z"
+        android:fillColor="#A3E635"/>
+
+    <!-- Book Spine Highlight -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>

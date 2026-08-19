@@ -1,0 +1,60 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Background Gradient -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#1E1B4B"
+                android:endColor="#4338CA"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Vintage Ornamental Border Frame -->
+    <path
+        android:pathData="M20,20 L280,20 L280,380 L20,380 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#818CF8"
+        android:fillColor="#00000000"/>
+        
+    <path
+        android:pathData="M26,26 L274,26 L274,374 L26,374 Z"
+        android:strokeWidth="1"
+        android:strokeColor="#4F46E5"
+        android:fillColor="#00000000"/>
+
+    <!-- Corner Accents -->
+    <path
+        android:pathData="M20,35 L35,20 M280,35 L265,20 M20,365 L35,380 M280,365 L265,380"
+        android:strokeWidth="2"
+        android:strokeColor="#A5B4FC"
+        android:fillColor="#00000000"/>
+
+    <!-- Lightning / Monster / Sci-Fi Symbol -->
+    <path
+        android:pathData="M150,110 L135,160 L155,160 L140,215 L175,150 L155,150 Z"
+        android:fillColor="#C7D2FE"/>
+
+    <!-- Sparks / Atoms -->
+    <path
+        android:pathData="M110,130 A6,6 0 1,1 110,142 A6,6 0 1,1 110,130"
+        android:fillColor="#A5B4FC"/>
+    <path
+        android:pathData="M190,130 A6,6 0 1,1 190,142 A6,6 0 1,1 190,130"
+        android:fillColor="#A5B4FC"/>
+    <path
+        android:pathData="M150,250 A8,8 0 1,1 150,266 A8,8 0 1,1 150,250"
+        android:fillColor="#E0E7FF"/>
+
+    <!-- Book Spine Highlight on Left -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>

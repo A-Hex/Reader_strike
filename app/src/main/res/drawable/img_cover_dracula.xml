@@ -1,0 +1,46 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    
+    <!-- Gothic Crimson / Black Background -->
+    <path
+        android:pathData="M0,0h300v400h-300z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:startColor="#450A0A"
+                android:endColor="#991B1B"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Gothic Pointed Arch Frame -->
+    <path
+        android:pathData="M25,380 L25,120 Q150,20 275,120 L275,380 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FCA5A5"
+        android:fillColor="#00000000"/>
+
+    <!-- Bat / Vampire Wings Symbol -->
+    <path
+        android:pathData="M150,140 Q170,110 200,120 Q190,140 210,150 Q180,165 150,190 Q120,165 90,150 Q110,140 100,120 Q130,110 150,140 Z"
+        android:fillColor="#F87171"/>
+
+    <!-- Crescent Moon -->
+    <path
+        android:pathData="M150,70 A25,25 0 1,0 175,95 A20,20 0 1,1 150,70"
+        android:fillColor="#FEF08A"/>
+
+    <!-- Castle Spire Silhouette Silhouette -->
+    <path
+        android:pathData="M110,270 L110,230 L120,210 L130,230 L130,270 Z M170,270 L170,225 L180,205 L190,225 L190,270 Z M135,270 L135,220 L150,195 L165,220 L165,270 Z"
+        android:fillColor="#7F1D1D"/>
+
+    <!-- Book Spine Highlight -->
+    <path
+        android:pathData="M0,0 L8,0 L8,400 L0,400 Z"
+        android:fillColor="#30FFFFFF"/>
+</vector>
