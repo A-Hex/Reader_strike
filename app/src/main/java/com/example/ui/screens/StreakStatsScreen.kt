@@ -43,6 +43,7 @@ fun StreakStatsScreen(
 
     var activeShareContent by remember { mutableStateOf<ShareContentType?>(null) }
     var showGoalPickerDialog by remember { mutableStateOf(false) }
+    var showQuestsSheet by remember { mutableStateOf(false) }
     var selectedGraphMetric by remember { mutableStateOf("Minutes") } // "Minutes" or "Pages"
     var selectedDayStat by remember { mutableStateOf<DayReadingStat?>(null) }
 
@@ -50,6 +51,13 @@ fun StreakStatsScreen(
         SocialShareModal(
             contentType = activeShareContent!!,
             onDismiss = { activeShareContent = null }
+        )
+    }
+
+    if (showQuestsSheet) {
+        ReadingQuestsSheet(
+            questsManager = viewModel.questsManager,
+            onDismiss = { showQuestsSheet = false }
         )
     }
 
@@ -182,7 +190,7 @@ fun StreakStatsScreen(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "Active Habit",
+                                text = if (streakData.currentStreakDays == 0) "Start Today" else "Active Habit",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = NaturalSageAccent,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -200,7 +208,7 @@ fun StreakStatsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "${streakData.currentStreakDays}-Day Active Reading Streak!",
+                        text = if (streakData.currentStreakDays == 0) "Ready to start your Day 1 streak!" else "${streakData.currentStreakDays}-Day Active Reading Streak!",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = NaturalSageAccent
@@ -209,7 +217,7 @@ fun StreakStatsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Longest streak: ${streakData.longestStreakDays} consecutive days • Daily target: ${dailyGoalMinutes} min/day",
+                        text = if (streakData.currentStreakDays == 0) "Read for $dailyGoalMinutes min today to lock in your Day 1 streak!" else "Longest streak: ${streakData.longestStreakDays} consecutive days • Daily target: ${dailyGoalMinutes} min/day",
                         style = MaterialTheme.typography.bodySmall,
                         color = NaturalSageMuted
                     )
@@ -246,6 +254,78 @@ fun StreakStatsScreen(
                     )
                 }
             )
+        }
+
+        // RPG QUESTS & STREAK FREEZE SHIELDS
+        item {
+            val gamificationState by viewModel.questsManager.state.collectAsState()
+            val completedQuestsCount = gamificationState.activeQuests.count { it.isClaimed }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showQuestsSheet = true },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = NaturalDarkSurfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalPrimary.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NaturalPrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🛡️", fontSize = 22.sp)
+                        }
+
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "RPG Quests & Streak Shields",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = NaturalDarkText
+                                )
+                                Surface(
+                                    color = NaturalPrimary.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Level ${gamificationState.currentRank.level}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = NaturalPrimary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Shields: ${gamificationState.streakShields} • XP: ${gamificationState.totalXp} • Quests: $completedQuestsCount/${gamificationState.activeQuests.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NaturalDarkTextMuted
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Open Quests",
+                        tint = NaturalPrimary
+                    )
+                }
+            }
         }
 
         // Section Title: Dashboard Key Metrics

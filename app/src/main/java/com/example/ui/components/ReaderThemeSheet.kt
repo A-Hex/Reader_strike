@@ -11,11 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FormatSize
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Nightlight
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,12 +25,15 @@ import com.example.model.FontFamilyPreference
 import com.example.model.ReaderPreferences
 import com.example.model.ReaderTheme
 import com.example.ui.theme.*
+import com.example.util.ReadingMode
+import com.example.util.ThemeManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderThemeSheet(
     preferences: ReaderPreferences,
     onUpdateTheme: (String) -> Unit,
+    onSelectReadingMode: (ReadingMode) -> Unit,
     onUpdateFontSize: (Float) -> Unit,
     onUpdateLineSpacing: (Float) -> Unit,
     onUpdateFontFamily: (FontFamilyPreference) -> Unit,
@@ -42,8 +41,12 @@ fun ReaderThemeSheet(
     onToggleNightLight: (Boolean) -> Unit,
     onUpdateBrightness: (Float) -> Unit,
     onTogglePagedMode: () -> Unit,
+    bookTitle: String? = null,
     onDismiss: () -> Unit
 ) {
+    val currentTheme = ThemeManager.getThemeById(preferences.themeId)
+    val currentMode = currentTheme.readingMode
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -57,22 +60,85 @@ fun ReaderThemeSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "Reader Customization",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Reader Customization",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                    if (!bookTitle.isNullOrBlank()) {
+                        Text(
+                            text = "Settings saved for $bookTitle",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NaturalPrimary
+                        )
+                    }
+                }
+            }
 
-            // Theme Color Palettes
+            // Quick 3-Segment Reading Mode Switcher (Light / Sepia / Dark)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Reading Theme",
+                    text = "Reading Mode",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, color = NaturalDarkTextMuted)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ReadingMode.entries.forEach { mode ->
+                        val isModeSelected = currentMode == mode
+                        FilledTonalButton(
+                            onClick = { onSelectReadingMode(mode) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (isModeSelected) NaturalPrimary else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (isModeSelected) NaturalOnPrimary else MaterialTheme.colorScheme.onSurface
+                            ),
+                            contentPadding = PaddingValues(vertical = 10.dp, horizontal = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val icon = when (mode) {
+                                    ReadingMode.LIGHT -> Icons.Default.LightMode
+                                    ReadingMode.SEPIA -> Icons.Default.MenuBook
+                                    ReadingMode.DARK -> Icons.Default.DarkMode
+                                }
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = mode.displayName,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isModeSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Theme Color Palettes (With Light / Sepia / Dark grouping badges)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Theme Palette (${currentTheme.name})",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, color = NaturalDarkTextMuted)
                 )
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(ReaderTheme.ALL_THEMES) { theme ->
+                    items(ThemeManager.ALL_THEMES) { theme ->
                         val isSelected = preferences.themeId == theme.id
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -324,4 +390,3 @@ fun ReaderThemeSheet(
         }
     }
 }
-

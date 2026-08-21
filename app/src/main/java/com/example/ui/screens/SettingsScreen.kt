@@ -1,12 +1,13 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,16 +16,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.repository.BackupOperationState
 import com.example.ui.theme.*
 import com.example.util.AppLanguage
 import com.example.util.AppStrings
 import com.example.viewmodel.MainViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -35,7 +39,21 @@ fun SettingsScreen(
     val highlights by viewModel.allHighlights.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
     val dailyGoalMinutes by viewModel.dailyGoalMinutes.collectAsState()
+    val backupInfo by viewModel.localBackupInfo.collectAsState()
     var showGoalPickerDialog by remember { mutableStateOf(false) }
+
+    // Android Storage Access Framework document export & restore launchers
+    val exportBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let { viewModel.exportBackup(it) }
+    }
+
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.restoreBackup(it) }
+    }
 
     if (showGoalPickerDialog) {
         DailyGoalPickerDialog(
@@ -157,71 +175,94 @@ fun SettingsScreen(
             }
         }
 
-        // Instagram Creator Card in Natural Tones
+        // Local Database Backup & Restore (Document Picker)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = NaturalSageBg),
-                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalSageBorder)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(NaturalPrimary),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Instagram Logo",
-                                tint = NaturalOnPrimary,
-                                modifier = Modifier.size(24.dp)
+                            Icon(Icons.Default.Save, contentDescription = null, tint = NaturalPrimary)
+                            Text(
+                                text = "Local Database Backup & Restore",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
-
-                        Column {
-                            Text(
-                                text = "Instagram: @ahex0_01",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = NaturalSageAccent)
-                            )
-                            Text(
-                                text = "Official Creator & Developer Profile",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = NaturalSageMuted
+                        if (backupInfo.state == BackupOperationState.PROCESSING) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = NaturalPrimary
                             )
                         }
                     }
 
                     Text(
-                        text = "Connect on Instagram @ahex0_01 for feature requests, book recommendations, streak updates, and community reading challenges.",
+                        text = "Safely export your reading streaks, books metadata, highlights, bookmarks, and sessions to a versioned JSON file on device, or restore from a previous backup.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = NaturalSageMuted,
-                        lineHeight = 18.sp
+                        color = NaturalDarkTextMuted
                     )
 
-                    Button(
-                        onClick = { viewModel.openInstagramProfile() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NaturalPrimary,
-                            contentColor = NaturalOnPrimary
+                    if (backupInfo.lastBackupTimestamp > 0L) {
+                        val dateStr = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(backupInfo.lastBackupTimestamp))
+                        Text(
+                            text = "Last Exported: $dateStr",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NaturalSageAccent
                         )
+                    }
+
+                    if (backupInfo.lastRestoreTimestamp > 0L) {
+                        val dateStr = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(backupInfo.lastRestoreTimestamp))
+                        Text(
+                            text = "Last Restored: $dateStr",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NaturalPrimary
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Open @ahex0_01 on Instagram", fontWeight = FontWeight.SemiBold)
+                        Button(
+                            onClick = {
+                                val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
+                                exportBackupLauncher.launch("ahex_streak_backup_$timestamp.json")
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                        ) {
+                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export Backup", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                restoreBackupLauncher.launch(arrayOf("application/json", "*/*"))
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NaturalPrimary)
+                        ) {
+                            Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore Backup", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
@@ -343,7 +384,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Offline Local Cache", style = MaterialTheme.typography.bodyMedium, color = NaturalDarkTextMuted)
-                        Text("12.4 MB (Encrypted)", fontWeight = FontWeight.SemiBold, color = NaturalDarkText)
+                        Text("Optimized SQLite DB", fontWeight = FontWeight.SemiBold, color = NaturalDarkText)
                     }
                 }
             }
@@ -368,7 +409,7 @@ fun SettingsScreen(
                     FeatureRow(icon = Icons.Default.Check, text = "Multi-color highlights & personal annotation notes")
                     FeatureRow(icon = Icons.Default.Check, text = "A-Hex Streak Engine with daily reading goals & badges")
                     FeatureRow(icon = Icons.Default.Check, text = "Text-to-Speech (TTS) natural audio reader")
-                    FeatureRow(icon = Icons.Default.Check, text = "Offline access with cloud backup synchronization")
+                    FeatureRow(icon = Icons.Default.Check, text = "Offline access with local database export and restore")
                 }
             }
         }
@@ -394,4 +435,3 @@ fun FeatureRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: Stri
         )
     }
 }
-

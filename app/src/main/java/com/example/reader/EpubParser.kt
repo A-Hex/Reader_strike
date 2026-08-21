@@ -1,7 +1,5 @@
 package com.example.reader
 
-import android.content.Context
-import android.net.Uri
 import com.example.model.BookChapter
 import java.io.BufferedReader
 import java.io.InputStream
@@ -9,6 +7,9 @@ import java.io.InputStreamReader
 import java.util.zip.ZipInputStream
 
 object EpubParser {
+
+    private const val MAX_TOTAL_UNCOMPRESSED_BYTES = 50 * 1024 * 1024 // 50 MB limit
+    private const val MAX_SINGLE_ENTRY_BYTES = 10 * 1024 * 1024 // 10 MB limit
 
     data class ParsedBookResult(
         val title: String,
@@ -22,6 +23,7 @@ object EpubParser {
         var bookTitle = defaultTitle
         var bookAuthor = "Unknown Author"
         var desc: String? = null
+        var totalBytesRead = 0L
 
         try {
             val zis = ZipInputStream(inputStream)
@@ -32,16 +34,26 @@ object EpubParser {
 
             while (entry != null) {
                 val name = entry.name
+                
+                // Guard against Zip Slip vulnerability
+                if (name.contains("..") || name.startsWith("/")) {
+                    zis.closeEntry()
+                    entry = zis.nextEntry
+                    continue
+                }
+
                 if (name.endsWith(".html", ignoreCase = true) || 
                     name.endsWith(".xhtml", ignoreCase = true) || 
                     name.endsWith(".htm", ignoreCase = true)
                 ) {
-                    val reader = BufferedReader(InputStreamReader(zis, Charsets.UTF_8))
-                    val content = reader.readText()
+                    val content = readBoundedStream(zis, MAX_SINGLE_ENTRY_BYTES)
+                    totalBytesRead += content.length
+                    if (totalBytesRead > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+                        break // Prevent unbounded memory growth
+                    }
                     htmlEntries[name] = content
                 } else if (name.endsWith(".opf", ignoreCase = true)) {
-                    val reader = BufferedReader(InputStreamReader(zis, Charsets.UTF_8))
-                    val opfContent = reader.readText()
+                    val opfContent = readBoundedStream(zis, MAX_SINGLE_ENTRY_BYTES)
                     extractOpfMetadata(opfContent)?.let { meta ->
                         if (meta.first.isNotBlank()) bookTitle = meta.first
                         if (meta.second.isNotBlank()) bookAuthor = meta.second
@@ -53,7 +65,7 @@ object EpubParser {
 
             // Sort and process html chapters
             val sortedEntries = htmlEntries.entries.sortedBy { it.key }
-            for ((key, rawHtml) in sortedEntries) {
+            for ((_, rawHtml) in sortedEntries) {
                 val cleanText = stripHtml(rawHtml)
                 if (cleanText.length > 50) {
                     val chapterTitle = extractChapterTitle(rawHtml) ?: "Chapter ${chapterIndex + 1}"
@@ -89,12 +101,24 @@ object EpubParser {
         )
     }
 
+    private fun readBoundedStream(zis: ZipInputStream, maxBytes: Int): String {
+        val buffer = ByteArray(4096)
+        val sb = StringBuilder()
+        var bytesReadTotal = 0
+        var read: Int
+        while (zis.read(buffer).also { read = it } != -1) {
+            bytesReadTotal += read
+            sb.append(String(buffer, 0, read, Charsets.UTF_8))
+            if (bytesReadTotal >= maxBytes) break
+        }
+        return sb.toString()
+    }
+
     fun parsePlainTextStream(inputStream: InputStream, fileName: String): ParsedBookResult {
         val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
         val fullText = reader.readText()
         val title = fileName.substringBeforeLast(".")
 
-        // Try to split into chapters by "CHAPTER" or double lines
         val chapters = mutableListOf<BookChapter>()
         val chapterRegex = Regex("(?i)(?:^|\\n\\n)(CHAPTER|SECTION|BOOK|ACT|SCENE)\\s+([0-9IVXLCDM]+.*)")
         val matches = chapterRegex.findAll(fullText).toList()

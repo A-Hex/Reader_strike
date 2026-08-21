@@ -30,6 +30,7 @@ import com.example.model.Book
 import com.example.model.BookRecommendation
 import com.example.ui.components.BookCoverImage
 import com.example.ui.components.BookReviewsSheet
+import com.example.ui.components.EpubConverterModal
 import com.example.ui.components.TrustedBookSearchDialog
 import com.example.ui.theme.*
 import com.example.util.AppLanguage
@@ -53,6 +54,7 @@ fun DiscoverStoreScreen(
     var selectedBookForReviews by remember { mutableStateOf<Book?>(null) }
     var selectedGenreFilter by remember { mutableStateOf("All") }
     var showTrustedSearchDialog by remember { mutableStateOf(false) }
+    var bookToConvertToEpub by remember { mutableStateOf<Book?>(null) }
 
     val genres = remember(catalogBooks) {
         listOf("All") + catalogBooks.map { it.genre }.distinct()
@@ -248,7 +250,8 @@ fun DiscoverStoreScreen(
                     recommendation = rec,
                     isAlreadyInLibrary = isAlreadyInLibrary,
                     onDownload = { viewModel.downloadBook(rec.book) },
-                    onOpenReviews = { selectedBookForReviews = rec.book }
+                    onOpenReviews = { selectedBookForReviews = rec.book },
+                    onConvertToEpub = { bookToConvertToEpub = rec.book }
                 )
             }
         }
@@ -359,25 +362,42 @@ fun DiscoverStoreScreen(
                         }
                     }
 
-                    // Bottom Row: Reviews Button + Download Action
+                    // Bottom Row: Reviews Button + Convert to EPUB + Download Action
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedButton(
-                            onClick = { selectedBookForReviews = book },
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(Icons.Default.RateReview, contentDescription = null, modifier = Modifier.size(16.dp), tint = NaturalPrimary)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Reviews (${reviewsForBook.size})",
-                                fontSize = 11.sp,
-                                color = NaturalPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            OutlinedButton(
+                                onClick = { selectedBookForReviews = book },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.RateReview, contentDescription = null, modifier = Modifier.size(15.dp), tint = NaturalPrimary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Reviews",
+                                    fontSize = 11.sp,
+                                    color = NaturalPrimary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { bookToConvertToEpub = book },
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Transform,
+                                    contentDescription = "Convert to EPUB",
+                                    tint = NaturalPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
 
                         if (isAlreadyInLibrary) {
@@ -420,6 +440,22 @@ fun DiscoverStoreScreen(
             onDismiss = { showTrustedSearchDialog = false }
         )
     }
+
+    // EPUB Converter Modal
+    bookToConvertToEpub?.let { book ->
+        val highlights by viewModel.allHighlights.collectAsState()
+        EpubConverterModal(
+            book = book,
+            highlights = highlights.filter { it.bookId == book.id },
+            onOpenConvertedBook = { convertedBook ->
+                viewModel.openBook(convertedBook)
+            },
+            onImportEpubToLibrary = { file, title, author ->
+                viewModel.addConvertedEpubToLibrary(file, title, author, autoOpen = false)
+            },
+            onDismiss = { bookToConvertToEpub = null }
+        )
+    }
 }
 
 @Composable
@@ -428,6 +464,7 @@ fun RecommendationCard(
     isAlreadyInLibrary: Boolean,
     onDownload: () -> Unit,
     onOpenReviews: () -> Unit,
+    onConvertToEpub: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val book = recommendation.book
@@ -528,13 +565,30 @@ fun RecommendationCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    onClick = onOpenReviews,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.Default.RateReview, contentDescription = null, modifier = Modifier.size(16.dp), tint = NaturalPrimary)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Reviews", fontSize = 12.sp, color = NaturalPrimary)
+                    TextButton(
+                        onClick = onOpenReviews,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.RateReview, contentDescription = null, modifier = Modifier.size(16.dp), tint = NaturalPrimary)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Reviews", fontSize = 12.sp, color = NaturalPrimary)
+                    }
+
+                    IconButton(
+                        onClick = onConvertToEpub,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Transform,
+                            contentDescription = "Convert to EPUB",
+                            tint = NaturalPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
 
                 if (isAlreadyInLibrary) {

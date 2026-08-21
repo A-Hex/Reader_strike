@@ -32,33 +32,43 @@ fun SpeedReaderModal(
     chapterTitle: String,
     content: String,
     onDismiss: () -> Unit,
+    currentPage: Int = 1,
+    totalPages: Int = 1,
+    onPageChange: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val words = remember(content) {
-        content.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        val list = content.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        if (list.isEmpty()) listOf("No", "text", "available", "on", "this", "page") else list
     }
 
-    var currentIndex by remember { mutableIntStateOf(0) }
+    var currentIndex by remember(content) { mutableIntStateOf(0) }
     var isPlaying by remember { mutableStateOf(false) }
     var wpm by remember { mutableIntStateOf(350) } // Words Per Minute
 
     // Timer loop for RSVP Speed Reading
-    LaunchedEffect(isPlaying, wpm, currentIndex) {
+    LaunchedEffect(isPlaying, wpm, currentIndex, words) {
         if (isPlaying && words.isNotEmpty() && currentIndex < words.size) {
             val currentWord = words[currentIndex]
             // Calculate delay: longer for punctuation
             var delayMs = 60_000L / wpm
             if (currentWord.endsWith(".") || currentWord.endsWith("!") || currentWord.endsWith("?")) {
-                delayMs = (delayMs * 1.6).toLong()
+                delayMs = (delayMs * 1.5).toLong()
             } else if (currentWord.endsWith(",") || currentWord.endsWith(";") || currentWord.endsWith(":")) {
-                delayMs = (delayMs * 1.3).toLong()
+                delayMs = (delayMs * 1.25).toLong()
             }
 
             delay(delayMs)
             if (currentIndex < words.size - 1) {
                 currentIndex++
             } else {
-                isPlaying = false
+                if (onPageChange != null && currentPage < totalPages) {
+                    // Seamless auto-advance to next page
+                    delay(300)
+                    onPageChange(currentPage + 1)
+                } else {
+                    isPlaying = false
+                }
             }
         }
     }
@@ -79,7 +89,8 @@ fun SpeedReaderModal(
                     6, 7 -> 2
                     8, 9 -> 3
                     else -> 4
-                }
+                }.coerceIn(0, currentWord.length - 1)
+
                 val prefix = currentWord.substring(0, orpIndex)
                 val focalChar = currentWord.substring(orpIndex, orpIndex + 1)
                 val suffix = currentWord.substring(orpIndex + 1)
@@ -113,9 +124,9 @@ fun SpeedReaderModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Header
                 Row(
@@ -159,21 +170,56 @@ fun SpeedReaderModal(
                     }
                 }
 
-                Text(
-                    text = chapterTitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = NaturalDarkTextMuted,
-                    maxLines = 1
-                )
+                // Title & Page Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = chapterTitle,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = NaturalDarkText,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (onPageChange != null && totalPages > 1) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(
+                                onClick = { if (currentPage > 1) onPageChange(currentPage - 1) },
+                                enabled = currentPage > 1,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Page", tint = if (currentPage > 1) NaturalPrimary else NaturalDarkBorder)
+                            }
+                            Text(
+                                text = "Pg $currentPage/$totalPages",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NaturalDarkTextMuted
+                            )
+                            IconButton(
+                                onClick = { if (currentPage < totalPages) onPageChange(currentPage + 1) },
+                                enabled = currentPage < totalPages,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ChevronRight, contentDescription = "Next Page", tint = if (currentPage < totalPages) NaturalPrimary else NaturalDarkBorder)
+                            }
+                        }
+                    }
+                }
 
                 // RSVP Focus Display Stage
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .height(125.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF0F1410))
-                        .border(1.dp, NaturalDarkBorder, RoundedCornerShape(20.dp)),
+                        .background(Color(0xFF0D120E))
+                        .border(1.5.dp, NaturalDarkBorder, RoundedCornerShape(20.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     // Vertical guide lines for eye centering
@@ -182,8 +228,8 @@ fun SpeedReaderModal(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(modifier = Modifier.size(width = 2.dp, height = 12.dp).background(NaturalOchreAccent))
-                        Box(modifier = Modifier.size(width = 2.dp, height = 12.dp).background(NaturalOchreAccent))
+                        Box(modifier = Modifier.size(width = 3.dp, height = 14.dp).background(NaturalOchreAccent))
+                        Box(modifier = Modifier.size(width = 3.dp, height = 14.dp).background(NaturalOchreAccent))
                     }
 
                     Text(
@@ -203,6 +249,14 @@ fun SpeedReaderModal(
                     ) {
                         Text(
                             text = "Word ${currentIndex + 1} of ${words.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NaturalDarkTextMuted
+                        )
+                        val remainingWords = (words.size - (currentIndex + 1)).coerceAtLeast(0)
+                        val remainingSeconds = (remainingWords * 60) / wpm
+                        val timeStr = if (remainingSeconds > 60) "${remainingSeconds / 60}m ${remainingSeconds % 60}s" else "${remainingSeconds}s"
+                        Text(
+                            text = "~$timeStr left",
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalDarkTextMuted
                         )
@@ -235,23 +289,23 @@ fun SpeedReaderModal(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Speed: $wpm WPM",
+                        text = "$wpm WPM",
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = NaturalDarkText
                     )
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         FilledTonalIconButton(
                             onClick = { wpm = (wpm - 50).coerceAtLeast(150) },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(34.dp)
                         ) {
-                            Text("-50", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("-50", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        listOf(250, 400, 600).forEach { presetWpm ->
+                        listOf(250, 350, 500, 700).forEach { presetWpm ->
                             Surface(
                                 color = if (wpm == presetWpm) NaturalPrimary else MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(8.dp),
@@ -263,16 +317,16 @@ fun SpeedReaderModal(
                                         fontWeight = FontWeight.Bold,
                                         color = if (wpm == presetWpm) NaturalOnPrimary else NaturalDarkText
                                     ),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp)
                                 )
                             }
                         }
 
                         FilledTonalIconButton(
                             onClick = { wpm = (wpm + 50).coerceAtMost(900) },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(34.dp)
                         ) {
-                            Text("+50", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("+50", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -285,11 +339,11 @@ fun SpeedReaderModal(
                 ) {
                     IconButton(
                         onClick = {
-                            currentIndex = (currentIndex - 25).coerceAtLeast(0)
+                            currentIndex = (currentIndex - 20).coerceAtLeast(0)
                         },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.Replay, contentDescription = "Back 25 words", tint = NaturalDarkText)
+                        Icon(Icons.Default.Replay, contentDescription = "Back 20 words", tint = NaturalDarkText)
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
@@ -299,12 +353,12 @@ fun SpeedReaderModal(
                         containerColor = NaturalPrimary,
                         contentColor = NaturalOnPrimary,
                         shape = CircleShape,
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(54.dp)
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
 
@@ -312,11 +366,11 @@ fun SpeedReaderModal(
 
                     IconButton(
                         onClick = {
-                            currentIndex = (currentIndex + 25).coerceAtMost(words.size - 1)
+                            currentIndex = (currentIndex + 20).coerceAtMost(words.size - 1)
                         },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.Forward10, contentDescription = "Forward 25 words", tint = NaturalDarkText)
+                        Icon(Icons.Default.Forward10, contentDescription = "Forward 20 words", tint = NaturalDarkText)
                     }
                 }
             }

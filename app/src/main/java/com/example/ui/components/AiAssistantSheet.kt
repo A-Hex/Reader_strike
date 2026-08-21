@@ -1,5 +1,9 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,12 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.Book
 import com.example.model.BookChapter
 import com.example.ui.theme.*
+import com.example.util.AiReadingAssistantEngine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -33,7 +39,7 @@ enum class AiTaskType(val title: String, val icon: androidx.compose.ui.graphics.
     TAKEAWAYS("Key Takeaways", Icons.Default.Lightbulb),
     VOCABULARY("Vocabulary", Icons.Default.Spellcheck),
     ANALYSIS("Deep Analysis", Icons.Default.Psychology),
-    ASK("Ask Questions", Icons.Default.Chat)
+    ASK("Ask Questions & Quiz", Icons.Default.Chat)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +48,7 @@ fun AiAssistantSheet(
     book: Book,
     chapter: BookChapter,
     onDismiss: () -> Unit,
+    onSaveToNotes: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var selectedTask by remember { mutableStateOf(AiTaskType.SUMMARY) }
@@ -49,68 +56,40 @@ fun AiAssistantSheet(
     var isLoading by remember { mutableStateOf(false) }
     var generatedResponse by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    // Pre-calculate responses for instant smart assistant experience
+    // Dynamically generate deep, realistic reading assistant responses from actual content
     fun generateAiContent(task: AiTaskType, customPrompt: String = "") {
         coroutineScope.launch {
             isLoading = true
-            delay(400) // Smooth processing feel
+            delay(350) // Smooth conversational processing feel
             generatedResponse = when (task) {
                 AiTaskType.SUMMARY -> {
-                    """
-                    📌 **Core Summary for "${chapter.title}"**:
-                    • **Primary Focus**: Explores the thematic foundation of ${book.title}, focusing on ${book.genre.lowercase()} nuances.
-                    • **Narrative Progression**: The author ${book.author} develops the intellectual conflict, emphasizing emotional tension and philosophical resolution.
-                    • **Key Transition**: Shifting from introduction of circumstances into decisive character or philosophical shifts.
-                    • **Word Count**: ~${chapter.wordCount} words analyzed.
-                    """.trimIndent()
+                    AiReadingAssistantEngine.generateSummary(book, chapter.title, chapter.content)
                 }
                 AiTaskType.TAKEAWAYS -> {
-                    """
-                    💡 **Top Key Takeaways & Philosophical Insights**:
-                    1. **Internal Mastery**: True tranquility is not the absence of chaos, but master of one's own perception and reactions.
-                    2. **Existential Reflection**: Characters or ideas mirror humanity's perpetual search for purpose amidst societal pressures.
-                    3. **Actionable Wisdom**: Direct attention exclusively to what is within your sphere of control.
-                    """.trimIndent()
+                    AiReadingAssistantEngine.generateTakeaways(book, chapter.title, chapter.content)
                 }
                 AiTaskType.VOCABULARY -> {
-                    """
-                    📖 **Key Vocabulary & Etymology**:
-                    • **Equanimity** *(noun)*: Mental calmness, composure, and evenness of temper, especially in a difficult situation.
-                    • **Existential** *(adj.)*: Relating to existence, especially human existence as depicted in existentialist philosophy.
-                    • **Ephemeral** *(adj.)*: Lasting for a very short time; fleeting.
-                    • **Metamorphosis** *(noun)*: A change of the form or nature of a thing or person into a completely different one.
-                    """.trimIndent()
+                    AiReadingAssistantEngine.extractVocabulary(chapter.content)
                 }
                 AiTaskType.ANALYSIS -> {
-                    """
-                    🧠 **Literary & Contextual Analysis**:
-                    • **Symbolism**: The passage uses subtle metaphors of space, confinement, and light to represent moral clarity versus isolation.
-                    • **Historical Tone**: Written during a pivotal period of ${book.genre}, reflecting late Victorian/Classical perspectives on society.
-                    • **Deeper Meaning**: Serves as an allegory for personal responsibility and intellectual integrity.
-                    """.trimIndent()
+                    AiReadingAssistantEngine.generateAnalysis(book, chapter.title, chapter.content)
                 }
                 AiTaskType.ASK -> {
-                    if (customPrompt.isNotBlank()) {
-                        """
-                        🤖 **Response to: "$customPrompt"**:
-                        In the context of *${book.title}* by ${book.author}:
-                        The passage addresses this directly through character decisions and philosophical exposition. The central message warns against complacency and encourages disciplined introspection.
-                        """.trimIndent()
-                    } else {
-                        "Type any question above or tap one of the suggested prompts to query the book."
-                    }
+                    val promptToUse = customPrompt.ifBlank { "What is the main premise of this passage?" }
+                    AiReadingAssistantEngine.answerQuery(book, chapter.title, chapter.content, promptToUse)
                 }
             }
             isLoading = false
         }
     }
 
-    LaunchedEffect(selectedTask) {
+    LaunchedEffect(selectedTask, chapter.title, chapter.content) {
         if (selectedTask != AiTaskType.ASK) {
             generateAiContent(selectedTask)
         } else if (generatedResponse.isBlank()) {
-            generateAiContent(AiTaskType.ASK, "What is the main message of this chapter?")
+            generateAiContent(AiTaskType.ASK, "What is the main premise of this passage?")
         }
     }
 
@@ -126,7 +105,7 @@ fun AiAssistantSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Header
             Row(
@@ -140,7 +119,7 @@ fun AiAssistantSheet(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 Brush.linearGradient(listOf(NaturalPrimary, NaturalSecondary))
@@ -151,15 +130,31 @@ fun AiAssistantSheet(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
                             tint = NaturalOnPrimary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                     Column {
-                        Text(
-                            text = "Smart Reading Assistant",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Smart Reading Assistant",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Surface(
+                                color = NaturalPrimary.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = "LIVE NLP",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Black),
+                                    color = NaturalPrimary,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
                         Text(
                             text = "${book.title} • ${chapter.title}",
                             style = MaterialTheme.typography.labelSmall,
@@ -212,7 +207,7 @@ fun AiAssistantSheet(
                     OutlinedTextField(
                         value = userQuery,
                         onValueChange = { userQuery = it },
-                        placeholder = { Text("Ask a question about this chapter...", fontSize = 13.sp, color = NaturalDarkTextMuted) },
+                        placeholder = { Text("Ask any question or tap Quiz below...", fontSize = 13.sp, color = NaturalDarkTextMuted) },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
@@ -226,7 +221,7 @@ fun AiAssistantSheet(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -237,7 +232,13 @@ fun AiAssistantSheet(
 
                     // Suggested Prompts
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        val suggestions = listOf("Explain symbolism", "Summarize in 3 bullets", "Historical context", "Key philosophical moral")
+                        val suggestions = listOf(
+                            "📝 3-Question Quiz",
+                            "🎯 What is the core dilemma?",
+                            "🏛️ Historical & Literary Context",
+                            "💡 Practical Life Application",
+                            "🔍 Explain the concluding thought"
+                        )
                         items(suggestions) { prompt ->
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -250,8 +251,8 @@ fun AiAssistantSheet(
                                 Text(
                                     text = prompt,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = NaturalDarkTextMuted,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    color = NaturalDarkText,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
                         }
@@ -259,11 +260,11 @@ fun AiAssistantSheet(
                 }
             }
 
-            // Response Box
+            // Response Box with Copy & Note Saving actions
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 160.dp, max = 340.dp),
+                    .heightIn(min = 180.dp, max = 360.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
                 border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder)
@@ -285,22 +286,66 @@ fun AiAssistantSheet(
                                 strokeWidth = 3.dp
                             )
                             Text(
-                                text = "Analyzing chapter content...",
+                                text = "Analyzing passage with natural language intelligence...",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalDarkTextMuted
                             )
                         }
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            item {
-                                Text(
-                                    text = generatedResponse,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        lineHeight = 22.sp,
-                                        letterSpacing = 0.2.sp
-                                    ),
-                                    color = NaturalDarkText
-                                )
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                            ) {
+                                item {
+                                    Text(
+                                        text = generatedResponse,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            lineHeight = 22.sp,
+                                            letterSpacing = 0.2.sp
+                                        ),
+                                        color = NaturalDarkText
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Divider(color = NaturalDarkBorder.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Bottom actions: Copy and Save Note
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("AI Reading Insight", generatedResponse))
+                                        Toast.makeText(context, "Copied insight to clipboard!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalPrimary)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Copy", fontSize = 12.sp, color = NaturalPrimary)
+                                }
+
+                                if (onSaveToNotes != null) {
+                                    TextButton(
+                                        onClick = {
+                                            onSaveToNotes(generatedResponse)
+                                            Toast.makeText(context, "Saved to library notes!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalOchreAccent)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Save Note", fontSize = 12.sp, color = NaturalOchreAccent)
+                                    }
+                                }
                             }
                         }
                     }

@@ -88,7 +88,7 @@ Keep reading every day! 📚🚀
 
     /**
      * Universal Share: Opens the system share sheet (chooser) letting the user pick
-     * any app installed on their device (WhatsApp, Twitter/X, Instagram, Messages, Notes, Gmail, Telegram, etc.)
+     * any app installed on their device (WhatsApp, Twitter/X, Messages, Notes, Gmail, Telegram, etc.)
      */
     fun shareContent(
         context: Context,
@@ -121,18 +121,6 @@ Keep reading every day! 📚🚀
             Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, "Failed to copy text", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    fun openCreatorProfile(context: Context) {
-        val uri = Uri.parse("https://instagram.com/ahex0_01")
-        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        try {
-            context.startActivity(intent)
-        } catch (_: Exception) {
-            Toast.makeText(context, "Opening @ahex0_01...", Toast.LENGTH_SHORT).show()
         }
     }
 }

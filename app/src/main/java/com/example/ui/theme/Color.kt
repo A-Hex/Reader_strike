@@ -24,6 +24,8 @@ val NaturalSageBg = Color(0xFF242A20)
 val NaturalSageBorder = Color(0xFF384530)
 val NaturalSageAccent = Color(0xFFB4CCB9)
 val NaturalSageMuted = Color(0xFF8BA190)
+val NaturalSageSuccess = Color(0xFF81C784)
+val NaturalForestAccent = Color(0xFF66BB6A)
 
 val NaturalOchreBg = Color(0xFF2A2620)
 val NaturalOchreBorder = Color(0xFF453C30)

@@ -283,6 +283,44 @@ class BookRepository(private val context: Context, private val database: AppData
         }
     }
 
+    suspend fun addConvertedEpubBook(file: File, title: String, author: String): Book? = withContext(Dispatchers.IO) {
+        try {
+            var totalPages = 50
+            file.inputStream().use { stream ->
+                val parsed = EpubParser.parseEpubStream(stream, title)
+                totalPages = (parsed.chapters.size * 6).coerceAtLeast(10)
+            }
+
+            val newBook = Book(
+                id = "epub-" + UUID.randomUUID().toString().take(8),
+                title = title,
+                author = author,
+                description = "Converted EPUB 3 digital publication with formatted typography and structured index.",
+                format = BookFormat.EPUB,
+                status = ReadingStatus.WANT_TO_READ,
+                coverGradientStart = 0xFF0D9488,
+                coverGradientEnd = 0xFF059669,
+                totalPages = totalPages,
+                currentPage = 1,
+                readingProgress = 0f,
+                isFavorite = false,
+                isDownloaded = true,
+                localFilePath = file.absolutePath,
+                fileSize = "${(file.length() / 1024 / 1024.0 * 10).toInt() / 10.0} MB".ifBlank { "${(file.length() / 1024)} KB" },
+                genre = "Converted EPUB",
+                tags = listOf("EPUB 3", "Converted", "Digital Edition"),
+                rating = 5.0f,
+                addedTimestamp = System.currentTimeMillis()
+            )
+
+            bookDao.insertBook(BookEntity.fromModel(newBook))
+            return@withContext newBook
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext null
+        }
+    }
+
     suspend fun downloadCatalogBook(book: Book) = withContext(Dispatchers.IO) {
         val downloadedBook = book.copy(
             isDownloaded = true,

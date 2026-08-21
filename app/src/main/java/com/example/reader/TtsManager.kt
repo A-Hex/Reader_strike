@@ -22,15 +22,35 @@ class TtsManager(private val context: Context) {
     private val _speechRate = MutableStateFlow(1.0f)
     val speechRate: StateFlow<Float> = _speechRate.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     private var sentences: List<String> = emptyList()
 
     init {
-        tts = TextToSpeech(context) { status ->
+        initTts()
+    }
+
+    private fun initTts() {
+        tts = TextToSpeech(context.applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
-                tts?.setSpeechRate(_speechRate.value)
-                isInitialized = true
-                setupProgressListener()
+                val currentTts = tts ?: return@TextToSpeech
+                var langResult = currentTts.setLanguage(Locale.getDefault())
+                if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // Fallback to US English
+                    langResult = currentTts.setLanguage(Locale.US)
+                }
+
+                if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    _errorMessage.value = "TTS voice data is missing or unsupported for this locale."
+                } else {
+                    currentTts.setSpeechRate(_speechRate.value)
+                    isInitialized = true
+                    _errorMessage.value = null
+                    setupProgressListener()
+                }
+            } else {
+                _errorMessage.value = "Text-to-speech engine failed to initialize."
             }
         }
     }
@@ -62,8 +82,11 @@ class TtsManager(private val context: Context) {
     }
 
     fun startReading(text: String, startIndex: Int = 0) {
-        if (!isInitialized) return
-        sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
+        if (!isInitialized) {
+            _errorMessage.value = "TTS is initializing, please try again."
+            return
+        }
+        sentences = text.split(Regex("(?<=[.!?])\\s+")).map { it.trim() }.filter { it.isNotBlank() }
         if (sentences.isEmpty()) return
 
         val validStart = startIndex.coerceIn(0, sentences.size - 1)
@@ -113,7 +136,12 @@ class TtsManager(private val context: Context) {
 
     fun shutdown() {
         stop()
-        tts?.shutdown()
+        try {
+            tts?.shutdown()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         tts = null
+        isInitialized = false
     }
 }

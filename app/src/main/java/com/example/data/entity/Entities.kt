@@ -1,6 +1,7 @@
 package com.example.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.model.Book
 import com.example.model.BookFormat
@@ -9,7 +10,14 @@ import com.example.model.HighlightColor
 import com.example.model.Bookmark
 import com.example.model.ReadingStatus
 
-@Entity(tableName = "books")
+@Entity(
+    tableName = "books",
+    indices = [
+        Index("status"),
+        Index("genre"),
+        Index("lastReadTimestamp")
+    ]
+)
 data class BookEntity(
     @PrimaryKey val id: String,
     val title: String,
@@ -94,7 +102,13 @@ data class BookEntity(
     }
 }
 
-@Entity(tableName = "highlights")
+@Entity(
+    tableName = "highlights",
+    indices = [
+        Index("bookId"),
+        Index("timestamp")
+    ]
+)
 data class HighlightEntity(
     @PrimaryKey val id: String,
     val bookId: String,
@@ -140,7 +154,13 @@ data class HighlightEntity(
     }
 }
 
-@Entity(tableName = "bookmarks")
+@Entity(
+    tableName = "bookmarks",
+    indices = [
+        Index("bookId"),
+        Index("timestamp")
+    ]
+)
 data class BookmarkEntity(
     @PrimaryKey val id: String,
     val bookId: String,
@@ -183,7 +203,14 @@ data class BookmarkEntity(
     }
 }
 
-@Entity(tableName = "reading_sessions")
+@Entity(
+    tableName = "reading_sessions",
+    indices = [
+        Index("bookId"),
+        Index("dateString"),
+        Index("timestamp")
+    ]
+)
 data class ReadingSessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val bookId: String,
@@ -193,7 +220,13 @@ data class ReadingSessionEntity(
     val timestamp: Long
 )
 
-@Entity(tableName = "book_reviews")
+@Entity(
+    tableName = "book_reviews",
+    indices = [
+        Index("bookId"),
+        Index("timestamp")
+    ]
+)
 data class BookReviewEntity(
     @PrimaryKey val id: String,
     val bookId: String,

@@ -566,6 +566,81 @@ From my tutor: not to be a green or blue partisan at the chariot races, nor a su
 Nor can I feel angry at my kin, or hate him. We were made to work together like hands, like feet, like the rows of the upper and lower teeth. To obstruct each other is unnatural. To feel anger at someone, to turn your back on him: these are obstructions."""
                 )
             )
+            "book-sherlock-holmes" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Chapter 1: Mr. Sherlock Holmes",
+                    content = """In the year 1878 I took my degree of Doctor of Medicine of the University of London, and proceeded to Netley to go through the course prescribed for surgeons in the army. Having completed my studies there, I was duly attached to the Fifth Northumberland Fusiliers as Assistant Surgeon. The regiment was stationed in India at the time, and before I could join it, the second Afghan war had broken out.
+
+On landing at Bombay, I learned that my corps had advanced through the passes, and was already deep in the enemy's country. I followed, however, with many other officers who were in the same situation, and succeeded in reaching Candahar in safety, where I found my regiment, and at once entered upon my new duties. The campaign brought honours and promotion to many, but for me it had nothing but misfortune and disaster.
+
+I was removed from my brigade and attached to the Berkshires, with whom I served at the fatal battle of Maiwand. There I was struck on the shoulder by a Jezail bullet, which shattered the bone and grazed the subclavian artery. I should have fallen into the hands of the murderous Ghazis had it not been for the devotion and courage shown by Murray, my orderly, who threw me across a pack-horse, and succeeded in bringing me safely to the British lines.
+
+Worn with pain, and weak from the prolonged hardships which I had undergone, I was removed to the base hospital at Peshawur. Here I rallied, and had already improved so far as to be able to walk about the wards, and even to bask a little upon the verandah, when I was struck down by enteric fever, that curse of our Indian possessions. For months my life was despaired of, and when at last I came to myself and became convalescent, I was so weak and emaciated that a medical board determined that not a day should be lost in sending me back to England."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter 2: The Science of Deduction",
+                    content = """We met next day as he had arranged, and inspected the rooms at No. 221B, Baker Street, of which he had spoken at our meeting. They consisted of a couple of comfortable bed-rooms and a single large airy sitting-room, cheerfully furnished, and illuminated by two broad windows. So desirable in every way were the apartments, and so moderate did the terms seem when divided between us, that the bargain was concluded upon the spot, and we at once took possession.
+
+Sherlock Holmes was not a man who lived into difficult positions; he was quiet, regular, and had habits of astonishing regularity. It was rare for him to be up after ten at night, and he had invariably breakfasted and gone out before I rose in the morning. Sometimes he spent his day at the chemical laboratory, sometimes in the dissecting-rooms, and occasionally in long walks, which appeared to take him into the roughest suburbs of the city.
+
+His energy was enthusiasm itself when the fit was on him; but about every few days a reaction would set in, and for days on end he would lie upon the sofa in the sitting-room, hardly uttering a word or moving a muscle from morning to night. On these occasions I have noticed such a dreamy, vacant expression in his eyes, that I might have suspected him of being addicted to the use of some narcotic, had not the temperance and cleanliness of his whole life forbidden such a notion."""
+                ),
+                BookChapter(
+                    index = 2,
+                    title = "Chapter 3: The Lauriston Garden Mystery",
+                    content = """I confess that I was considerably startled by this fresh proof of the practical nature of my companion's theories. My respect for his powers of analysis increased wondrously. There still remained some lurking suspicion in my mind, however, that the whole thing was a prearranged episode, intended to dazzle me, though what earthly object he could have in taking me in was past my comprehension.
+
+"Here is a telegram," said he, tossing it across the table. "It has just come. Read it."
+It was from Gregson of Scotland Yard:
+'There has been a bad business during the night at 3, Lauriston Gardens, off the Brixton Road. Our man on the beat saw a light there about two in the morning, and found the house empty and the front door open. In the front room a gentleman was found dead, well dressed, and having cards in his pocket bearing the name of Enoch J. Drebber, Cleveland, Ohio, U.S.A. There is no clue as to how the man met his death.'
+
+"What do you say to that?" asked Sherlock Holmes.
+"It is remarkable! What do you intend to do?"
+"To go to Brixton and examine the scene of the crime," he answered, springing to his feet."""
+                )
+            )
+            "book-alice-wonderland" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Chapter I: Down the Rabbit-Hole",
+                    content = """Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, "and what is the use of a book," thought Alice "without pictures or conversations?"
+
+So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her.
+
+There was nothing so very remarkable in that; nor did Alice think it so very much out of the way to hear the Rabbit say to itself, "Oh dear! Oh dear! I shall be late!" (when she thought it over afterwards, it occurred to her that she ought to have wondered at this, but at the time it all seemed quite natural); but when the Rabbit actually took a watch out of its waistcoat-pocket, and looked at it, and then hurried on, Alice started to her feet, for it flashed across her mind that she had never before seen a rabbit with either a waistcoat-pocket, or a watch to take out of it, and burning with curiosity, she ran across the field after it, and fortunately was just in time to see it pop down a large rabbit-hole under the hedge."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter II: The Pool of Tears",
+                    content = """"Curiouser and curiouser!" cried Alice (she was so much surprised, that for the moment she quite forgot how to speak good English); "now I'm opening out like the largest telescope that ever was! Good-bye, feet!" (for when she looked down at her feet, they seemed to be almost out of sight, they were getting so far off). "Oh, my poor little feet, I wonder who will put on your shoes and stockings for you now, dears? I'm sure I shan't be able! I shall be a great deal too far off to trouble myself about you: you must manage the best way you can;—but I must be kind to them," thought Alice, "or perhaps they won't walk the way I want to go! Let me see: I'll give them a new pair of boots every Christmas."
+
+And she went on planning to herself how she would manage it. "They must go by the carrier," she thought; "and how funny it'll seem, sending presents to one's own feet! And how odd the directions will look!"
+
+Just then her head struck against the roof of the hall: in fact she was now more than nine feet high, and she at once took up the little golden key and hurried off to the garden door."""
+                )
+            )
+            "book-frankenstein" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Letter 1: Arctic Voyage",
+                    content = """To Mrs. Saville, England.
+St. Petersburgh, Dec. 11th, 17—.
+You will rejoice to hear that no disaster has accompanied the commencement of an enterprise which you have regarded with such evil forebodings. I arrived here yesterday, and my first task is to assure my dear sister of my welfare and increasing confidence in the success of my undertaking.
+
+I am already far north of London, and as I walk in the streets of Petersburgh, I feel a cold northern breeze play upon my cheeks, which braces my nerves and fills me with delight. Do you understand this feeling? This breeze, which has travelled from the regions towards which I am advancing, gives me a foretaste of those icy climes. Inspirited by this wind of promise, my daydreams become more fervent and vivid. I try in vain to be persuaded that the pole is the seat of frost and desolation; it ever presents itself to my imagination as the region of beauty and delight."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter 4: The Creation of Life",
+                    content = """No one can conceive the variety of feelings which bore me onwards, like a whirlwind, among the first days of my success. Life and death appeared to me ideal bounds, which I should first break through, and pour a torrent of light into our dark world. A new species would bless me as its creator and source; many happy and excellent natures would owe their being to me.
+
+No father could claim the gratitude of his child so completely as I should deserve theirs. Pursuing these reflections, I thought that if I could bestow animation upon lifeless matter, I might in process of time (although I now found it impossible) renew life where death had apparently devoted the body to corruption.
+
+These thoughts supported my spirits, while I pursued my undertaking with unremitting ardour. My cheek had grown pale with study, and my person had become emaciated with confinement. Sometimes, on the very brink of certainty, I failed; yet still I clung to the hope which the next day or the next hour might realise."""
+                )
+            )
             else -> listOf(
                 BookChapter(
                     index = 0,

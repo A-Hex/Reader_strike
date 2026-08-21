@@ -2,7 +2,6 @@ package com.example.viewmodel
 
 import android.app.Application
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
@@ -10,12 +9,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.SampleBooksData
 import com.example.data.repository.BookRepository
-import com.example.data.repository.CloudSyncRepository
+import com.example.data.repository.LocalBackupRepository
 import com.example.model.*
 import com.example.reader.EpubParser
+import com.example.reader.PdfLoadResult
 import com.example.reader.PdfManager
 import com.example.reader.TtsManager
 import com.example.util.AppLanguage
+import com.example.util.BackupResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -27,10 +28,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val context: Context = application.applicationContext
     private val database = AppDatabase.getDatabase(context)
     val bookRepository = BookRepository(context, database)
-    val cloudSyncRepository = CloudSyncRepository(database)
+    val localBackupRepository = LocalBackupRepository(database)
 
     val pdfManager = PdfManager(context)
     val ttsManager = TtsManager(context)
+    val ambientEngine = com.example.reader.AmbientAudioEngine()
+    val vocabVaultManager = com.example.data.repository.VocabVaultManager(context)
+    val questsManager = com.example.data.repository.QuestsAndShieldsManager(context)
 
     // Library UI state
     val allBooks = bookRepository.allBooks.stateIn(
@@ -210,12 +214,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Cloud sync state
-    val cloudSyncInfo = cloudSyncRepository.syncInfo
+    // Local Backup state
+    val localBackupInfo = localBackupRepository.backupInfo
 
     // Active session timer
     private var readingSessionJob: Job? = null
-    private var sessionSecondsRead = 0
 
     init {
         viewModelScope.launch {
@@ -267,7 +270,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentBook.value = book
         _currentPage.value = book.currentPage.coerceAtLeast(1)
 
-        // Load chapters
+        // Load chapters & extract text
         if (book.localFilePath != null) {
             val file = File(book.localFilePath)
             if (file.exists()) {
@@ -281,6 +284,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val parsed = EpubParser.parsePlainTextStream(stream, book.title)
                         _currentChapters.value = parsed.chapters
                     }
+                } else if (book.format == BookFormat.PDF) {
+                    val extracted = com.example.reader.PdfTextExtractor.extractChaptersFromPdf(file, book.title)
+                    if (extracted.isNotEmpty()) {
+                        _currentChapters.value = extracted
+                    } else {
+                        _currentChapters.value = SampleBooksData.getSampleChaptersForBook(book.id)
+                    }
                 }
             } else {
                 _currentChapters.value = SampleBooksData.getSampleChaptersForBook(book.id)
@@ -290,7 +300,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _currentChapterIndex.value = 0
+
+        // Load saved theme for this specific book
+        val bookTheme = com.example.util.ThemeManager.getThemeForBook(context, book.id)
+        _readerPreferences.value = _readerPreferences.value.copy(themeId = bookTheme.id)
+
         startReadingSession(book)
+    }
+
+    fun getCurrentReadingText(): String {
+        val book = _currentBook.value ?: return ""
+        return com.example.reader.PdfTextExtractor.getResolvedTextForBookPage(
+            book = book,
+            pageNumber = _currentPage.value,
+            chapters = _currentChapters.value
+        )
+    }
+
+    fun getCurrentReadingChapter(): BookChapter {
+        val book = _currentBook.value
+        val currentChapters = _currentChapters.value
+        if (currentChapters.isNotEmpty()) {
+            if (book?.format == BookFormat.PDF) {
+                val pageIdx = (_currentPage.value - 1).coerceIn(0, currentChapters.size - 1)
+                val ch = currentChapters.getOrNull(pageIdx)
+                if (ch != null && ch.content.isNotBlank()) return ch
+            }
+            val idx = _currentChapterIndex.value.coerceIn(0, currentChapters.size - 1)
+            return currentChapters[idx]
+        }
+        val text = getCurrentReadingText()
+        val isPdf = book?.format == BookFormat.PDF
+        val words = text.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        return BookChapter(
+            index = if (isPdf) _currentPage.value - 1 else 0,
+            title = if (isPdf) "Page ${_currentPage.value}" else "Chapter 1",
+            content = text,
+            wordCount = words.size
+        )
     }
 
     fun closeReader() {
@@ -452,6 +499,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Reader Customization Preferences
     fun updateReaderTheme(themeId: String) {
         _readerPreferences.value = _readerPreferences.value.copy(themeId = themeId)
+        val book = _currentBook.value
+        if (book != null) {
+            com.example.util.ThemeManager.saveThemeForBook(context, book.id, themeId)
+        }
+    }
+
+    fun selectReadingMode(mode: com.example.util.ReadingMode) {
+        val book = _currentBook.value
+        val selectedTheme = com.example.util.ThemeManager.switchModeForBook(context, book?.id, mode)
+        _readerPreferences.value = _readerPreferences.value.copy(themeId = selectedTheme.id)
     }
 
     fun updateFontSize(sizeSp: Float) {
@@ -496,7 +553,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val results = mutableListOf<String>()
         val q = query.lowercase()
-        _currentChapters.value.forEachIndexed { idx, ch ->
+        _currentChapters.value.forEachIndexed { _, ch ->
             val paragraphs = ch.content.split("\n\n")
             paragraphs.forEach { p ->
                 if (p.lowercase().contains(q)) {
@@ -510,9 +567,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // TTS playback
     fun playTtsForCurrentChapter() {
-        val chapter = _currentChapters.value.getOrNull(_currentChapterIndex.value)
-        if (chapter != null) {
-            ttsManager.startReading(chapter.content)
+        val text = getCurrentReadingText()
+        if (text.isNotBlank()) {
+            ttsManager.startReading(text)
+        } else {
+            val chapter = _currentChapters.value.getOrNull(_currentChapterIndex.value)
+            if (chapter != null && chapter.content.isNotBlank()) {
+                ttsManager.startReading(chapter.content)
+            }
         }
     }
 
@@ -529,6 +591,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addConvertedEpubToLibrary(file: File, title: String, author: String, autoOpen: Boolean = false) {
+        viewModelScope.launch {
+            val book = bookRepository.addConvertedEpubBook(file, title, author)
+            if (book != null) {
+                Toast.makeText(context, "Added '${book.title}' as EPUB to your Library!", Toast.LENGTH_SHORT).show()
+                refreshStreakData()
+                if (autoOpen) {
+                    openBook(book)
+                }
+            } else {
+                Toast.makeText(context, "Failed to register converted EPUB.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // Download public domain book
     fun downloadBook(book: Book) {
         viewModelScope.launch {
@@ -538,35 +615,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Cloud Sync Actions
-    fun triggerSync() {
+    // Real Local Backup & Restore Actions
+    fun exportBackup(uri: Uri, onComplete: (BackupResult) -> Unit = {}) {
         viewModelScope.launch {
-            val success = cloudSyncRepository.performCloudSync()
-            if (success) {
-                Toast.makeText(context, "Cloud sync complete!", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Cloud sync failed. Check connection.", Toast.LENGTH_SHORT).show()
+            val result = localBackupRepository.exportBackup(context, uri)
+            when (result) {
+                is BackupResult.Success -> {
+                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
+                }
+                is BackupResult.Error -> {
+                    Toast.makeText(context, "Export error: ${result.message}", Toast.LENGTH_LONG).show()
+                }
             }
+            onComplete(result)
         }
     }
 
-    fun exportBackup(): String {
-        var json = ""
+    fun restoreBackup(uri: Uri, onComplete: (BackupResult) -> Unit = {}) {
         viewModelScope.launch {
-            json = cloudSyncRepository.exportFullLibraryJson()
-        }
-        return json
-    }
-
-    fun restoreBackup(jsonString: String) {
-        viewModelScope.launch {
-            val success = cloudSyncRepository.restoreLibraryFromJson(jsonString)
-            if (success) {
-                Toast.makeText(context, "Library restored from cloud backup!", Toast.LENGTH_SHORT).show()
-                refreshStreakData()
-            } else {
-                Toast.makeText(context, "Invalid backup format.", Toast.LENGTH_SHORT).show()
+            val result = localBackupRepository.restoreBackup(context, uri)
+            when (result) {
+                is BackupResult.Success -> {
+                    Toast.makeText(context, "Library restored from backup!", Toast.LENGTH_SHORT).show()
+                    refreshStreakData()
+                }
+                is BackupResult.Error -> {
+                    Toast.makeText(context, "Restore error: ${result.message}", Toast.LENGTH_LONG).show()
+                }
             }
+            onComplete(result)
         }
     }
 
@@ -626,10 +703,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun shareBookProgress(book: Book) {
         val shareText = com.example.util.SocialShareHelper.formatBookProgressShareText(book, _streakData.value)
         com.example.util.SocialShareHelper.shareContent(context, shareText, "Book Reading Progress")
-    }
-
-    fun openInstagramProfile() {
-        com.example.util.SocialShareHelper.openCreatorProfile(context)
     }
 
     private fun startReadingSession(book: Book) {
@@ -714,12 +787,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun stopReadingSession() {
+    fun stopReadingSession() {
         readingSessionJob?.cancel()
         readingSessionJob = null
         val book = _currentBook.value
         val totalSecs = sessionAccumulatedSeconds
-        val pages = sessionPagesTurned.coerceAtLeast(1)
 
         _activeSessionState.value = _activeSessionState.value.copy(
             isSessionRunning = false,
@@ -740,6 +812,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         stopReadingSession()
         ttsManager.shutdown()
+        ambientEngine.release()
         pdfManager.close()
     }
 }

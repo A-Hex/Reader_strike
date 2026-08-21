@@ -187,7 +187,7 @@ fun CommunityScreen(
                             val newPost = CommunityPost(
                                 id = "post-${System.currentTimeMillis()}",
                                 authorName = "You",
-                                authorHandle = "@ahex0_01_reader",
+                                authorHandle = "@bookworm_reader",
                                 bookTitle = newPostBook,
                                 quoteOrNote = newPostContent,
                                 likesCount = 1,
@@ -265,7 +265,7 @@ fun CommunityScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Connected with @ahex0_01 & global book clubs",
+                                    text = "Connected with global book clubs & readers worldwide",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = NaturalOchreAccent
                                 )

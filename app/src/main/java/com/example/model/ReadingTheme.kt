@@ -2,6 +2,7 @@ package com.example.model
 
 import androidx.compose.ui.graphics.Color
 import com.example.ui.theme.*
+import com.example.util.ReadingMode
 
 enum class FontFamilyPreference(val displayName: String) {
     SERIF("Serif (Classic Book)"),
@@ -17,7 +18,8 @@ data class ReaderTheme(
     val textColor: Color,
     val accentColor: Color,
     val surfaceColor: Color,
-    val isDark: Boolean = false
+    val isDark: Boolean = false,
+    val readingMode: ReadingMode = if (isDark) ReadingMode.DARK else ReadingMode.LIGHT
 ) {
     companion object {
         val NaturalTones = ReaderTheme(
@@ -27,7 +29,8 @@ data class ReaderTheme(
             textColor = NaturalDarkText,
             accentColor = NaturalPrimary,
             surfaceColor = NaturalDarkSurface,
-            isDark = true
+            isDark = true,
+            readingMode = ReadingMode.DARK
         )
 
         val NaturalSage = ReaderTheme(
@@ -37,7 +40,8 @@ data class ReaderTheme(
             textColor = NaturalSageAccent,
             accentColor = NaturalSageAccent,
             surfaceColor = Color(0xFF2E3729),
-            isDark = true
+            isDark = true,
+            readingMode = ReadingMode.DARK
         )
 
         val NaturalOchre = ReaderTheme(
@@ -47,7 +51,8 @@ data class ReaderTheme(
             textColor = Color(0xFF2C2825),
             accentColor = Color(0xFF9E651E),
             surfaceColor = Color(0xFFECE7D9),
-            isDark = false
+            isDark = false,
+            readingMode = ReadingMode.LIGHT
         )
 
         val Obsidian = ReaderTheme(
@@ -57,7 +62,8 @@ data class ReaderTheme(
             textColor = Color(0xFFE6EDF3),
             accentColor = Color(0xFF58A6FF),
             surfaceColor = Color(0xFF161B22),
-            isDark = true
+            isDark = true,
+            readingMode = ReadingMode.DARK
         )
 
         val PaperWhite = ReaderTheme(
@@ -67,7 +73,8 @@ data class ReaderTheme(
             textColor = Color(0xFF1A1F2C),
             accentColor = Color(0xFF2563EB),
             surfaceColor = Color(0xFFFFFFFF),
-            isDark = false
+            isDark = false,
+            readingMode = ReadingMode.LIGHT
         )
 
         val WarmSepia = ReaderTheme(
@@ -77,7 +84,19 @@ data class ReaderTheme(
             textColor = Color(0xFF423425),
             accentColor = Color(0xFFD97706),
             surfaceColor = Color(0xFFECE3CE),
-            isDark = false
+            isDark = false,
+            readingMode = ReadingMode.SEPIA
+        )
+
+        val VintageAmber = ReaderTheme(
+            id = "vintage_amber",
+            name = "Vintage Amber",
+            backgroundColor = Color(0xFFEFE6D5),
+            textColor = Color(0xFF382B1B),
+            accentColor = Color(0xFFB45309),
+            surfaceColor = Color(0xFFE5DAC4),
+            isDark = false,
+            readingMode = ReadingMode.SEPIA
         )
 
         val PitchAMOLED = ReaderTheme(
@@ -87,16 +106,18 @@ data class ReaderTheme(
             textColor = Color(0xFFE2E8F0),
             accentColor = Color(0xFF818CF8),
             surfaceColor = Color(0xFF111111),
-            isDark = true
+            isDark = true,
+            readingMode = ReadingMode.DARK
         )
 
         val ALL_THEMES = listOf(
+            PaperWhite,
+            NaturalOchre,
+            WarmSepia,
+            VintageAmber,
             NaturalTones,
             NaturalSage,
-            NaturalOchre,
             Obsidian,
-            PaperWhite,
-            WarmSepia,
             PitchAMOLED
         )
     }

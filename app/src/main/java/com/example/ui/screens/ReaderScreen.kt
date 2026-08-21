@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -28,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.*
+import com.example.reader.PdfLoadResult
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
@@ -35,7 +34,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ReaderScreen(
     viewModel: MainViewModel,
@@ -65,21 +64,38 @@ fun ReaderScreen(
     var showShareModal by remember { mutableStateOf(false) }
     var showSpeedReader by remember { mutableStateOf(false) }
     var showAiAssistant by remember { mutableStateOf(false) }
+    var showSoundscapes by remember { mutableStateOf(false) }
+    var showWordInspector by remember { mutableStateOf(false) }
+    var inspectingWord by remember { mutableStateOf("") }
+    var inspectingSentence by remember { mutableStateOf("") }
+    var showVocabVault by remember { mutableStateOf(false) }
+    var showMindMap by remember { mutableStateOf(false) }
+    var showEpubExport by remember { mutableStateOf(false) }
     var selectedTextForHighlight by remember { mutableStateOf("") }
+
+    val ttsPlaying by viewModel.ttsManager.isPlaying.collectAsState()
+    val ttsSentenceIndex by viewModel.ttsManager.currentSentenceIndex.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     val currentBookObj = book ?: return
 
-    // Resolve Theme
-    val activeTheme = ReaderTheme.ALL_THEMES.find { it.id == readerPreferences.themeId } ?: ReaderTheme.Obsidian
+    // Resolve Theme via ThemeManager
+    val activeTheme = com.example.util.ThemeManager.getThemeById(readerPreferences.themeId)
 
-    // Auto-scroll loop
+    // Auto-scroll loop with safe cancellation and bounds check
     val listState = rememberLazyListState()
     LaunchedEffect(readerPreferences.isAutoScrollActive) {
         if (readerPreferences.isAutoScrollActive) {
-            while (true) {
+            while (readerPreferences.isAutoScrollActive) {
                 delay(300)
-                listState.scrollBy(12f)
+                if (!listState.isScrollInProgress) {
+                    if (listState.canScrollForward) {
+                        listState.scrollBy(10f)
+                    } else {
+                        // Reached end of page / chapter content
+                        break
+                    }
+                }
             }
         }
     }
@@ -94,16 +110,33 @@ fun ReaderScreen(
     // PDF Page Rendering for PDF books
     var pdfBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isPdfLoading by remember { mutableStateOf(false) }
+    var pdfErrorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentBookObj.id, currentPage) {
         if (currentBookObj.format == BookFormat.PDF) {
             isPdfLoading = true
+            pdfErrorMessage = null
             if (currentBookObj.localFilePath != null) {
                 val file = File(currentBookObj.localFilePath)
                 if (file.exists()) {
-                    viewModel.pdfManager.openPdfFile(file)
-                    pdfBitmap = viewModel.pdfManager.renderPage(currentPage - 1, 1080)
+                    when (val openResult = viewModel.pdfManager.openPdfFile(file)) {
+                        is PdfLoadResult.Success -> {
+                            val rendered = viewModel.pdfManager.renderPage(currentPage - 1, 1080)
+                            if (rendered != null) {
+                                pdfBitmap = rendered
+                            } else {
+                                pdfErrorMessage = "Could not render PDF page $currentPage"
+                            }
+                        }
+                        is PdfLoadResult.Error -> {
+                            pdfErrorMessage = openResult.message
+                        }
+                    }
+                } else {
+                    pdfErrorMessage = "PDF file not found."
                 }
+            } else {
+                pdfErrorMessage = "No local file for PDF sample rendering."
             }
             isPdfLoading = false
         }
@@ -137,7 +170,7 @@ fun ReaderScreen(
             // Spacer for Top Bar
             Spacer(modifier = Modifier.height(if (showControls) 70.dp else 24.dp))
 
-            if (currentBookObj.format == BookFormat.PDF && pdfBitmap != null) {
+            if (currentBookObj.format == BookFormat.PDF) {
                 // PDF Viewer
                 Box(
                     modifier = Modifier
@@ -146,13 +179,36 @@ fun ReaderScreen(
                         .padding(horizontal = readerPreferences.horizontalMarginDp.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        bitmap = pdfBitmap!!.asImageBitmap(),
-                        contentDescription = "PDF Page $currentPage",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp))
-                    )
+                    if (isPdfLoading) {
+                        CircularProgressIndicator(color = activeTheme.accentColor)
+                    } else if (pdfBitmap != null) {
+                        Image(
+                            bitmap = pdfBitmap!!.asImageBitmap(),
+                            contentDescription = "PDF Page $currentPage",
+                            colorFilter = com.example.util.ThemeManager.getPdfColorFilter(activeTheme),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                    } else if (pdfErrorMessage != null) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Icon(Icons.Default.Info, contentDescription = null, tint = activeTheme.accentColor, modifier = Modifier.size(36.dp))
+                            Text(
+                                text = "PDF Viewer Notice",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = activeTheme.textColor)
+                            )
+                            Text(
+                                text = pdfErrorMessage ?: "Failed to display PDF",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = activeTheme.textColor.copy(alpha = 0.8f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
             } else {
                 // EPUB & TXT Fluid Typography Viewer
@@ -184,24 +240,45 @@ fun ReaderScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    itemsIndexed(paragraphs) { pIndex, paragraph ->
+                    itemsIndexed(paragraphs) { pIdx, paragraph ->
                         val matchingHighlight = highlights.find { hl ->
                             hl.chapterIndex == currentChapterIndex && paragraph.contains(hl.text)
                         }
+                        val isTtsFocus = ttsPlaying && ttsSentenceIndex == pIdx
 
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (matchingHighlight != null) matchingHighlight.color.toComposeColor().copy(alpha = 0.25f)
-                                    else Color.Transparent
+                                    when {
+                                        matchingHighlight != null -> matchingHighlight.color.toComposeColor().copy(alpha = 0.25f)
+                                        isTtsFocus -> activeTheme.accentColor.copy(alpha = 0.15f)
+                                        else -> Color.Transparent
+                                    }
                                 )
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
-                                .clickable {
-                                    selectedTextForHighlight = paragraph.take(180)
-                                    showHighlightSheet = true
-                                }
+                                .border(
+                                    width = if (isTtsFocus) 1.dp else 0.dp,
+                                    color = if (isTtsFocus) activeTheme.accentColor.copy(alpha = 0.4f) else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 6.dp)
+                                .combinedClickable(
+                                    onClick = {
+                                        selectedTextForHighlight = paragraph.take(180)
+                                        showHighlightSheet = true
+                                    },
+                                    onLongClick = {
+                                        // Pick first distinctive word from paragraph for instant inspection
+                                        val candidateWords = paragraph.split(" ", ",", ".", ";", "\"", "—", "-")
+                                            .map { it.trim().trim('“', '”', '‘', '’', '"', '\'') }
+                                            .filter { it.length >= 4 && it.all { c -> c.isLetter() } }
+                                        val chosen = candidateWords.firstOrNull { it.length > 5 } ?: candidateWords.firstOrNull() ?: "literature"
+                                        inspectingWord = chosen
+                                        inspectingSentence = paragraph
+                                        showWordInspector = true
+                                    }
+                                )
                         ) {
                             Text(
                                 text = paragraph,
@@ -302,10 +379,25 @@ fun ReaderScreen(
                     }
 
                     // Action Icons
-                    Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                        // Ambient Soundscapes
+                        IconButton(onClick = { showSoundscapes = true }) {
+                            Icon(Icons.Default.Headphones, contentDescription = "Ambient Soundscapes", tint = NaturalForestAccent)
+                        }
+
                         // AI Assistant
                         IconButton(onClick = { showAiAssistant = true }) {
                             Icon(Icons.Default.AutoAwesome, contentDescription = "AI Reading Assistant", tint = NaturalOchreAccent)
+                        }
+
+                        // Visual Mind Map / Concept Nodes
+                        IconButton(onClick = { showMindMap = true }) {
+                            Icon(Icons.Default.Hub, contentDescription = "Visual Mind Map", tint = activeTheme.accentColor)
+                        }
+
+                        // Vocab Vault
+                        IconButton(onClick = { showVocabVault = true }) {
+                            Icon(Icons.Default.School, contentDescription = "Vocabulary Vault", tint = activeTheme.textColor)
                         }
 
                         // RSVP Speed Reader
@@ -324,6 +416,11 @@ fun ReaderScreen(
                         // Search in Book
                         IconButton(onClick = { showSearchSheet = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = activeTheme.textColor)
+                        }
+
+                        // Convert & Export to EPUB
+                        IconButton(onClick = { showEpubExport = true }) {
+                            Icon(Icons.Default.Transform, contentDescription = "Export to EPUB", tint = activeTheme.accentColor)
                         }
 
                         // Write/View Reviews
@@ -469,6 +566,7 @@ fun ReaderScreen(
         ReaderThemeSheet(
             preferences = readerPreferences,
             onUpdateTheme = { viewModel.updateReaderTheme(it) },
+            onSelectReadingMode = { viewModel.selectReadingMode(it) },
             onUpdateFontSize = { viewModel.updateFontSize(it) },
             onUpdateLineSpacing = { viewModel.updateLineSpacing(it) },
             onUpdateFontFamily = { viewModel.updateFontFamily(it) },
@@ -476,6 +574,7 @@ fun ReaderScreen(
             onToggleNightLight = { viewModel.toggleNightLight(it) },
             onUpdateBrightness = { viewModel.updateBrightness(it) },
             onTogglePagedMode = { viewModel.togglePagedMode() },
+            bookTitle = currentBookObj.title,
             onDismiss = { showThemeSheet = false }
         )
     }
@@ -497,7 +596,7 @@ fun ReaderScreen(
             searchQuery = inBookSearchQuery,
             results = inBookSearchResults,
             onQueryChange = { viewModel.searchInCurrentBook(it) },
-            onSelectResult = { snippet ->
+            onSelectResult = { _ ->
                 showSearchSheet = false
             },
             onDismiss = { showSearchSheet = false }
@@ -536,25 +635,82 @@ fun ReaderScreen(
     }
 
     if (showSpeedReader) {
-        val currentChapter = chapters.getOrNull(currentChapterIndex)
+        val activeText = viewModel.getCurrentReadingText()
+        val isPdf = currentBookObj.format == BookFormat.PDF
+        val activeTitle = if (isPdf) "Page $currentPage • ${currentBookObj.title}" else (chapters.getOrNull(currentChapterIndex)?.title ?: currentBookObj.title)
         SpeedReaderModal(
-            chapterTitle = currentChapter?.title ?: currentBookObj.title,
-            content = currentChapter?.content ?: "Start reading ${currentBookObj.title}...",
+            chapterTitle = activeTitle,
+            content = if (activeText.isNotBlank()) activeText else "Start reading ${currentBookObj.title}...",
+            currentPage = currentPage,
+            totalPages = currentBookObj.totalPages,
+            onPageChange = { newPage -> viewModel.setPage(newPage) },
             onDismiss = { showSpeedReader = false }
         )
     }
 
     if (showAiAssistant) {
-        val currentChapter = chapters.getOrNull(currentChapterIndex) ?: BookChapter(
-            index = 0,
-            title = currentBookObj.title,
-            content = "Chapter overview for ${currentBookObj.title}",
-            wordCount = 1200
-        )
+        val activeChapter = viewModel.getCurrentReadingChapter()
         AiAssistantSheet(
             book = currentBookObj,
-            chapter = currentChapter,
-            onDismiss = { showAiAssistant = false }
+            chapter = activeChapter,
+            onDismiss = { showAiAssistant = false },
+            onSaveToNotes = { noteText ->
+                viewModel.addHighlight(
+                    text = "${activeChapter.title} - AI Insight",
+                    note = noteText,
+                    color = HighlightColor.AMBER
+                )
+            }
+        )
+    }
+
+    if (showSoundscapes) {
+        AmbientSoundscapeSheet(
+            ambientEngine = viewModel.ambientEngine,
+            onDismiss = { showSoundscapes = false }
+        )
+    }
+
+    if (showWordInspector && inspectingWord.isNotBlank()) {
+        WordInspectorDialog(
+            initialWord = inspectingWord,
+            bookTitle = currentBookObj.title,
+            sentenceContext = inspectingSentence,
+            onAddToVault = { newWord ->
+                viewModel.vocabVaultManager.addWord(newWord)
+                viewModel.questsManager.recordWordLookup()
+            },
+            onDismiss = { showWordInspector = false }
+        )
+    }
+
+    if (showVocabVault) {
+        VocabVaultModal(
+            vocabVaultManager = viewModel.vocabVaultManager,
+            onEarnXp = { xp -> viewModel.questsManager.addXp(xp) },
+            onDismiss = { showVocabVault = false }
+        )
+    }
+
+    if (showMindMap) {
+        CharacterMindMapDialog(
+            book = currentBookObj,
+            onDismiss = { showMindMap = false }
+        )
+    }
+
+    if (showEpubExport) {
+        val bookHighlights by viewModel.currentBookHighlights.collectAsState()
+        EpubConverterModal(
+            book = currentBookObj,
+            highlights = bookHighlights,
+            onOpenConvertedBook = { convertedBook ->
+                viewModel.openBook(convertedBook)
+            },
+            onImportEpubToLibrary = { file, title, author ->
+                viewModel.addConvertedEpubToLibrary(file, title, author, autoOpen = false)
+            },
+            onDismiss = { showEpubExport = false }
         )
     }
 }

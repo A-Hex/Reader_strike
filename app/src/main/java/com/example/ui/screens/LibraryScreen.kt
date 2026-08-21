@@ -37,6 +37,7 @@ import com.example.ui.components.BookGridCard
 import com.example.ui.components.BookListCard
 import com.example.ui.components.BookCoverImage
 import com.example.ui.components.BookReviewsSheet
+import com.example.ui.components.EpubConverterModal
 import com.example.ui.components.ShareContentType
 import com.example.ui.components.SocialShareModal
 import com.example.ui.components.TrustedBookSearchDialog
@@ -69,6 +70,7 @@ fun LibraryScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var selectedBookForReviews by remember { mutableStateOf<Book?>(null) }
     var bookToShare by remember { mutableStateOf<Book?>(null) }
+    var bookToConvertToEpub by remember { mutableStateOf<Book?>(null) }
     var showTrustedSearchDialog by remember { mutableStateOf(false) }
 
     // Find the most recently active or reading book for the Natural Tones Hero banner
@@ -166,15 +168,15 @@ fun LibraryScreen(
                         }
 
                         IconButton(
-                            onClick = { viewModel.triggerSync() },
+                            onClick = { viewModel.refreshStreakData() },
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(NaturalDarkSurfaceElevated)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Sync,
-                                contentDescription = "Sync",
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh Library",
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -658,15 +660,43 @@ fun LibraryScreen(
                     }
                 }
             } else {
-                items(books, key = { it.id }) { book ->
-                    BookListCard(
-                        book = book,
-                        onClick = { viewModel.openBook(book) },
-                        onToggleFavorite = { viewModel.toggleFavorite(book) },
-                        onDelete = { viewModel.deleteBook(book.id) },
-                        onOpenReviews = { selectedBookForReviews = book },
-                        onShareProgress = { bookToShare = book }
-                    )
+                if (isGridView) {
+                    val chunkedBooks = books.chunked(2)
+                    items(chunkedBooks) { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            pair.forEach { book ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    BookGridCard(
+                                        book = book,
+                                        onClick = { viewModel.openBook(book) },
+                                        onToggleFavorite = { viewModel.toggleFavorite(book) },
+                                        onDelete = { viewModel.deleteBook(book.id) },
+                                        onOpenReviews = { selectedBookForReviews = book },
+                                        onShareProgress = { bookToShare = book },
+                                        onConvertToEpub = { bookToConvertToEpub = book }
+                                    )
+                                }
+                            }
+                            if (pair.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                } else {
+                    items(books, key = { it.id }) { book ->
+                        BookListCard(
+                            book = book,
+                            onClick = { viewModel.openBook(book) },
+                            onToggleFavorite = { viewModel.toggleFavorite(book) },
+                            onDelete = { viewModel.deleteBook(book.id) },
+                            onOpenReviews = { selectedBookForReviews = book },
+                            onShareProgress = { bookToShare = book },
+                            onConvertToEpub = { bookToConvertToEpub = book }
+                        )
+                    }
                 }
             }
         }
@@ -684,6 +714,21 @@ fun LibraryScreen(
             },
             onDeleteReview = { id -> viewModel.deleteReview(id) },
             onHelpfulClick = { id -> viewModel.incrementReviewHelpful(id) }
+        )
+    }
+
+    // EPUB Converter Modal
+    bookToConvertToEpub?.let { book ->
+        EpubConverterModal(
+            book = book,
+            highlights = highlights.filter { it.bookId == book.id },
+            onOpenConvertedBook = { convertedBook ->
+                viewModel.openBook(convertedBook)
+            },
+            onImportEpubToLibrary = { file, title, author ->
+                viewModel.addConvertedEpubToLibrary(file, title, author, autoOpen = true)
+            },
+            onDismiss = { bookToConvertToEpub = null }
         )
     }
 

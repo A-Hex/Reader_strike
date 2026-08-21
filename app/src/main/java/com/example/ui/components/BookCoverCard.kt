@@ -29,6 +29,7 @@ fun BookGridCard(
     onDelete: () -> Unit,
     onOpenReviews: () -> Unit = {},
     onShareProgress: () -> Unit = {},
+    onConvertToEpub: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -119,8 +120,16 @@ fun BookGridCard(
                                 }
                             )
                             DropdownMenuItem(
+                                leadingIcon = { Icon(Icons.Default.Transform, contentDescription = null, modifier = Modifier.size(18.dp), tint = NaturalPrimary) },
+                                text = { Text("Convert to EPUB") },
+                                onClick = {
+                                    showMenu = false
+                                    onConvertToEpub()
+                                }
+                            )
+                            DropdownMenuItem(
                                 leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp), tint = NaturalOchreAccent) },
-                                text = { Text("Share Progress (@ahex0_01)") },
+                                text = { Text("Share Progress") },
                                 onClick = {
                                     showMenu = false
                                     onShareProgress()
@@ -183,6 +192,7 @@ fun BookListCard(
     onDelete: () -> Unit,
     onOpenReviews: () -> Unit = {},
     onShareProgress: () -> Unit = {},
+    onConvertToEpub: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -308,8 +318,16 @@ fun BookListCard(
                             }
                         )
                         DropdownMenuItem(
+                            leadingIcon = { Icon(Icons.Default.Transform, contentDescription = null, modifier = Modifier.size(18.dp), tint = NaturalPrimary) },
+                            text = { Text("Convert to EPUB") },
+                            onClick = {
+                                showMenu = false
+                                onConvertToEpub()
+                            }
+                        )
+                        DropdownMenuItem(
                             leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp), tint = NaturalOchreAccent) },
-                            text = { Text("Share Progress (@ahex0_01)") },
+                            text = { Text("Share Progress") },
                             onClick = {
                                 showMenu = false
                                 onShareProgress()
