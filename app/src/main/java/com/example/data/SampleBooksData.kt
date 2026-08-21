@@ -414,22 +414,22 @@ object SampleBooksData {
         StreakBadge(
             id = "badge-first-step",
             title = "A-Hex Pioneer",
-            description = "Started your first reading session and activated the A-Hex streak engine.",
+            description = "Complete your first reading session to ignite your streak.",
             iconName = "flag",
             tier = BadgeTier.BRONZE,
-            isUnlocked = true,
-            unlockedAt = System.currentTimeMillis() - 86400000L * 5,
-            progress = 1.0f
+            isUnlocked = false,
+            unlockedAt = null,
+            progress = 0.0f
         ),
         StreakBadge(
             id = "badge-3-day",
             title = "Hex Tri-Flame",
-            description = "Maintained an unbroken 3-day reading streak.",
+            description = "Maintain an unbroken 3-day reading streak.",
             iconName = "local_fire_department",
             tier = BadgeTier.BRONZE,
-            isUnlocked = true,
-            unlockedAt = System.currentTimeMillis() - 86400000L * 2,
-            progress = 1.0f
+            isUnlocked = false,
+            unlockedAt = null,
+            progress = 0.0f
         ),
         StreakBadge(
             id = "badge-7-day",
@@ -439,7 +439,7 @@ object SampleBooksData {
             tier = BadgeTier.SILVER,
             isUnlocked = false,
             unlockedAt = null,
-            progress = 0.71f // 5 of 7 days
+            progress = 0.0f
         ),
         StreakBadge(
             id = "badge-page-master",
@@ -447,19 +447,19 @@ object SampleBooksData {
             description = "Read over 100 total pages in the offline reader.",
             iconName = "auto_stories",
             tier = BadgeTier.SILVER,
-            isUnlocked = true,
-            unlockedAt = System.currentTimeMillis() - 86400000L * 1,
-            progress = 1.0f
+            isUnlocked = false,
+            unlockedAt = null,
+            progress = 0.0f
         ),
         StreakBadge(
             id = "badge-highlighter",
             title = "Illuminated Scholar",
-            description = "Collected 10 or more colorful highlights and notes across your library.",
+            description = "Collect 10 or more colorful highlights and notes across your library.",
             iconName = "edit_note",
             tier = BadgeTier.GOLD,
             isUnlocked = false,
             unlockedAt = null,
-            progress = 0.40f
+            progress = 0.0f
         ),
         StreakBadge(
             id = "badge-30-day",
@@ -469,7 +469,7 @@ object SampleBooksData {
             tier = BadgeTier.DIAMOND,
             isUnlocked = false,
             unlockedAt = null,
-            progress = 0.17f
+            progress = 0.0f
         )
     )
 

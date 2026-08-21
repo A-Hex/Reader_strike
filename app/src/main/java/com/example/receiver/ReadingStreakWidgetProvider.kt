@@ -32,8 +32,8 @@ class ReadingStreakWidgetProvider : AppWidgetProvider() {
 
             // Read preferences if available
             val prefs = context.getSharedPreferences("reading_streak_prefs", Context.MODE_PRIVATE)
-            val streak = prefs.getInt("current_streak_days", 7)
-            val minutesToday = prefs.getInt("minutes_read_today", 15)
+            val streak = prefs.getInt("current_streak_days", 0)
+            val minutesToday = prefs.getInt("minutes_read_today", 0)
             val dailyGoal = prefs.getInt("daily_goal_minutes", 20)
 
             views.setTextViewText(R.id.widget_streak_count, "🔥 $streak Days")

@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -54,6 +55,17 @@ class BookRepository(private val context: Context, private val database: AppData
     }
 
     suspend fun seedInitialDataIfEmpty() = withContext(Dispatchers.IO) {
+        val streakPrefs = context.getSharedPreferences("reading_streak_prefs", Context.MODE_PRIVATE)
+        if (!streakPrefs.getBoolean("has_cleared_legacy_mock_sessions_v2", false)) {
+            readingSessionDao.clearAllSessions()
+            streakPrefs.edit()
+                .putBoolean("has_cleared_legacy_mock_sessions_v2", true)
+                .putInt("current_streak_days", 0)
+                .putInt("longest_streak_days", 0)
+                .putInt("minutes_read_today", 0)
+                .apply()
+        }
+
         val existing = bookDao.getAllBooks().first()
         if (existing.isEmpty()) {
             val entities = SampleBooksData.INITIAL_BOOKS.map { BookEntity.fromModel(it) }
@@ -63,32 +75,9 @@ class BookRepository(private val context: Context, private val database: AppData
                 highlightDao.insertHighlight(HighlightEntity.fromModel(hl))
             }
 
-            // Seed initial reviews
+            // Seed initial community reviews for classic literature
             SampleBooksData.INITIAL_REVIEWS.forEach { rev ->
                 bookReviewDao.insertReview(BookReviewEntity.fromModel(rev))
-            }
-
-            // Seed initial sessions for monthly streak (30 days of realistic data)
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val today = System.currentTimeMillis()
-            val minutesPattern = listOf(25, 30, 18, 35, 22, 40, 28, 15, 32, 20, 45, 30, 22, 18, 38, 25, 30, 20, 35, 42, 28, 15, 33, 27, 30, 24, 32, 26, 35, 22)
-            val pagesPattern = listOf(18, 22, 12, 25, 16, 30, 20, 10, 24, 15, 32, 21, 17, 12, 26, 18, 22, 14, 25, 31, 20, 11, 24, 19, 21, 18, 23, 19, 26, 28)
-            
-            for (i in 0 until 30) {
-                val dayTime = today - (i * 86400000L)
-                val dateStr = dateFormat.format(Date(dayTime))
-                val min = minutesPattern.getOrElse(i) { 20 }
-                val pgs = pagesPattern.getOrElse(i) { 15 }
-                val bookId = if (i % 2 == 0) "book-art-of-war" else "book-meditations"
-                readingSessionDao.insertSession(
-                    ReadingSessionEntity(
-                        bookId = bookId,
-                        durationMinutes = min,
-                        pagesRead = pgs,
-                        dateString = dateStr,
-                        timestamp = dayTime
-                    )
-                )
             }
         }
     }
@@ -338,13 +327,12 @@ class BookRepository(private val context: Context, private val database: AppData
         val allSessions = readingSessionDao.getAllSessions().first()
         val sessionsByDate = allSessions.groupBy { it.dateString }
         val books = bookDao.getAllBooks().first().map { it.toModel() }
+        val allHighlights = highlightDao.getAllHighlights().first()
 
         // Get past 7 days stats (Weekly)
         val weeklyStats = mutableListOf<DayReadingStat>()
         var todayMinutes = 0
         var todayPages = 0
-        var streak = 0
-        val longest = 14
 
         for (i in 6 downTo 0) {
             val dayTime = today - (i * 86400000L)
@@ -359,7 +347,7 @@ class BookRepository(private val context: Context, private val database: AppData
                 todayPages = pages
             }
 
-            val goalReached = minutes >= dailyGoalMinutes
+            val goalReached = minutes >= dailyGoalMinutes && dailyGoalMinutes > 0 && minutes > 0
             weeklyStats.add(
                 DayReadingStat(
                     date = dateStr,
@@ -387,40 +375,165 @@ class BookRepository(private val context: Context, private val database: AppData
                     dayOfWeek = dayName,
                     minutesRead = minutes,
                     pagesRead = pages,
-                    isGoalReached = minutes >= dailyGoalMinutes
+                    isGoalReached = minutes >= dailyGoalMinutes && dailyGoalMinutes > 0 && minutes > 0
                 )
             )
         }
 
-        // Calculate consecutive streak
-        for (stat in weeklyStats.reversed()) {
-            if (stat.minutesRead > 0 || stat.isGoalReached) {
-                streak++
-            } else {
-                break
+        // Logical streak calculation:
+        // A day counts if reading occurred (minutes > 0 or sessions exist).
+        // 1. If user read today: streak starts at 1, then check yesterday, 2 days ago, 3 days ago...
+        // 2. If user hasn't read today: check yesterday. If read yesterday, streak is alive from yesterday! Check 2 days ago, 3 days ago...
+        // 3. If user didn't read today AND didn't read yesterday: streak is 0.
+        var streak = 0
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = today
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+
+        val todayDateStr = dateFormat.format(cal.time)
+        val todayHasRead = (sessionsByDate[todayDateStr]?.sumOf { it.durationMinutes } ?: 0) > 0
+
+        var checkOffset = if (todayHasRead) 0 else 1
+        var isStreakActive = true
+
+        if (!todayHasRead) {
+            val yesterdayCal = Calendar.getInstance().apply {
+                timeInMillis = cal.timeInMillis - 86400000L
+            }
+            val yesterdayDateStr = dateFormat.format(yesterdayCal.time)
+            val yesterdayHasRead = (sessionsByDate[yesterdayDateStr]?.sumOf { it.durationMinutes } ?: 0) > 0
+            if (!yesterdayHasRead) {
+                isStreakActive = false
+                streak = 0
             }
         }
-        if (streak == 0) streak = 5 // fallback baseline
 
-        val totalMinutes = allSessions.sumOf { it.durationMinutes }.coerceAtLeast(1240)
-        val totalPages = allSessions.sumOf { it.pagesRead }.coerceAtLeast(412)
-        val totalBooksFinished = books.count { it.status == ReadingStatus.FINISHED || it.readingProgress >= 0.99f }.coerceAtLeast(2)
-        val totalSessionsCount = allSessions.size.coerceAtLeast(28)
-        val avgSessionMinutes = if (allSessions.isNotEmpty()) {
-            allSessions.map { it.durationMinutes }.average().toFloat().coerceIn(15f, 45f)
-        } else {
-            24.5f
+        if (isStreakActive) {
+            while (true) {
+                val dayCal = Calendar.getInstance().apply {
+                    timeInMillis = cal.timeInMillis - (checkOffset * 86400000L)
+                }
+                val checkDateStr = dateFormat.format(dayCal.time)
+                val dayMinutes = sessionsByDate[checkDateStr]?.sumOf { it.durationMinutes } ?: 0
+                if (dayMinutes > 0) {
+                    streak++
+                    checkOffset++
+                } else {
+                    break
+                }
+            }
         }
 
+        // Calculate all-time longest streak from historical dates
+        val readingDates = sessionsByDate.filter { (_, sessions) ->
+            sessions.sumOf { it.durationMinutes } > 0
+        }.keys.sorted()
+
+        var calculatedLongest = streak
+        if (readingDates.isNotEmpty()) {
+            var tempStreak = 1
+            for (j in 1 until readingDates.size) {
+                try {
+                    val prevDate = dateFormat.parse(readingDates[j - 1])
+                    val currDate = dateFormat.parse(readingDates[j])
+                    if (prevDate != null && currDate != null) {
+                        val diffDays = ((currDate.time - prevDate.time) / (1000 * 60 * 60 * 24)).toInt()
+                        if (diffDays == 1) {
+                            tempStreak++
+                            if (tempStreak > calculatedLongest) {
+                                calculatedLongest = tempStreak
+                            }
+                        } else if (diffDays > 1) {
+                            tempStreak = 1
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
+        val prefs = context.getSharedPreferences("reading_streak_prefs", Context.MODE_PRIVATE)
+        val savedLongest = prefs.getInt("longest_streak_days", 0)
+        val finalLongestStreak = maxOf(savedLongest, calculatedLongest, streak)
+
+        prefs.edit()
+            .putInt("current_streak_days", streak)
+            .putInt("longest_streak_days", finalLongestStreak)
+            .putInt("minutes_read_today", todayMinutes)
+            .putInt("daily_goal_minutes", dailyGoalMinutes)
+            .apply()
+
+        val totalMinutes = allSessions.sumOf { it.durationMinutes }
+        val totalPages = allSessions.sumOf { it.pagesRead }
+        val totalBooksFinished = books.count { it.status == ReadingStatus.FINISHED || it.readingProgress >= 0.99f }
+        val totalSessionsCount = allSessions.size
+        val avgSessionMinutes = if (allSessions.isNotEmpty()) {
+            allSessions.map { it.durationMinutes }.average().toFloat()
+        } else {
+            0f
+        }
+
+        // Dynamic badges based on real achievements
         val badges = SampleBooksData.INITIAL_BADGES.map { b ->
-            if (b.id == "badge-7-day") {
-                b.copy(progress = (streak / 7.0f).coerceIn(0f, 1f), isUnlocked = streak >= 7)
-            } else b
+            when (b.id) {
+                "badge-first-step" -> {
+                    val unlocked = allSessions.isNotEmpty() || totalMinutes > 0
+                    b.copy(
+                        isUnlocked = unlocked,
+                        progress = if (unlocked) 1.0f else (totalMinutes / 1f).coerceIn(0f, 1f),
+                        unlockedAt = if (unlocked) (allSessions.firstOrNull()?.timestamp ?: today) else null
+                    )
+                }
+                "badge-3-day" -> {
+                    val unlocked = finalLongestStreak >= 3 || streak >= 3
+                    b.copy(
+                        isUnlocked = unlocked,
+                        progress = (streak / 3.0f).coerceIn(0f, 1f),
+                        unlockedAt = if (unlocked) today else null
+                    )
+                }
+                "badge-7-day" -> {
+                    val unlocked = finalLongestStreak >= 7 || streak >= 7
+                    b.copy(
+                        isUnlocked = unlocked,
+                        progress = (streak / 7.0f).coerceIn(0f, 1f),
+                        unlockedAt = if (unlocked) today else null
+                    )
+                }
+                "badge-30-day" -> {
+                    val unlocked = finalLongestStreak >= 30 || streak >= 30
+                    b.copy(
+                        isUnlocked = unlocked,
+                        progress = (streak / 30.0f).coerceIn(0f, 1f),
+                        unlockedAt = if (unlocked) today else null
+                    )
+                }
+                "badge-page-master" -> {
+                    val unlocked = totalPages >= 100
+                    b.copy(
+                        isUnlocked = unlocked,
+                        progress = (totalPages / 100.0f).coerceIn(0f, 1f),
+                        unlockedAt = if (unlocked) today else null
+                    )
+                }
+                "badge-highlighter" -> {
+                    val count = allHighlights.size
+                    val unlocked = count >= 10
+                    b.copy(
+                        isUnlocked = unlocked,
+                        progress = (count / 10.0f).coerceIn(0f, 1f),
+                        unlockedAt = if (unlocked) today else null
+                    )
+                }
+                else -> b
+            }
         }
 
         ReadingStreakData(
             currentStreakDays = streak,
-            longestStreakDays = maxOf(longest, streak),
+            longestStreakDays = finalLongestStreak,
             totalMinutesRead = totalMinutes,
             totalPagesRead = totalPages,
             totalBooksRead = totalBooksFinished,
@@ -429,9 +542,10 @@ class BookRepository(private val context: Context, private val database: AppData
             totalSessionsCount = totalSessionsCount,
             dailyGoalMinutes = dailyGoalMinutes,
             dailyGoalPages = (dailyGoalMinutes * 1.25f).toInt(),
-            todayMinutesRead = if (todayMinutes > 0) todayMinutes else 22,
-            todayPagesRead = if (todayPages > 0) todayPages else 28,
-            readingSpeedWpm = 240,
+            todayMinutesRead = todayMinutes,
+            todayPagesRead = todayPages,
+            readingSpeedWpm = if (totalMinutes > 0 && totalPages > 0) ((totalPages * 250) / totalMinutes).coerceIn(150, 400) else 240,
+            lastReadDate = todayDateStr,
             weeklyStats = weeklyStats,
             monthlyStats = monthlyStats,
             badges = badges

@@ -23,8 +23,8 @@ class QuestsAndShieldsManager(context: Context) {
     }
 
     private fun loadState() {
-        val totalXp = prefs.getInt("total_xp", 380)
-        val shields = prefs.getInt("streak_shields", 1)
+        val totalXp = prefs.getInt("total_xp", 0)
+        val shields = prefs.getInt("streak_shields", 0)
         val rank = ReaderRank.getRankForXp(totalXp)
 
         val questsJson = prefs.getString("quests_json", null)
@@ -48,7 +48,7 @@ class QuestsAndShieldsManager(context: Context) {
                 id = "quest-focus-sprint",
                 title = "20-Minute Focus Sprint",
                 description = "Complete 20 uninterrupted minutes of reading today",
-                currentProgress = 14,
+                currentProgress = 0,
                 targetProgress = 20,
                 xpReward = 80,
                 shieldReward = 0,
@@ -60,7 +60,7 @@ class QuestsAndShieldsManager(context: Context) {
                 id = "quest-vocab-vault",
                 title = "Lexicon Builder",
                 description = "Inspect and master 3 new vocabulary terms",
-                currentProgress = 2,
+                currentProgress = 0,
                 targetProgress = 3,
                 xpReward = 60,
                 shieldReward = 0,
@@ -72,7 +72,7 @@ class QuestsAndShieldsManager(context: Context) {
                 id = "quest-streak-guardian",
                 title = "Streak Champion",
                 description = "Maintain a 5-day continuous reading streak",
-                currentProgress = 4,
+                currentProgress = 0,
                 targetProgress = 5,
                 xpReward = 150,
                 shieldReward = 1,
@@ -84,7 +84,7 @@ class QuestsAndShieldsManager(context: Context) {
                 id = "quest-speed-reader",
                 title = "Velocity Master",
                 description = "Read 500 words using RSVP Speed Reader",
-                currentProgress = 320,
+                currentProgress = 0,
                 targetProgress = 500,
                 xpReward = 100,
                 shieldReward = 0,
@@ -224,7 +224,21 @@ class QuestsAndShieldsManager(context: Context) {
     }
 
     fun recordSpeedRead() {
-        incrementQuestProgress("quest-rsvp-master", 1)
+        incrementQuestProgress("quest-speed-reader", 1)
         addXp(25)
+    }
+
+    fun updateStreak(streak: Int) {
+        val updated = _state.value.activeQuests.map { q ->
+            if (q.id == "quest-streak-guardian" && !q.isClaimed) {
+                val newProg = streak.coerceAtMost(q.targetProgress)
+                q.copy(
+                    currentProgress = newProg,
+                    isCompleted = newProg >= q.targetProgress
+                )
+            } else q
+        }
+        _state.value = _state.value.copy(activeQuests = updated)
+        persist()
     }
 }

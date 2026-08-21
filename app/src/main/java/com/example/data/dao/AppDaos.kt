@@ -102,6 +102,9 @@ interface ReadingSessionDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSessions(sessions: List<ReadingSessionEntity>)
+
+    @Query("DELETE FROM reading_sessions")
+    suspend fun clearAllSessions()
 }
 
 @Dao

@@ -1,6 +1,8 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -15,6 +17,7 @@ import com.example.reader.EpubParser
 import com.example.reader.PdfLoadResult
 import com.example.reader.PdfManager
 import com.example.reader.TtsManager
+import com.example.receiver.ReadingStreakWidgetProvider
 import com.example.util.AppLanguage
 import com.example.util.BackupResult
 import kotlinx.coroutines.Job
@@ -229,7 +232,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshStreakData() {
         viewModelScope.launch {
-            _streakData.value = bookRepository.calculateStreakData(dailyGoalMinutes = _dailyGoalMinutes.value)
+            val data = bookRepository.calculateStreakData(dailyGoalMinutes = _dailyGoalMinutes.value)
+            _streakData.value = data
+            questsManager.updateStreak(data.currentStreakDays)
+
+            try {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val ids = appWidgetManager.getAppWidgetIds(
+                    ComponentName(context, ReadingStreakWidgetProvider::class.java)
+                )
+                if (ids.isNotEmpty()) {
+                    for (id in ids) {
+                        ReadingStreakWidgetProvider.updateAppWidget(context, appWidgetManager, id)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
