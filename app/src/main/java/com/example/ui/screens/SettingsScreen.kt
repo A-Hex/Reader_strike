@@ -39,6 +39,16 @@ fun SettingsScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
+    var showLocalSpaceScreen by remember { mutableStateOf(false) }
+
+    if (showLocalSpaceScreen) {
+        LocalSpaceScreen(
+            viewModel = viewModel,
+            onBack = { showLocalSpaceScreen = false }
+        )
+        return
+    }
+
     val books by viewModel.allBooks.collectAsState()
     val highlights by viewModel.allHighlights.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
@@ -129,6 +139,83 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalDarkTextMuted
                         )
+                    }
+                }
+            }
+        }
+
+        // Dedicated Local Space Vault Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1A12)),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.7f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NaturalPrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Shield, contentDescription = null, tint = NaturalOnPrimary, modifier = Modifier.size(20.dp))
+                            }
+                            Column {
+                                Text(
+                                    text = "Local Space Vault",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "Air-Gapped • 100% On-Device",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+                                    color = NaturalPrimary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            color = NaturalPrimary.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "AIR-GAPPED",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = NaturalPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Access your private on-device vault, local storage allocation, local NLP relation analysis, database optimization, and local encrypted backups.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkText
+                    )
+
+                    Button(
+                        onClick = { showLocalSpaceScreen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                    ) {
+                        Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF141C15), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Open Local Space", color = Color(0xFF141C15), fontWeight = FontWeight.Bold)
                     }
                 }
             }

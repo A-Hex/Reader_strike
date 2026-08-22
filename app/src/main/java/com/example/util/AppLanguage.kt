@@ -24,6 +24,7 @@ object AppStrings {
     private val englishStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "Library",
+        "tab_local_space" to "Local Space",
         "tab_streak" to "Streak",
         "tab_highlights" to "Highlights",
         "tab_discover" to "Discover",
@@ -169,6 +170,7 @@ object AppStrings {
     private val arabicStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "المكتبة",
+        "tab_local_space" to "المساحة المحلية",
         "tab_streak" to "الإنجاز",
         "tab_highlights" to "الاقتباسات",
         "tab_discover" to "استكشاف",
@@ -314,6 +316,7 @@ object AppStrings {
     private val frenchStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "Bibliothèque",
+        "tab_local_space" to "Espace Local",
         "tab_streak" to "Série",
         "tab_highlights" to "Extraits",
         "tab_discover" to "Découvrir",

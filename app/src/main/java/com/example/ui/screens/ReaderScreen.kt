@@ -419,7 +419,7 @@ fun ReaderScreen(
                             }
 
                             IconButton(onClick = { showMindMap = true }) {
-                                Icon(Icons.Default.Hub, contentDescription = "Visual Mind Map", tint = activeTheme.accentColor)
+                                Icon(Icons.Default.AccountTree, contentDescription = "Character & Plot Codex", tint = activeTheme.accentColor)
                             }
 
                             IconButton(onClick = { showVocabVault = true }) {
@@ -715,8 +715,10 @@ fun ReaderScreen(
         }
 
         if (showMindMap) {
+            val fullBookText = chapters.joinToString("\n\n") { "${it.title}\n${it.content}" }
             CharacterMindMapDialog(
                 book = currentBookObj,
+                bookContentText = fullBookText,
                 onDismiss = { showMindMap = false }
             )
         }
