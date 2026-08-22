@@ -12,13 +12,14 @@ import com.example.data.AppDatabase
 import com.example.data.SampleBooksData
 import com.example.data.repository.BookRepository
 import com.example.data.repository.LocalBackupRepository
+import com.example.data.repository.QuestsAndShieldsManager
+import com.example.data.repository.VocabVaultManager
+import com.example.data.repository.VoiceAuthRepository
 import com.example.model.*
-import com.example.reader.EpubParser
-import com.example.reader.PdfLoadResult
-import com.example.reader.PdfManager
-import com.example.reader.TtsManager
+import com.example.reader.*
 import com.example.receiver.ReadingStreakWidgetProvider
 import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.util.BackupResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,9 +36,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val pdfManager = PdfManager(context)
     val ttsManager = TtsManager(context)
-    val ambientEngine = com.example.reader.AmbientAudioEngine()
-    val vocabVaultManager = com.example.data.repository.VocabVaultManager(context)
-    val questsManager = com.example.data.repository.QuestsAndShieldsManager(context)
+    val ambientEngine = AmbientAudioEngine()
+    val vocabVaultManager = VocabVaultManager(context)
+    val questsManager = QuestsAndShieldsManager(context)
+
+    // Offline Voiceprint Security
+    val voiceAuthRepository = VoiceAuthRepository(context)
+    val audioRecorder = AudioRecorder(context)
+
+    // Smart Privacy-First Face Presence Tracking
+    val facePresenceEngine = FacePresenceEngine(context)
 
     // Library UI state
     val allBooks = bookRepository.allBooks.stateIn(
@@ -65,6 +73,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _dailyGoalMinutes = MutableStateFlow(prefs.getInt("daily_goal_minutes", 20))
     val dailyGoalMinutes: StateFlow<Int> = _dailyGoalMinutes.asStateFlow()
 
+    private val _isFaceAssistedEnabled = MutableStateFlow(prefs.getBoolean("face_assisted_enabled", false))
+    val isFaceAssistedEnabled: StateFlow<Boolean> = _isFaceAssistedEnabled.asStateFlow()
+
+    fun setFaceAssistedEnabled(enabled: Boolean) {
+        _isFaceAssistedEnabled.value = enabled
+        prefs.edit().putBoolean("face_assisted_enabled", enabled).apply()
+        if (!enabled) {
+            facePresenceEngine.stopAnalyzing()
+        }
+    }
+
     fun updateDailyGoal(minutes: Int) {
         val validMinutes = minutes.coerceIn(5, 240)
         _dailyGoalMinutes.value = validMinutes
@@ -91,6 +110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setLanguage(language: AppLanguage) {
         _currentLanguage.value = language
         prefs.edit().putString("app_language", language.code).apply()
+        ttsManager.configureForLanguage(language)
         Toast.makeText(context, "Language changed to ${language.displayName}", Toast.LENGTH_SHORT).show()
     }
 
@@ -104,7 +124,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { books, query, status, format, sort ->
         var list = books
 
-        // Filter by Status / Shelf
         if (status != ReadingStatus.ALL) {
             list = when (status) {
                 ReadingStatus.FAVORITES -> list.filter { it.isFavorite }
@@ -113,12 +132,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Filter by format
         if (format != null) {
             list = list.filter { it.format == format }
         }
 
-        // Filter by Search Query (title, author, genre, tags)
         if (query.isNotBlank()) {
             val q = query.trim().lowercase()
             list = list.filter { book ->
@@ -130,7 +147,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Sort
         when (sort) {
             SortOption.RECENTLY_READ -> list.sortedByDescending { it.lastReadTimestamp }
             SortOption.TITLE -> list.sortedBy { it.title.lowercase() }
@@ -169,6 +185,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var sessionAccumulatedSeconds: Long = 0L
     private var sessionPagesTurned: Int = 0
     private var isGoalCelebratedThisSession: Boolean = false
+    private var noFaceConsecutiveSeconds: Int = 0
 
     // Highlights & Bookmarks
     val allHighlights = bookRepository.allHighlights.stateIn(
@@ -204,7 +221,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _catalogBooks = MutableStateFlow(SampleBooksData.DISCOVER_CATALOG)
     val catalogBooks: StateFlow<List<Book>> = _catalogBooks.asStateFlow()
 
-    // Recommendation Engine: analyzes user reading history, genre preferences, and highlighted content
     val bookRecommendations: StateFlow<List<BookRecommendation>> = combine(
         allBooks,
         allHighlights,
@@ -217,10 +233,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Local Backup state
     val localBackupInfo = localBackupRepository.backupInfo
 
-    // Active session timer
     private var readingSessionJob: Job? = null
 
     init {
@@ -304,7 +318,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         _currentChapters.value = parsed.chapters
                     }
                 } else if (book.format == BookFormat.PDF) {
-                    val extracted = com.example.reader.PdfTextExtractor.extractChaptersFromPdf(file, book.title)
+                    val extracted = PdfTextExtractor.extractChaptersFromPdf(file, book.title)
                     if (extracted.isNotEmpty()) {
                         _currentChapters.value = extracted
                     } else {
@@ -329,7 +343,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getCurrentReadingText(): String {
         val book = _currentBook.value ?: return ""
-        return com.example.reader.PdfTextExtractor.getResolvedTextForBookPage(
+        return PdfTextExtractor.getResolvedTextForBookPage(
             book = book,
             pageNumber = _currentPage.value,
             chapters = _currentChapters.value
@@ -362,6 +376,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun closeReader() {
         stopReadingSession()
         ttsManager.stop()
+        facePresenceEngine.stopAnalyzing()
         _currentBook.value = null
     }
 
@@ -382,7 +397,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isIdle = false,
             idleSecondsCount = 0
         )
-        if (newPaused && ttsManager.isPlaying.value) {
+        if (newPaused && ttsManager.engineState.value is TtsEngineState.Playing) {
             ttsManager.pause()
         }
     }
@@ -414,7 +429,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             idleSecondsCount = 0
         )
 
-        // Auto chapter switch if paged
         if (_currentChapters.value.isNotEmpty()) {
             val chapterIdx = ((newPage - 1).toFloat() / book.totalPages * _currentChapters.value.size).toInt().coerceIn(0, _currentChapters.value.size - 1)
             _currentChapterIndex.value = chapterIdx
@@ -463,7 +477,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Highlights & Bookmarks actions
+    fun recordSpeedReadTokens(count: Int) {
+        questsManager.recordSpeedReadTokens(count)
+        refreshStreakData()
+    }
+
     fun addHighlight(text: String, note: String?, color: HighlightColor) {
         val book = _currentBook.value ?: return
         val currentChapter = _currentChapters.value.getOrNull(_currentChapterIndex.value)
@@ -515,7 +533,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Reader Customization Preferences
     fun updateReaderTheme(themeId: String) {
         _readerPreferences.value = _readerPreferences.value.copy(themeId = themeId)
         val book = _currentBook.value
@@ -563,7 +580,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _readerPreferences.value = _readerPreferences.value.copy(isPagedMode = !_readerPreferences.value.isPagedMode)
     }
 
-    // In-Book Search
     fun searchInCurrentBook(query: String) {
         _inBookSearchQuery.value = query
         if (query.isBlank()) {
@@ -584,20 +600,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _inBookSearchResults.value = results
     }
 
-    // TTS playback
+    // Multilingual Segmented TTS Playback
     fun playTtsForCurrentChapter() {
-        val text = getCurrentReadingText()
+        val text = getCurrentReadingText().ifBlank {
+            _currentChapters.value.getOrNull(_currentChapterIndex.value)?.content ?: ""
+        }
         if (text.isNotBlank()) {
-            ttsManager.startReading(text)
-        } else {
-            val chapter = _currentChapters.value.getOrNull(_currentChapterIndex.value)
-            if (chapter != null && chapter.content.isNotBlank()) {
-                ttsManager.startReading(chapter.content)
-            }
+            val segments = TextSegmenter.segment(text)
+            ttsManager.startReadingSegments(
+                segments = segments,
+                startSegmentIndex = 0,
+                preferredLanguage = _currentLanguage.value,
+                bookLanguageCode = _currentBook.value?.languageCode
+            )
         }
     }
 
-    // Document Import
     fun importDocument(uri: Uri, displayName: String) {
         viewModelScope.launch {
             val book = bookRepository.importBookFromUri(uri, displayName)
@@ -625,7 +643,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Download public domain book
     fun downloadBook(book: Book) {
         viewModelScope.launch {
             bookRepository.downloadCatalogBook(book)
@@ -634,7 +651,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Real Local Backup & Restore Actions
     fun exportBackup(uri: Uri, onComplete: (BackupResult) -> Unit = {}) {
         viewModelScope.launch {
             val result = localBackupRepository.exportBackup(context, uri)
@@ -728,6 +744,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sessionAccumulatedSeconds = 0L
         sessionPagesTurned = 0
         isGoalCelebratedThisSession = false
+        noFaceConsecutiveSeconds = 0
         val todayMinutes = _streakData.value.todayMinutesRead
         val dailyGoal = _streakData.value.dailyGoalMinutes
 
@@ -750,9 +767,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 delay(1000)
                 val current = _activeSessionState.value
-                val isTtsPlaying = ttsManager.isPlaying.value
+                val isTtsPlaying = ttsManager.engineState.value is TtsEngineState.Playing
+                val isFaceAssisted = _isFaceAssistedEnabled.value
+                val faceState = facePresenceEngine.presenceState.value
 
-                if (isTtsPlaying) {
+                // If face-assisted mode is on, verify presence unless user is listening via TTS
+                val isFaceAttentive = !isFaceAssisted || isTtsPlaying || (faceState == FacePresenceState.Attentive)
+
+                if (isFaceAssisted && !isTtsPlaying && faceState != FacePresenceState.Attentive) {
+                    noFaceConsecutiveSeconds++
+                } else {
+                    noFaceConsecutiveSeconds = 0
+                }
+
+                val allowCounting = if (isFaceAssisted && !isTtsPlaying) {
+                    noFaceConsecutiveSeconds < 4 && isFaceAttentive
+                } else {
+                    !current.isPaused && current.idleSecondsCount < 90
+                }
+
+                if (isTtsPlaying || allowCounting) {
                     sessionAccumulatedSeconds++
                     val newTotalTodayMinutes = todayMinutes + (sessionAccumulatedSeconds / 60).toInt()
                     val goalMet = newTotalTodayMinutes >= dailyGoal
@@ -765,7 +799,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _activeSessionState.value = current.copy(
                         sessionDurationSeconds = sessionAccumulatedSeconds,
                         isIdle = false,
-                        idleSecondsCount = 0,
+                        idleSecondsCount = if (isTtsPlaying) 0 else (current.idleSecondsCount + 1),
                         isDailyGoalReached = goalMet
                     )
 
@@ -774,33 +808,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         bookRepository.updateReadingProgress(book.id, _currentPage.value, progress, 1)
                         refreshStreakData()
                     }
-                } else if (!current.isPaused) {
-                    if (current.idleSecondsCount < 90) {
-                        sessionAccumulatedSeconds++
-                        val newIdleCount = current.idleSecondsCount + 1
-                        val newTotalTodayMinutes = todayMinutes + (sessionAccumulatedSeconds / 60).toInt()
-                        val goalMet = newTotalTodayMinutes >= dailyGoal
-
-                        if (goalMet && !isGoalCelebratedThisSession && !current.isDailyGoalReached) {
-                            isGoalCelebratedThisSession = true
-                            Toast.makeText(context, "🔥 Daily Streak Goal Achieved! ($dailyGoal min completed)", Toast.LENGTH_SHORT).show()
-                        }
-
-                        _activeSessionState.value = current.copy(
-                            sessionDurationSeconds = sessionAccumulatedSeconds,
-                            idleSecondsCount = newIdleCount,
-                            isIdle = false,
-                            isDailyGoalReached = goalMet
-                        )
-
-                        if (sessionAccumulatedSeconds % 30 == 0L) {
-                            val progress = (_currentPage.value.toFloat() / (_currentBook.value?.totalPages ?: 100).toFloat()).coerceIn(0f, 1f)
-                            bookRepository.updateReadingProgress(book.id, _currentPage.value, progress, 1)
-                            refreshStreakData()
-                        }
-                    } else {
-                        _activeSessionState.value = current.copy(isIdle = true)
-                    }
+                } else if (!isTtsPlaying && current.idleSecondsCount >= 90) {
+                    _activeSessionState.value = current.copy(isIdle = true)
                 }
             }
         }
@@ -833,5 +842,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ttsManager.shutdown()
         ambientEngine.release()
         pdfManager.close()
+        facePresenceEngine.stopAnalyzing()
     }
 }

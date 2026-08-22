@@ -14,17 +14,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.reader.RsvpSpeedReaderEngine
+import com.example.reader.RsvpToken
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import kotlinx.coroutines.delay
 
 @Composable
@@ -34,82 +40,99 @@ fun SpeedReaderModal(
     onDismiss: () -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
+    currentLanguage: AppLanguage = AppLanguage.ENGLISH,
     onPageChange: ((Int) -> Unit)? = null,
+    onTokensRead: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val words = remember(content) {
-        val list = content.split("\\s+".toRegex()).filter { it.isNotBlank() }
-        if (list.isEmpty()) listOf("No", "text", "available", "on", "this", "page") else list
+    val tokens = remember(content) {
+        val list = RsvpSpeedReaderEngine.tokenize(content)
+        if (list.isEmpty()) {
+            listOf(
+                RsvpToken("1", "Ready", false, 1.0f, 1),
+                RsvpToken("2", "to", false, 1.0f, 0),
+                RsvpToken("3", "Read", false, 1.0f, 1)
+            )
+        } else list
     }
 
     var currentIndex by remember(content) { mutableIntStateOf(0) }
     var isPlaying by remember { mutableStateOf(false) }
     var wpm by remember { mutableIntStateOf(350) } // Words Per Minute
+    var readTokensCountSincePlay by remember { mutableIntStateOf(0) }
 
-    // Timer loop for RSVP Speed Reading
-    LaunchedEffect(isPlaying, wpm, currentIndex, words) {
-        if (isPlaying && words.isNotEmpty() && currentIndex < words.size) {
-            val currentWord = words[currentIndex]
-            // Calculate delay: longer for punctuation
-            var delayMs = 60_000L / wpm
-            if (currentWord.endsWith(".") || currentWord.endsWith("!") || currentWord.endsWith("?")) {
-                delayMs = (delayMs * 1.5).toLong()
-            } else if (currentWord.endsWith(",") || currentWord.endsWith(";") || currentWord.endsWith(":")) {
-                delayMs = (delayMs * 1.25).toLong()
+    // Accurate ticker loop with punctuation delays and token progression
+    LaunchedEffect(isPlaying, wpm, currentIndex, tokens) {
+        if (isPlaying && tokens.isNotEmpty() && currentIndex < tokens.size) {
+            val currentToken = tokens[currentIndex]
+            val baseDelay = 60_000L / wpm
+            val totalDelay = (baseDelay * currentToken.delayMultiplier).toLong()
+
+            delay(totalDelay)
+            readTokensCountSincePlay++
+            if (readTokensCountSincePlay % 25 == 0) {
+                onTokensRead?.invoke(25)
             }
 
-            delay(delayMs)
-            if (currentIndex < words.size - 1) {
+            if (currentIndex < tokens.size - 1) {
                 currentIndex++
             } else {
                 if (onPageChange != null && currentPage < totalPages) {
-                    // Seamless auto-advance to next page
-                    delay(300)
+                    onTokensRead?.invoke(readTokensCountSincePlay % 25)
+                    readTokensCountSincePlay = 0
+                    delay(350)
                     onPageChange(currentPage + 1)
                 } else {
                     isPlaying = false
+                    onTokensRead?.invoke(readTokensCountSincePlay % 25)
+                    readTokensCountSincePlay = 0
                 }
             }
         }
     }
 
-    val currentWord = if (words.isNotEmpty() && currentIndex in words.indices) words[currentIndex] else "Ready"
+    val currentToken = if (tokens.isNotEmpty() && currentIndex in tokens.indices) tokens[currentIndex] else null
+    val currentWordText = currentToken?.text ?: "Ready"
+    val isRtlWord = currentToken?.isRtl ?: false
 
-    // Format current word with Optimal Recognition Point (ORP) highlight
-    val formattedWord = remember(currentWord) {
+    // Direction-safe ORP formatting
+    val formattedWord = remember(currentToken, currentWordText) {
         buildAnnotatedString {
-            if (currentWord.length <= 1) {
-                withStyle(SpanStyle(color = NaturalPrimary, fontWeight = FontWeight.Bold)) {
-                    append(currentWord)
+            if (isRtlWord) {
+                // Arabic: Uniform elegant styling preserving ligatures without destructive splitting
+                withStyle(SpanStyle(color = Color(0xFFF0FDF4), fontWeight = FontWeight.Bold)) {
+                    append(currentWordText)
                 }
             } else {
-                val orpIndex = when (currentWord.length) {
-                    2, 3 -> 1
-                    4, 5 -> 1
-                    6, 7 -> 2
-                    8, 9 -> 3
-                    else -> 4
-                }.coerceIn(0, currentWord.length - 1)
+                if (currentWordText.length <= 1) {
+                    withStyle(SpanStyle(color = NaturalOchreAccent, fontWeight = FontWeight.Bold)) {
+                        append(currentWordText)
+                    }
+                } else {
+                    val focalIdx = currentToken?.focalCharIndex ?: 1
+                    val prefix = currentWordText.substring(0, focalIdx)
+                    val focalChar = currentWordText.substring(focalIdx, focalIdx + 1)
+                    val suffix = currentWordText.substring(focalIdx + 1)
 
-                val prefix = currentWord.substring(0, orpIndex)
-                val focalChar = currentWord.substring(orpIndex, orpIndex + 1)
-                val suffix = currentWord.substring(orpIndex + 1)
-
-                withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
-                    append(prefix)
-                }
-                withStyle(SpanStyle(color = NaturalOchreAccent, fontWeight = FontWeight.Black)) {
-                    append(focalChar)
-                }
-                withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
-                    append(suffix)
+                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
+                        append(prefix)
+                    }
+                    withStyle(SpanStyle(color = NaturalOchreAccent, fontWeight = FontWeight.Black)) {
+                        append(focalChar)
+                    }
+                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
+                        append(suffix)
+                    }
                 }
             }
         }
     }
 
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            onTokensRead?.invoke(readTokensCountSincePlay % 25)
+            onDismiss()
+        },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
@@ -134,36 +157,34 @@ fun SpeedReaderModal(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        color = NaturalPrimary.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Surface(
-                            color = NaturalPrimary.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(8.dp)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Bolt,
-                                    contentDescription = null,
-                                    tint = NaturalPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "RSVP Speed Reader",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = NaturalPrimary
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = NaturalPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = AppStrings.get("rsvp_title", currentLanguage),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = NaturalPrimary
+                            )
                         }
                     }
 
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            onTokensRead?.invoke(readTokensCountSincePlay % 25)
+                            onDismiss()
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = NaturalDarkTextMuted)
@@ -216,7 +237,7 @@ fun SpeedReaderModal(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(125.dp)
+                        .height(130.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color(0xFF0D120E))
                         .border(1.5.dp, NaturalDarkBorder, RoundedCornerShape(20.dp)),
@@ -232,13 +253,18 @@ fun SpeedReaderModal(
                         Box(modifier = Modifier.size(width = 3.dp, height = 14.dp).background(NaturalOchreAccent))
                     }
 
-                    Text(
-                        text = formattedWord,
-                        fontSize = 32.sp,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = TextAlign.Center,
-                        letterSpacing = 1.sp
-                    )
+                    CompositionLocalProvider(
+                        LocalLayoutDirection provides (if (isRtlWord) LayoutDirection.Rtl else LayoutDirection.Ltr)
+                    ) {
+                        Text(
+                            text = formattedWord,
+                            fontSize = if (isRtlWord) 34.sp else 32.sp,
+                            fontFamily = if (isRtlWord) FontFamily.Default else FontFamily.Monospace,
+                            textAlign = TextAlign.Center,
+                            letterSpacing = if (isRtlWord) 0.sp else 1.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
                 }
 
                 // Progress Info & Slider
@@ -248,19 +274,18 @@ fun SpeedReaderModal(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Word ${currentIndex + 1} of ${words.size}",
+                            text = "Word ${currentIndex + 1} / ${tokens.size}",
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalDarkTextMuted
                         )
-                        val remainingWords = (words.size - (currentIndex + 1)).coerceAtLeast(0)
-                        val remainingSeconds = (remainingWords * 60) / wpm
+                        val remainingSeconds = RsvpSpeedReaderEngine.calculateRemainingSeconds(tokens, currentIndex + 1, wpm)
                         val timeStr = if (remainingSeconds > 60) "${remainingSeconds / 60}m ${remainingSeconds % 60}s" else "${remainingSeconds}s"
                         Text(
                             text = "~$timeStr left",
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalDarkTextMuted
                         )
-                        val progressPercent = if (words.isNotEmpty()) ((currentIndex.toFloat() / words.size) * 100).toInt() else 0
+                        val progressPercent = RsvpSpeedReaderEngine.calculateProgressPercent(currentIndex, tokens.size)
                         Text(
                             text = "$progressPercent%",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
@@ -268,12 +293,12 @@ fun SpeedReaderModal(
                         )
                     }
                     Slider(
-                        value = if (words.isNotEmpty()) currentIndex.toFloat() else 0f,
+                        value = if (tokens.isNotEmpty()) currentIndex.toFloat() else 0f,
                         onValueChange = {
-                            currentIndex = it.toInt()
+                            currentIndex = it.toInt().coerceIn(0, tokens.size - 1)
                             isPlaying = false
                         },
-                        valueRange = 0f..(words.size - 1).coerceAtLeast(0).toFloat(),
+                        valueRange = 0f..(tokens.size - 1).coerceAtLeast(0).toFloat(),
                         colors = SliderDefaults.colors(
                             thumbColor = NaturalPrimary,
                             activeTrackColor = NaturalPrimary,
@@ -366,7 +391,7 @@ fun SpeedReaderModal(
 
                     IconButton(
                         onClick = {
-                            currentIndex = (currentIndex + 20).coerceAtMost(words.size - 1)
+                            currentIndex = (currentIndex + 20).coerceAtMost(tokens.size - 1)
                         },
                         modifier = Modifier.size(44.dp)
                     ) {

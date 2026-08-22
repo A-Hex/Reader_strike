@@ -21,12 +21,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.model.ActiveSessionState
 import com.example.model.ReadingStreakData
+import com.example.reader.FacePresenceState
 import com.example.ui.theme.*
 
 @Composable
 fun ActiveSessionTimerHUD(
     sessionState: ActiveSessionState,
     streakData: ReadingStreakData,
+    facePresenceState: FacePresenceState = FacePresenceState.Disabled,
+    isFaceAssistedEnabled: Boolean = false,
     onTogglePause: () -> Unit,
     onUserInteraction: () -> Unit,
     modifier: Modifier = Modifier
@@ -60,6 +63,7 @@ fun ActiveSessionTimerHUD(
                     .clip(CircleShape)
                     .background(
                         when {
+                            isFaceAssistedEnabled && facePresenceState == FacePresenceState.NoFace -> Color(0xFFEF4444)
                             sessionState.isPaused -> Color(0xFFEAB308)
                             sessionState.isIdle -> Color(0xFF94A3B8)
                             sessionState.isDailyGoalReached -> NaturalPrimary
@@ -70,14 +74,30 @@ fun ActiveSessionTimerHUD(
 
             // Timer display
             Text(
-                text = if (sessionState.isPaused) "Paused (${sessionState.formattedDuration})"
+                text = if (isFaceAssistedEnabled && facePresenceState == FacePresenceState.NoFace) "Face Away (${sessionState.formattedDuration})"
+                       else if (sessionState.isPaused) "Paused (${sessionState.formattedDuration})"
                        else if (sessionState.isIdle) "Idle (${sessionState.formattedDuration})"
                        else sessionState.formattedDuration,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = if (sessionState.isPaused) Color(0xFFEAB308) else NaturalDarkText
+                    color = if (isFaceAssistedEnabled && facePresenceState == FacePresenceState.NoFace) Color(0xFFEF4444)
+                            else if (sessionState.isPaused) Color(0xFFEAB308) else NaturalDarkText
                 )
             )
+
+            // Face Presence indicator badge if enabled
+            if (isFaceAssistedEnabled) {
+                Icon(
+                    imageVector = when (facePresenceState) {
+                        is FacePresenceState.Attentive -> Icons.Default.Visibility
+                        is FacePresenceState.NoFace -> Icons.Default.VisibilityOff
+                        else -> Icons.Default.Face
+                    },
+                    contentDescription = "Face Reading Presence",
+                    tint = if (facePresenceState == FacePresenceState.Attentive) NaturalPrimary else Color(0xFFEF4444),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
 
             // Vertical Divider
             Box(
@@ -128,6 +148,8 @@ fun ActiveSessionTimerHUD(
         ActiveSessionBreakdownDialog(
             sessionState = sessionState,
             streakData = streakData,
+            facePresenceState = facePresenceState,
+            isFaceAssistedEnabled = isFaceAssistedEnabled,
             onTogglePause = onTogglePause,
             onDismiss = { showBreakdownDialog = false }
         )
@@ -138,6 +160,8 @@ fun ActiveSessionTimerHUD(
 fun ActiveSessionBreakdownDialog(
     sessionState: ActiveSessionState,
     streakData: ReadingStreakData,
+    facePresenceState: FacePresenceState = FacePresenceState.Disabled,
+    isFaceAssistedEnabled: Boolean = false,
     onTogglePause: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -226,12 +250,14 @@ fun ActiveSessionBreakdownDialog(
                     )
                     Text(
                         text = when {
+                            isFaceAssistedEnabled && facePresenceState == FacePresenceState.NoFace -> "Face attention absent — timer paused"
                             sessionState.isPaused -> "Timer is paused"
                             sessionState.isIdle -> "Idle detected — auto paused"
                             else -> "Actively tracking reading session"
                         },
                         fontSize = 12.sp,
-                        color = if (sessionState.isPaused || sessionState.isIdle) Color(0xFFEAB308) else NaturalDarkTextMuted
+                        color = if (isFaceAssistedEnabled && facePresenceState == FacePresenceState.NoFace) Color(0xFFEF4444)
+                                else if (sessionState.isPaused || sessionState.isIdle) Color(0xFFEAB308) else NaturalDarkTextMuted
                     )
                 }
 

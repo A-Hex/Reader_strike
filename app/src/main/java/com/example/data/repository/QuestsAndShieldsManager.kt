@@ -228,6 +228,12 @@ class QuestsAndShieldsManager(context: Context) {
         addXp(25)
     }
 
+    fun recordSpeedReadTokens(count: Int) {
+        if (count <= 0) return
+        incrementQuestProgress("quest-speed-reader", count)
+        addXp((count / 20).coerceAtLeast(1))
+    }
+
     fun updateStreak(streak: Int) {
         val updated = _state.value.activeQuests.map { q ->
             if (q.id == "quest-streak-guardian" && !q.isClaimed) {

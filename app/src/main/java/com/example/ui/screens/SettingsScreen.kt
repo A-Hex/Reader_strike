@@ -16,12 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.repository.BackupOperationState
+import com.example.ui.components.DailyGoalPickerDialog
+import com.example.ui.components.VoiceAuthMode
+import com.example.ui.components.VoiceprintDialog
 import com.example.ui.theme.*
 import com.example.util.AppLanguage
 import com.example.util.AppStrings
@@ -40,7 +44,12 @@ fun SettingsScreen(
     val currentLanguage by viewModel.currentLanguage.collectAsState()
     val dailyGoalMinutes by viewModel.dailyGoalMinutes.collectAsState()
     val backupInfo by viewModel.localBackupInfo.collectAsState()
+    val isFaceAssistedEnabled by viewModel.isFaceAssistedEnabled.collectAsState()
+    val isVoiceAuthEnrolled by viewModel.voiceAuthRepository.isEnrolled.collectAsState()
+    val isVoiceAuthEnabled by viewModel.voiceAuthRepository.isVoiceAuthEnabled.collectAsState()
+
     var showGoalPickerDialog by remember { mutableStateOf(false) }
+    var showVoiceEnrollDialog by remember { mutableStateOf(false) }
 
     // Android Storage Access Framework document export & restore launchers
     val exportBackupLauncher = rememberLauncherForActivityResult(
@@ -63,6 +72,18 @@ fun SettingsScreen(
                 showGoalPickerDialog = false
             },
             onDismiss = { showGoalPickerDialog = false }
+        )
+    }
+
+    if (showVoiceEnrollDialog) {
+        VoiceprintDialog(
+            viewModel = viewModel,
+            mode = VoiceAuthMode.ENROLL,
+            currentLanguage = currentLanguage,
+            onSuccess = {
+                showVoiceEnrollDialog = false
+            },
+            onDismiss = { showVoiceEnrollDialog = false }
         )
     }
 
@@ -170,6 +191,132 @@ fun SettingsScreen(
                         Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Customize Target Minutes", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        // Face-Assisted Reading Presence (Smart Auto-Pause)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Visibility, contentDescription = null, tint = NaturalForestAccent)
+                            Text(
+                                text = AppStrings.get("face_presence_title", currentLanguage),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Switch(
+                            checked = isFaceAssistedEnabled,
+                            onCheckedChange = { viewModel.setFaceAssistedEnabled(it) },
+                            colors = SwitchDefaults.colors(checkedThumbColor = NaturalPrimary, checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    Text(
+                        text = AppStrings.get("face_presence_desc", currentLanguage),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    Text(
+                        text = AppStrings.get("face_presence_privacy", currentLanguage),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NaturalForestAccent
+                    )
+                }
+            }
+        }
+
+        // Offline Voiceprint Security (Voice Authentication)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Fingerprint, contentDescription = null, tint = NaturalPrimary)
+                            Text(
+                                text = AppStrings.get("voice_auth_title", currentLanguage),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        if (isVoiceAuthEnrolled) {
+                            Switch(
+                                checked = isVoiceAuthEnabled,
+                                onCheckedChange = { viewModel.voiceAuthRepository.setVoiceAuthEnabled(it) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = NaturalPrimary, checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f))
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = AppStrings.get("voice_auth_desc", currentLanguage),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    if (!isVoiceAuthEnrolled) {
+                        Button(
+                            onClick = { showVoiceEnrollDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Enroll Voiceprint (Offline)", fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showVoiceEnrollDialog = true },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NaturalPrimary)
+                            ) {
+                                Text("Re-Enroll")
+                            }
+
+                            OutlinedButton(
+                                onClick = { viewModel.voiceAuthRepository.deleteVoiceprint() },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                            ) {
+                                Text("Remove", color = Color(0xFFEF4444))
+                            }
+                        }
                     }
                 }
             }
@@ -405,10 +552,11 @@ fun SettingsScreen(
                     )
 
                     FeatureRow(icon = Icons.Default.Check, text = "EPUB, PDF, and TXT parsing & rendering")
-                    FeatureRow(icon = Icons.Default.Check, text = "Customizable themes (Obsidian, AMOLED, Sepia, Nordic)")
-                    FeatureRow(icon = Icons.Default.Check, text = "Multi-color highlights & personal annotation notes")
-                    FeatureRow(icon = Icons.Default.Check, text = "A-Hex Streak Engine with daily reading goals & badges")
-                    FeatureRow(icon = Icons.Default.Check, text = "Text-to-Speech (TTS) natural audio reader")
+                    FeatureRow(icon = Icons.Default.Check, text = "Smart Privacy-First Face-Assisted Auto Pause")
+                    FeatureRow(icon = Icons.Default.Check, text = "Offline Spectral Voiceprint Authentication")
+                    FeatureRow(icon = Icons.Default.Check, text = "Multilingual TTS with Punctuation & Segment Highlighting")
+                    FeatureRow(icon = Icons.Default.Check, text = "RSVP Speed Reader with WPM Control")
+                    FeatureRow(icon = Icons.Default.Check, text = "A-Hex Streak Engine with daily reading goals & widgets")
                     FeatureRow(icon = Icons.Default.Check, text = "Offline access with local database export and restore")
                 }
             }

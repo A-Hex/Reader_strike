@@ -204,6 +204,22 @@ object PdfTextExtractor {
         return -1
     }
 
+    enum class PdfQuality {
+        HIGH_SEARCHABLE_TEXT,
+        SCANNED_OR_LOW_TEXT
+    }
+
+    fun evaluatePdfQuality(pages: List<String>): PdfQuality {
+        if (pages.isEmpty()) return PdfQuality.SCANNED_OR_LOW_TEXT
+        val totalChars = pages.sumOf { it.length }
+        val avgCharsPerPage = totalChars / pages.size
+        return if (avgCharsPerPage > 80 && totalChars > 200) {
+            PdfQuality.HIGH_SEARCHABLE_TEXT
+        } else {
+            PdfQuality.SCANNED_OR_LOW_TEXT
+        }
+    }
+
     /**
      * Extracts or provides structured chapters for any PDF or book.
      */

@@ -50,7 +50,8 @@ data class Book(
     val lastReadTimestamp: Long = System.currentTimeMillis(),
     val addedTimestamp: Long = System.currentTimeMillis(),
     val totalMinutesSpent: Int = 0,
-    val customShelves: List<String> = emptyList()
+    val customShelves: List<String> = emptyList(),
+    val languageCode: String = "en"
 ) {
     fun getEffectiveCoverRes(): Int {
         if (coverDrawableRes != null && coverDrawableRes != 0) {

@@ -29,6 +29,8 @@ object AppStrings {
         "tab_highlights" to "Highlights",
         "tab_discover" to "Discover",
         "tab_settings" to "Settings",
+        
+        // Search & Library
         "search_hint" to "Search books, authors, genres...",
         "search_trusted_title" to "Trusted Book & PDF Search Engine",
         "search_trusted_desc" to "Search verified online repositories including Google Books, Google PDF search, Project Gutenberg, and Open Library.",
@@ -37,6 +39,24 @@ object AppStrings {
         "search_gutenberg" to "Project Gutenberg",
         "search_open_library" to "Open Library",
         "search_standard_ebooks" to "Standard Ebooks",
+        "import_book" to "Import Document",
+        "import_book_desc" to "Add EPUB, PDF, or TXT from your device storage",
+        "empty_library_title" to "Your Library is Empty",
+        "empty_library_desc" to "Tap below to import your own EPUB, PDF, or TXT books, or explore classic literature.",
+        "explore_catalog" to "Explore Catalog",
+        "delete_book" to "Delete Book",
+        "delete_book_confirm" to "Are you sure you want to remove this book from your library?",
+        "cancel" to "Cancel",
+        "delete" to "Delete",
+        "filter_all" to "All Formats",
+        "filter_pdf" to "PDF",
+        "filter_epub" to "EPUB",
+        "filter_txt" to "TXT",
+        "sort_recent" to "Recently Read",
+        "sort_title" to "Title (A-Z)",
+        "sort_progress" to "Highest Progress",
+
+        // Settings & Storage
         "language_title" to "Language / اللغة / Langue",
         "language_desc" to "Select your preferred application display language.",
         "storage_title" to "Storage & Database",
@@ -63,7 +83,69 @@ object AppStrings {
         "post_community" to "Post to Community",
         "share_progress" to "Share Progress",
         "streak_zero_title" to "Ready to start your streak!",
-        "streak_zero_desc" to "Read today to begin your day 1 reading streak."
+        "streak_zero_desc" to "Read today to begin your day 1 reading streak.",
+
+        // TTS & Audio
+        "tts_title" to "Text to Speech Voice Reader",
+        "tts_initializing" to "Initializing TTS Engine...",
+        "tts_ready" to "Voice Engine Ready",
+        "tts_playing" to "Reading aloud...",
+        "tts_paused" to "Voice paused",
+        "tts_unsupported" to "Language not supported by current TTS engine.",
+        "tts_missing_data" to "Voice data missing. Please download voice data in Android settings.",
+        "tts_open_settings" to "Open TTS Settings",
+        "tts_error" to "TTS Playback Error",
+        "tts_speed" to "Voice Speed",
+
+        // RSVP Speed Reader
+        "rsvp_title" to "RSVP Speed Reader",
+        "rsvp_wpm" to "WPM",
+        "rsvp_word_count" to "Word %1\$d of %2\$d",
+        "rsvp_time_left" to "~%1\$s left",
+        "rsvp_back_20" to "Back 20 words",
+        "rsvp_forward_20" to "Forward 20 words",
+        "rsvp_page" to "Pg %1\$d/%2\$d",
+
+        // Smart Face Presence Counter (Privacy-First)
+        "face_presence_title" to "Smart Face-Assisted Reading Presence",
+        "face_presence_desc" to "Privacy-first on-device camera presence estimation. Pauses streak counter if you look away. Never saves images or transmits biometric data.",
+        "face_presence_enabled" to "Face Reading Presence Enabled",
+        "face_presence_attentive" to "Reading Active (Face Detected)",
+        "face_presence_candidate" to "Detecting Face...",
+        "face_presence_no_face" to "No Face (Timer Paused)",
+        "face_presence_multi_faces" to "Multiple Faces Detected",
+        "face_presence_permission_required" to "Camera permission required for face-presence reading time.",
+        "face_presence_camera_unavailable" to "Camera currently unavailable",
+        "face_presence_disclaimer" to "Note: Estimates attention presence on-device only. Does not guarantee reading comprehension.",
+        "face_privacy_badge" to "100% On-Device & Zero Image Storage",
+
+        // Offline Voiceprint Speaker Verification
+        "voice_auth_title" to "Offline Voiceprint Verification",
+        "voice_auth_desc" to "Protect your reader and reading statistics with on-device biometric speaker verification. 100% offline and encrypted.",
+        "voice_auth_enroll_prompt" to "Hold button and speak for 3 seconds to enroll your unique voiceprint.",
+        "voice_auth_verify_prompt" to "Speak to verify your voice before listening.",
+        "voice_auth_enrolled" to "Voiceprint Enrolled",
+        "voice_auth_not_enrolled" to "No Voiceprint Enrolled",
+        "voice_auth_match_success" to "Voice Verified (%1\$d%% Match)",
+        "voice_auth_match_failed" to "Voice mismatch (%1\$d%% Match). Try speaking clearly.",
+        "voice_auth_delete" to "Delete Voiceprint",
+        "voice_auth_record_btn" to "Hold to Record Voice",
+        "voice_auth_recording" to "Recording Voice Sample...",
+
+        // PDF Extraction Quality
+        "pdf_scanned_notice" to "Scanned / Image-Only PDF: Text operations (TTS, RSVP, Search) may be limited.",
+        "pdf_high_quality" to "Searchable Text PDF",
+
+        // Common Reader Actions
+        "chapter_toc" to "Table of Contents",
+        "notes_and_highlights" to "Notes & Highlights",
+        "font_size" to "Font Size",
+        "line_spacing" to "Line Spacing",
+        "export_epub" to "Convert & Export EPUB",
+        "ambient_sounds" to "Ambient Reading Soundscapes",
+        "vocab_vault" to "Vocabulary Vault",
+        "mind_map" to "Chapter Mind Map",
+        "book_reviews" to "Reviews & Discussion"
     )
 
     private val arabicStrings = mapOf(
@@ -74,6 +156,8 @@ object AppStrings {
         "tab_highlights" to "الاقتباسات",
         "tab_discover" to "استكشاف",
         "tab_settings" to "الإعدادات",
+
+        // Search & Library
         "search_hint" to "ابحث عن كتب، مؤلفين، تصنيفات...",
         "search_trusted_title" to "محرك بحث الكتب وملفات PDF الموثوقة",
         "search_trusted_desc" to "ابحث في المصادر والمكتبات الموثوقة عبر الإنترنت بما في ذلك Google Books وكتب PDF وProject Gutenberg وOpen Library.",
@@ -82,6 +166,24 @@ object AppStrings {
         "search_gutenberg" to "مشروع غوتنبرغ",
         "search_open_library" to "المكتبة المفتوحة",
         "search_standard_ebooks" to "Standard Ebooks",
+        "import_book" to "استيراد مستند",
+        "import_book_desc" to "إضافة ملفات EPUB أو PDF أو TXT من ذاكرة الجهاز",
+        "empty_library_title" to "مكتبتك فارغة حالياً",
+        "empty_library_desc" to "اضغط أدناه لاستيراد كتبك بصيغ EPUB أو PDF أو TXT، أو تصفح الكلاسيكيات المتاحة.",
+        "explore_catalog" to "استكشاف الكتالوج",
+        "delete_book" to "حذف الكتاب",
+        "delete_book_confirm" to "هل أنت متأكد من رغبتك في إزالة هذا الكتاب من مكتبتك؟",
+        "cancel" to "إلغاء",
+        "delete" to "حذف",
+        "filter_all" to "كافة الصيغ",
+        "filter_pdf" to "PDF",
+        "filter_epub" to "EPUB",
+        "filter_txt" to "TXT",
+        "sort_recent" to "المقروء مؤخراً",
+        "sort_title" to "العنوان (أ - ي)",
+        "sort_progress" to "الأعلى تقدماً",
+
+        // Settings & Storage
         "language_title" to "لغة التطبيق",
         "language_desc" to "اختر لغة العرض المفضلة لديك داخل التطبيق.",
         "storage_title" to "المساحة وقاعدة البيانات",
@@ -108,7 +210,69 @@ object AppStrings {
         "post_community" to "مشاركة مع المجتمع",
         "share_progress" to "مشاركة التقدم",
         "streak_zero_title" to "جاهز لبدء سلسلتك القرائية!",
-        "streak_zero_desc" to "اقرأ اليوم للبدء في أول يوم من سلسلة قراءتك اليومية."
+        "streak_zero_desc" to "اقرأ اليوم للبدء في أول يوم من سلسلة قراءتك اليومية.",
+
+        // TTS & Audio
+        "tts_title" to "القارئ الصوتي الآلي (TTS)",
+        "tts_initializing" to "جاري تهيئة محرك الصوت...",
+        "tts_ready" to "المحرك الصوتي جاهز",
+        "tts_playing" to "جاري القراءة بصوت عالٍ...",
+        "tts_paused" to "تم إيقاف القراءة مؤقتاً",
+        "tts_unsupported" to "اللغة غير مدعومة في محرك الصوت الحالي.",
+        "tts_missing_data" to "بيانات الصوت العربي غير مثبتة بالجهاز. يرجى تنزيلها من إعدادات Android.",
+        "tts_open_settings" to "فتح إعدادات الصوت TTS",
+        "tts_error" to "خطأ في تشغيل الصوت",
+        "tts_speed" to "سرعة القراءة",
+
+        // RSVP Speed Reader
+        "rsvp_title" to "القراءة السريعة RSVP",
+        "rsvp_wpm" to "كلمة/دقيقة",
+        "rsvp_word_count" to "الكلمة %1\$d من %2\$d",
+        "rsvp_time_left" to "متبقي ~%1\$s",
+        "rsvp_back_20" to "تراجع 20 كلمة",
+        "rsvp_forward_20" to "تقدم 20 كلمة",
+        "rsvp_page" to "ص %1\$d/%2\$d",
+
+        // Smart Face Presence Counter (Privacy-First)
+        "face_presence_title" to "حساب القراءة الذكي بحضور الوجه",
+        "face_presence_desc" to "حساب فترات القراءة فقط عند تواجد وانتباه الوجه نحو الشاشة. لا يتم حفظ صور أو نقل أي بيانات خارج جهازك نهائياً.",
+        "face_presence_enabled" to "تتبع حضور الوجه مفعل",
+        "face_presence_attentive" to "قراءة نشطة (تم رصد الوجه)",
+        "face_presence_candidate" to "جاري رصد الوجه...",
+        "face_presence_no_face" to "الوجه غير متواجد (مؤقت متوقف)",
+        "face_presence_multi_faces" to "تم رصد أكثر من وجه",
+        "face_presence_permission_required" to "يتطلب إذن الكاميرا لتفعيل التتبع الذكي لوقت القراءة.",
+        "face_presence_camera_unavailable" to "الكاميرا غير متوفرة حالياً",
+        "face_presence_disclaimer" to "ملاحظة: يقدر التواجد الفعلي للشخص فقط ولا يعتبر مقياساً دقيقاً للاستيعاب القرائي.",
+        "face_privacy_badge" to "100% معالجة محلية بدون حفظ أي صور",
+
+        // Offline Voiceprint Speaker Verification
+        "voice_auth_title" to "التحقق المحلي بالبصمة الصوتية",
+        "voice_auth_desc" to "حماية القارئ وسجلاتك ببصمة صوتك بدون إنترنت تماماً ومع تشفير تام.",
+        "voice_auth_enroll_prompt" to "اضغط مطولاً وتحدث لمدة 3 ثوانٍ لتسجيل بصمتك الصوتية.",
+        "voice_auth_verify_prompt" to "تحدث للتحقق من هويتك قبل الاستماع للقراءة.",
+        "voice_auth_enrolled" to "البصمة الصوتية مسجلة",
+        "voice_auth_not_enrolled" to "لم يتم تسجيل بصمة صوتية بعد",
+        "voice_auth_match_success" to "تم التحقق من الصوت بنجاح (%1\$d%% تطابق)",
+        "voice_auth_match_failed" to "الصوت غير متطابق (%1\$d%% تطابق). يرجى التحدث بوضوح.",
+        "voice_auth_delete" to "حذف البصمة الصوتية",
+        "voice_auth_record_btn" to "اضغط مطولاً للتسجيل",
+        "voice_auth_recording" to "جاري تسجيل عينة الصوت...",
+
+        // PDF Extraction Quality
+        "pdf_scanned_notice" to "مستند مصور / ماسح ضوئي: قد تكون وظائف النص (الصوت، RSVP، البحث) محدودة.",
+        "pdf_high_quality" to "مستند PDF نصي قابل للبحث",
+
+        // Common Reader Actions
+        "chapter_toc" to "فهرس الفصول",
+        "notes_and_highlights" to "الملاحظات والاقتباسات",
+        "font_size" to "حجم الخط",
+        "line_spacing" to "تباعد الأسطر",
+        "export_epub" to "تحويل وتصدير EPUB",
+        "ambient_sounds" to "أصوات القراءة المهدئة",
+        "vocab_vault" to "خزينة المفردات",
+        "mind_map" to "الخريطة الذهنية للفصل",
+        "book_reviews" to "المراجعات والنقاشات"
     )
 
     private val frenchStrings = mapOf(
@@ -119,6 +283,8 @@ object AppStrings {
         "tab_highlights" to "Extraits",
         "tab_discover" to "Découvrir",
         "tab_settings" to "Paramètres",
+
+        // Search & Library
         "search_hint" to "Rechercher livres, auteurs, genres...",
         "search_trusted_title" to "Moteur de recherche Livres & PDF fiables",
         "search_trusted_desc" to "Recherchez parmi les bibliothèques fiables : Google Books, recherche Google PDF, Project Gutenberg et Open Library.",
@@ -127,6 +293,24 @@ object AppStrings {
         "search_gutenberg" to "Projet Gutenberg",
         "search_open_library" to "Open Library",
         "search_standard_ebooks" to "Standard Ebooks",
+        "import_book" to "Importer un document",
+        "import_book_desc" to "Ajouter des livres EPUB, PDF ou TXT depuis la mémoire locale",
+        "empty_library_title" to "Votre bibliothèque est vide",
+        "empty_library_desc" to "Appuyez ci-dessous pour importer vos fichiers EPUB, PDF ou TXT, ou explorez nos classiques.",
+        "explore_catalog" to "Explorer le catalogue",
+        "delete_book" to "Supprimer le livre",
+        "delete_book_confirm" to "Êtes-vous sûr de vouloir retirer ce livre de votre bibliothèque ?",
+        "cancel" to "Annuler",
+        "delete" to "Supprimer",
+        "filter_all" to "Tous formats",
+        "filter_pdf" to "PDF",
+        "filter_epub" to "EPUB",
+        "filter_txt" to "TXT",
+        "sort_recent" to "Lus récemment",
+        "sort_title" to "Titre (A-Z)",
+        "sort_progress" to "Meilleure progression",
+
+        // Settings & Storage
         "language_title" to "Langue de l'application",
         "language_desc" to "Sélectionnez votre langue d'affichage préférée.",
         "storage_title" to "Stockage et base de données",
@@ -153,6 +337,68 @@ object AppStrings {
         "post_community" to "Publier sur la communauté",
         "share_progress" to "Partager la progression",
         "streak_zero_title" to "Prêt à commencer votre série !",
-        "streak_zero_desc" to "Lisez aujourd'hui pour démarrer votre premier jour de série."
+        "streak_zero_desc" to "Lisez aujourd'hui pour démarrer votre premier jour de série.",
+
+        // TTS & Audio
+        "tts_title" to "Lecture vocale (TTS)",
+        "tts_initializing" to "Initialisation du moteur vocal...",
+        "tts_ready" to "Moteur vocal prêt",
+        "tts_playing" to "Lecture vocale en cours...",
+        "tts_paused" to "Lecture en pause",
+        "tts_unsupported" to "Langue non supportée par le moteur TTS actuel.",
+        "tts_missing_data" to "Données vocales manquantes. Téléchargez-les dans les paramètres Android.",
+        "tts_open_settings" to "Ouvrir les paramètres TTS",
+        "tts_error" to "Erreur de lecture TTS",
+        "tts_speed" to "Vitesse vocale",
+
+        // RSVP Speed Reader
+        "rsvp_title" to "Lecteur rapide RSVP",
+        "rsvp_wpm" to "Mots/min",
+        "rsvp_word_count" to "Mot %1\$d sur %2\$d",
+        "rsvp_time_left" to "~%1\$s restant",
+        "rsvp_back_20" to "Reculer de 20 mots",
+        "rsvp_forward_20" to "Avancer de 20 mots",
+        "rsvp_page" to "Page %1\$d/%2\$d",
+
+        // Smart Face Presence Counter (Privacy-First)
+        "face_presence_title" to "Détection de présence de lecture",
+        "face_presence_desc" to "Comptabilisation du temps de lecture uniquement quand votre visage est attentif. Aucune image enregistrée ou transmise.",
+        "face_presence_enabled" to "Détection de présence activée",
+        "face_presence_attentive" to "Lecture active (Visage détecté)",
+        "face_presence_candidate" to "Recherche du visage...",
+        "face_presence_no_face" to "Visage absent (Chronomètre en pause)",
+        "face_presence_multi_faces" to "Plusieurs visages détectés",
+        "face_presence_permission_required" to "Autorisation caméra requise pour le suivi de présence.",
+        "face_presence_camera_unavailable" to "Caméra indisponible",
+        "face_presence_disclaimer" to "Note : Estime uniquement l'attention physique devant l'écran, sans mesurer la compréhension.",
+        "face_privacy_badge" to "100% sur l'appareil & Zéro stockage d'images",
+
+        // Offline Voiceprint Speaker Verification
+        "voice_auth_title" to "Vérification vocale hors-ligne",
+        "voice_auth_desc" to "Protégez vos lectures avec une empreinte vocale biométrique locale 100% hors-ligne et chiffrée.",
+        "voice_auth_enroll_prompt" to "Maintenez le bouton et parlez 3 secondes pour enregistrer votre empreinte vocale.",
+        "voice_auth_verify_prompt" to "Parlez pour vérifier votre voix avant l'écoute.",
+        "voice_auth_enrolled" to "Empreinte vocale enregistrée",
+        "voice_auth_not_enrolled" to "Aucune empreinte vocale enregistrée",
+        "voice_auth_match_success" to "Voix vérifiée (%1\$d%% de correspondance)",
+        "voice_auth_match_failed" to "Voix non reconnue (%1\$d%%). Parlez distinctement.",
+        "voice_auth_delete" to "Supprimer l'empreinte vocale",
+        "voice_auth_record_btn" to "Maintenir pour enregistrer",
+        "voice_auth_recording" to "Enregistrement de l'échantillon vocal...",
+
+        // PDF Extraction Quality
+        "pdf_scanned_notice" to "Document numérisé / image : les fonctions texte (TTS, RSVP, recherche) peuvent être limitées.",
+        "pdf_high_quality" to "Document PDF texte indexable",
+
+        // Common Reader Actions
+        "chapter_toc" to "Table des matières",
+        "notes_and_highlights" to "Notes et surlignages",
+        "font_size" to "Taille de police",
+        "line_spacing" to "Espacement des lignes",
+        "export_epub" to "Convertir et exporter en EPUB",
+        "ambient_sounds" to "Ambiances sonores relaxantes",
+        "vocab_vault" to "Coffre de vocabulaire",
+        "mind_map" to "Carte mentale du chapitre",
+        "book_reviews" to "Avis et discussions"
     )
 }
