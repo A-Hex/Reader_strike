@@ -73,6 +73,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _dailyGoalMinutes = MutableStateFlow(prefs.getInt("daily_goal_minutes", 20))
     val dailyGoalMinutes: StateFlow<Int> = _dailyGoalMinutes.asStateFlow()
 
+    private val _isOnboardingCompleted = MutableStateFlow(prefs.getBoolean("onboarding_completed", false))
+    val isOnboardingCompleted: StateFlow<Boolean> = _isOnboardingCompleted.asStateFlow()
+
+    private val _isTutorialVisible = MutableStateFlow(false)
+    val isTutorialVisible: StateFlow<Boolean> = _isTutorialVisible.asStateFlow()
+
+    private val _selectedGenres = MutableStateFlow(
+        prefs.getStringSet("user_genres", setOf("Philosophy", "Classics", "Sci-Fi"))?.toSet() ?: setOf("Philosophy", "Classics")
+    )
+    val selectedGenres: StateFlow<Set<String>> = _selectedGenres.asStateFlow()
+
+    fun completeOnboarding(launchTutorial: Boolean = false) {
+        _isOnboardingCompleted.value = true
+        prefs.edit().putBoolean("onboarding_completed", true).apply()
+        if (launchTutorial) {
+            _isTutorialVisible.value = true
+        }
+    }
+
+    fun resetOnboarding() {
+        _isOnboardingCompleted.value = false
+        prefs.edit().putBoolean("onboarding_completed", false).apply()
+    }
+
+    fun showTutorial() {
+        _isTutorialVisible.value = true
+    }
+
+    fun dismissTutorial() {
+        _isTutorialVisible.value = false
+    }
+
+    fun toggleGenreInterest(genre: String) {
+        val current = _selectedGenres.value.toMutableSet()
+        if (current.contains(genre)) {
+            if (current.size > 1) current.remove(genre)
+        } else {
+            current.add(genre)
+        }
+        _selectedGenres.value = current
+        prefs.edit().putStringSet("user_genres", current).apply()
+    }
+
     private val _isFaceAssistedEnabled = MutableStateFlow(prefs.getBoolean("face_assisted_enabled", false))
     val isFaceAssistedEnabled: StateFlow<Boolean> = _isFaceAssistedEnabled.asStateFlow()
 

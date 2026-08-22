@@ -137,7 +137,33 @@ object AppStrings {
         "ambient_sounds" to "Ambient Reading Soundscapes",
         "vocab_vault" to "Vocabulary Vault",
         "mind_map" to "Chapter Mind Map",
-        "book_reviews" to "Reviews & Discussion"
+        "book_reviews" to "Reviews & Discussion",
+
+        // Interactive Onboarding & Tutorial
+        "onboarding_skip" to "Skip",
+        "onboarding_next" to "Next",
+        "onboarding_back" to "Back",
+        "onboarding_get_started" to "Begin Reading Journey",
+        "onboarding_start_tutorial" to "Launch Interactive Tour",
+        "onboarding_welcome_title" to "Empower Your Daily Reading",
+        "onboarding_welcome_subtitle" to "The distraction-free, 100% offline e-reader designed to build unbreakable reading streaks across PDF, EPUB, and TXT documents.",
+        "onboarding_habit_title" to "Set Your Daily Reading Habit",
+        "onboarding_habit_subtitle" to "Choose your daily goal. Consistent small daily sessions compound into dozens of books every year.",
+        "onboarding_features_title" to "Experience Interactive Tools",
+        "onboarding_features_subtitle" to "Try our built-in RSVP rapid speed reader, adaptive reading themes, and acoustic voice narrator right now.",
+        "onboarding_genres_title" to "Choose Your Literary Interests",
+        "onboarding_genres_subtitle" to "Personalize your starter shelf with the genres you love most.",
+        "tutorial_title" to "Interactive Walkthrough",
+        "tutorial_step1_title" to "Universal Library Engine",
+        "tutorial_step1_desc" to "Access your EPUB, PDF, and TXT books offline. Filter by format, search instantly, and import files from your device.",
+        "tutorial_step2_title" to "A-Hex Reading Streak & Quests",
+        "tutorial_step2_desc" to "Every minute of attentive reading powers your daily streak. Earn Streak Shields and complete reading quests.",
+        "tutorial_step3_title" to "RSVP Speed Reading & Narration",
+        "tutorial_step3_desc" to "Accelerate comprehension with RSVP rapid word flashing, or relax with natural Text-to-Speech audio reading.",
+        "tutorial_step4_title" to "Voice Studio & Privacy First",
+        "tutorial_step4_desc" to "Train a personalized voice profile to read books aloud. 100% on-device processing with zero cloud data tracking.",
+        "settings_replay_onboarding" to "Replay Onboarding Flow",
+        "settings_replay_tutorial" to "Interactive Feature Tour"
     )
 
     private val arabicStrings = mapOf(
@@ -256,7 +282,33 @@ object AppStrings {
         "ambient_sounds" to "أصوات القراءة المهدئة",
         "vocab_vault" to "خزينة المفردات",
         "mind_map" to "الخريطة الذهنية للفصل",
-        "book_reviews" to "المراجعات والنقاشات"
+        "book_reviews" to "المراجعات والنقاشات",
+
+        // Interactive Onboarding & Tutorial
+        "onboarding_skip" to "تخطي",
+        "onboarding_next" to "التالي",
+        "onboarding_back" to "السابق",
+        "onboarding_get_started" to "بدء رحلة القراءة",
+        "onboarding_start_tutorial" to "جولة تعريفية تفاعلية",
+        "onboarding_welcome_title" to "عزز عادة قراءتك اليومية",
+        "onboarding_welcome_subtitle" to "قارئ إلكتروني متكامل وخالٍ من المشتتات، يعمل 100% بدون إنترنت لبناء سلاسل قراءة مستمرة لكتب PDF وEPUB وTXT.",
+        "onboarding_habit_title" to "حدد هدف القراءة اليومي",
+        "onboarding_habit_subtitle" to "اختر هدفك اليومي بالدقائق. الجلسات اليومية المنتظمة تتراكم لتصل إلى عشرات الكتب سنوياً.",
+        "onboarding_features_title" to "جرّب الأدوات التفاعلية",
+        "onboarding_features_subtitle" to "جرّب القارئ السريع RSVP، وأنماط القراءة المريحة، والراوي الصوتي الآن.",
+        "onboarding_genres_title" to "اختر اهتماماتك الأدبية",
+        "onboarding_genres_subtitle" to "خصص رف كتبك المبدئي حسب التصنيفات التي تفضل قراءتها.",
+        "tutorial_title" to "جولة تفاعلية",
+        "tutorial_step1_title" to "المكتبة الشاملة",
+        "tutorial_step1_desc" to "تصفح واقرأ كتب EPUB وPDF وTXT محلياً. استخدم الفلترة والبحث واستورد كتبك بسهولة.",
+        "tutorial_step2_title" to "سلسلة القراءة والتحديات",
+        "tutorial_step2_desc" to "كل دقيقة قراءة تحسب ضمن سلسلتك اليومية. احصل على دروع الحماية وأنجز مهام القراءة.",
+        "tutorial_step3_title" to "القراءة السريعة والقارئ الصوتي",
+        "tutorial_step3_desc" to "زد من سرعة قراءتك بتقنية RSVP أو استمع لكتبك بصوت طبيعي مريح.",
+        "tutorial_step4_title" to "استوديو الصوت والخصوصية",
+        "tutorial_step4_desc" to "أنشئ ملفك الصوتي الخاص لقراءة الكتب بصوتك. معالجة 100% داخل جهازك دون رفع أي بيانات.",
+        "settings_replay_onboarding" to "إعادة تشغيل شاشات الترحيب",
+        "settings_replay_tutorial" to "جولة الميزات التفاعلية"
     )
 
     private val frenchStrings = mapOf(
@@ -375,6 +427,32 @@ object AppStrings {
         "ambient_sounds" to "Ambiances sonores relaxantes",
         "vocab_vault" to "Coffre de vocabulaire",
         "mind_map" to "Carte mentale du chapitre",
-        "book_reviews" to "Avis et discussions"
+        "book_reviews" to "Avis et discussions",
+
+        // Interactive Onboarding & Tutorial
+        "onboarding_skip" to "Passer",
+        "onboarding_next" to "Suivant",
+        "onboarding_back" to "Retour",
+        "onboarding_get_started" to "Démarrer l'aventure",
+        "onboarding_start_tutorial" to "Lancer la visite guidée",
+        "onboarding_welcome_title" to "Boostez votre lecture quotidienne",
+        "onboarding_welcome_subtitle" to "La liseuse sans distraction, 100% hors-ligne, conçue pour forger des séries de lecture durables sur PDF, EPUB et TXT.",
+        "onboarding_habit_title" to "Définissez votre habitude",
+        "onboarding_habit_subtitle" to "Fixez votre objectif quotidien en minutes. De petites sessions régulières se transforment en dizaines de livres par an.",
+        "onboarding_features_title" to "Outils de lecture interactifs",
+        "onboarding_features_subtitle" to "Testez dès maintenant le lecteur rapide RSVP, les thèmes de lecture et le narrateur vocal personnalisé.",
+        "onboarding_genres_title" to "Vos univers littéraires",
+        "onboarding_genres_subtitle" to "Personnalisez votre étagère de départ avec vos genres préférés.",
+        "tutorial_title" to "Visite guidée interactive",
+        "tutorial_step1_title" to "Bibliothèque universelle",
+        "tutorial_step1_desc" to "Lisez vos fichiers EPUB, PDF et TXT hors-ligne. Filtrez, recherchez et importez vos documents en un clic.",
+        "tutorial_step2_title" to "Série A-Hex et Quêtes",
+        "tutorial_step2_desc" to "Chaque minute de lecture attentive alimente votre série. Gagnez des Boucliers et accomplissez des quêtes.",
+        "tutorial_step3_title" to "Lecture rapide RSVP & Audio",
+        "tutorial_step3_desc" to "Accélérez votre vitesse avec le défilement de mots RSVP, ou profitez de la lecture vocale naturelle.",
+        "tutorial_step4_title" to "Studio Vocal & Confidentialité",
+        "tutorial_step4_desc" to "Créez votre profil vocal personnalisé. 100% exécuté sur l'appareil sans transmission de données.",
+        "settings_replay_onboarding" to "Revoir l'introduction",
+        "settings_replay_tutorial" to "Visite guidée interactive"
     )
 }

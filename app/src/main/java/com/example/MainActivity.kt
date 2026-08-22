@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.InteractiveTutorialOverlay
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.util.AppLanguage
@@ -55,6 +56,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppContent(viewModel: MainViewModel) {
+    val isOnboardingCompleted by viewModel.isOnboardingCompleted.collectAsState()
+    val isTutorialVisible by viewModel.isTutorialVisible.collectAsState()
     val currentBook by viewModel.currentBook.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
     var currentTab by remember { mutableStateOf(NavigationTab.LIBRARY) }
@@ -66,101 +69,123 @@ fun MainAppContent(viewModel: MainViewModel) {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            AnimatedContent(
-                targetState = currentBook != null,
-                transitionSpec = {
-                    if (targetState) {
-                        (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
+            Box(modifier = Modifier.fillMaxSize()) {
+                AnimatedContent(
+                    targetState = isOnboardingCompleted,
+                    transitionSpec = {
+                        (fadeIn() + scaleIn(initialScale = 0.95f)).togetherWith(fadeOut() + scaleOut(targetScale = 1.05f))
+                    },
+                    label = "OnboardingTransition"
+                ) { completed ->
+                    if (!completed) {
+                        OnboardingScreen(viewModel = viewModel)
                     } else {
-                        (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { it } + fadeOut())
-                    }
-                },
-                label = "ReaderTransition"
-            ) { isReading ->
-                if (isReading) {
-                    ReaderScreen(
-                        viewModel = viewModel,
-                        onClose = { viewModel.closeReader() }
-                    )
-                } else {
-                    Scaffold(
-                        bottomBar = {
-                            NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                tonalElevation = 4.dp
-                            ) {
-                                NavigationTab.entries.forEach { tab ->
-                                    val isSelected = currentTab == tab
-                                    val streakData by viewModel.streakData.collectAsState()
-                                    val tabTitle = AppStrings.get(tab.stringKey, currentLanguage)
+                        AnimatedContent(
+                            targetState = currentBook != null,
+                            transitionSpec = {
+                                if (targetState) {
+                                    (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
+                                } else {
+                                    (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { it } + fadeOut())
+                                }
+                            },
+                            label = "ReaderTransition"
+                        ) { isReading ->
+                            if (isReading) {
+                                ReaderScreen(
+                                    viewModel = viewModel,
+                                    onClose = { viewModel.closeReader() }
+                                )
+                            } else {
+                                Scaffold(
+                                    bottomBar = {
+                                        NavigationBar(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            tonalElevation = 4.dp
+                                        ) {
+                                            NavigationTab.entries.forEach { tab ->
+                                                val isSelected = currentTab == tab
+                                                val streakData by viewModel.streakData.collectAsState()
+                                                val tabTitle = AppStrings.get(tab.stringKey, currentLanguage)
 
-                                    NavigationBarItem(
-                                        selected = isSelected,
-                                        onClick = { currentTab = tab },
-                                        icon = {
-                                            BadgedBox(
-                                                badge = {
-                                                    if (tab == NavigationTab.STREAK && streakData.currentStreakDays > 0) {
-                                                        Badge(
-                                                            containerColor = Color(0xFFB4CCB9),
-                                                            contentColor = Color(0xFF1E281F)
+                                                NavigationBarItem(
+                                                    selected = isSelected,
+                                                    onClick = { currentTab = tab },
+                                                    icon = {
+                                                        BadgedBox(
+                                                            badge = {
+                                                                if (tab == NavigationTab.STREAK && streakData.currentStreakDays > 0) {
+                                                                    Badge(
+                                                                        containerColor = Color(0xFFB4CCB9),
+                                                                        contentColor = Color(0xFF1E281F)
+                                                                    ) {
+                                                                        Text("${streakData.currentStreakDays}")
+                                                                    }
+                                                                }
+                                                            }
                                                         ) {
-                                                            Text("${streakData.currentStreakDays}")
+                                                            Icon(
+                                                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                                                contentDescription = tabTitle,
+                                                                tint = if (isSelected) {
+                                                                    MaterialTheme.colorScheme.primary
+                                                                } else {
+                                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                                }
+                                                            )
                                                         }
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                                    contentDescription = tabTitle,
-                                                    tint = if (isSelected) {
-                                                        MaterialTheme.colorScheme.primary
-                                                    } else {
-                                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                                    }
+                                                    },
+                                                    label = {
+                                                        Text(
+                                                            text = tabTitle,
+                                                            fontSize = 11.sp,
+                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    },
+                                                    colors = NavigationBarItemDefaults.colors(
+                                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
                                                 )
                                             }
-                                        },
-                                        label = {
-                                            Text(
-                                                text = tabTitle,
-                                                fontSize = 11.sp,
-                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    }
+                                ) { innerPadding ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(innerPadding)
+                                    ) {
+                                        when (currentTab) {
+                                            NavigationTab.LIBRARY -> LibraryScreen(
+                                                viewModel = viewModel,
+                                                onNavigateToDiscover = { currentTab = NavigationTab.DISCOVER },
+                                                onNavigateToStreak = { currentTab = NavigationTab.STREAK }
                                             )
-                                        },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
+                                            NavigationTab.STREAK -> StreakStatsScreen(viewModel = viewModel)
+                                            NavigationTab.HIGHLIGHTS -> HighlightsScreen(viewModel = viewModel)
+                                            NavigationTab.DISCOVER -> DiscoverStoreScreen(
+                                                viewModel = viewModel,
+                                                onBack = { currentTab = NavigationTab.LIBRARY }
+                                            )
+                                            NavigationTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
+                                        }
+                                    }
                                 }
                             }
                         }
-                    ) { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            when (currentTab) {
-                                NavigationTab.LIBRARY -> LibraryScreen(
-                                    viewModel = viewModel,
-                                    onNavigateToDiscover = { currentTab = NavigationTab.DISCOVER },
-                                    onNavigateToStreak = { currentTab = NavigationTab.STREAK }
-                                )
-                                NavigationTab.STREAK -> StreakStatsScreen(viewModel = viewModel)
-                                NavigationTab.HIGHLIGHTS -> HighlightsScreen(viewModel = viewModel)
-                                NavigationTab.DISCOVER -> DiscoverStoreScreen(
-                                    viewModel = viewModel,
-                                    onBack = { currentTab = NavigationTab.LIBRARY }
-                                )
-                                NavigationTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
-                            }
-                        }
                     }
+                }
+
+                // Interactive Walkthrough Tutorial Overlay
+                if (isTutorialVisible) {
+                    InteractiveTutorialOverlay(
+                        viewModel = viewModel,
+                        onDismiss = { viewModel.dismissTutorial() }
+                    )
                 }
             }
         }
