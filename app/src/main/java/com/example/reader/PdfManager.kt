@@ -136,4 +136,44 @@ class PdfManager(private val context: Context) {
     fun close() {
         closeInternal()
     }
+
+    companion object {
+        /**
+         * Extracts the first page of a PDF as a high-quality cover image and saves it to app internal storage.
+         */
+        fun extractPdfCover(context: Context, file: File): String? {
+            if (!file.exists() || !file.canRead()) return null
+            var pfd: ParcelFileDescriptor? = null
+            var renderer: PdfRenderer? = null
+            return try {
+                pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY) ?: return null
+                renderer = PdfRenderer(pfd)
+                if (renderer.pageCount <= 0) return null
+
+                val page = renderer.openPage(0)
+                val width = 600
+                val height = (width * (page.height.toFloat() / page.width.toFloat())).toInt().coerceIn(400, 1200)
+
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                canvas.drawColor(Color.WHITE)
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                page.close()
+
+                val coversDir = File(context.filesDir, "covers").apply { mkdirs() }
+                val coverFile = File(coversDir, "cover_pdf_${System.currentTimeMillis()}_${file.nameWithoutExtension.take(20)}.jpg")
+                java.io.FileOutputStream(coverFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                bitmap.recycle()
+                coverFile.absolutePath
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            } finally {
+                try { renderer?.close() } catch (_: Exception) {}
+                try { pfd?.close() } catch (_: Exception) {}
+            }
+        }
+    }
 }

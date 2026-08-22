@@ -1,7 +1,11 @@
 package com.example.reader
 
+import android.content.Context
 import com.example.model.BookChapter
 import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.zip.ZipInputStream
@@ -15,7 +19,8 @@ object EpubParser {
         val title: String,
         val author: String,
         val chapters: List<BookChapter>,
-        val description: String? = null
+        val description: String? = null,
+        val coverBytes: ByteArray? = null
     )
 
     fun parseEpubStream(inputStream: InputStream, defaultTitle: String = "Untitled EPUB"): ParsedBookResult {
@@ -24,6 +29,9 @@ object EpubParser {
         var bookAuthor = "Unknown Author"
         var desc: String? = null
         var totalBytesRead = 0L
+        var coverImageBytes: ByteArray? = null
+        var firstImageBytes: ByteArray? = null
+        var opfCoverHref: String? = null
 
         try {
             val zis = ZipInputStream(inputStream)
@@ -31,6 +39,7 @@ object EpubParser {
             var chapterIndex = 0
 
             val htmlEntries = mutableMapOf<String, String>()
+            val imageEntries = mutableMapOf<String, ByteArray>()
 
             while (entry != null) {
                 val name = entry.name
@@ -42,9 +51,10 @@ object EpubParser {
                     continue
                 }
 
-                if (name.endsWith(".html", ignoreCase = true) || 
-                    name.endsWith(".xhtml", ignoreCase = true) || 
-                    name.endsWith(".htm", ignoreCase = true)
+                val lowerName = name.lowercase()
+                if (lowerName.endsWith(".html") || 
+                    lowerName.endsWith(".xhtml") || 
+                    lowerName.endsWith(".htm")
                 ) {
                     val content = readBoundedStream(zis, MAX_SINGLE_ENTRY_BYTES)
                     totalBytesRead += content.length
@@ -52,15 +62,47 @@ object EpubParser {
                         break // Prevent unbounded memory growth
                     }
                     htmlEntries[name] = content
-                } else if (name.endsWith(".opf", ignoreCase = true)) {
+                } else if (lowerName.endsWith(".opf")) {
                     val opfContent = readBoundedStream(zis, MAX_SINGLE_ENTRY_BYTES)
                     extractOpfMetadata(opfContent)?.let { meta ->
                         if (meta.first.isNotBlank()) bookTitle = meta.first
                         if (meta.second.isNotBlank()) bookAuthor = meta.second
                     }
+                    opfCoverHref = extractOpfCoverHref(opfContent)
+                } else if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".png") || lowerName.endsWith(".webp")) {
+                    val imgData = readBoundedByteArray(zis, 5 * 1024 * 1024)
+                    if (imgData.isNotEmpty()) {
+                        imageEntries[name] = imgData
+                        if (firstImageBytes == null) {
+                            firstImageBytes = imgData
+                        }
+                    }
                 }
                 zis.closeEntry()
                 entry = zis.nextEntry
+            }
+
+            // Determine cover image:
+            // 1. Matched by OPF cover href
+            if (opfCoverHref != null) {
+                val matched = imageEntries.entries.find { it.key.endsWith(opfCoverHref) || opfCoverHref.endsWith(it.key) }
+                if (matched != null) {
+                    coverImageBytes = matched.value
+                }
+            }
+            // 2. Named cover.*
+            if (coverImageBytes == null) {
+                val coverNamed = imageEntries.entries.find { 
+                    val n = it.key.lowercase()
+                    n.contains("cover") || n.contains("front") || n.contains("titlepage")
+                }
+                if (coverNamed != null) {
+                    coverImageBytes = coverNamed.value
+                }
+            }
+            // 3. Fallback to first image in archive
+            if (coverImageBytes == null) {
+                coverImageBytes = firstImageBytes
             }
 
             // Sort and process html chapters
@@ -97,8 +139,62 @@ object EpubParser {
             title = bookTitle,
             author = bookAuthor,
             chapters = chapters,
-            description = desc
+            description = desc,
+            coverBytes = coverImageBytes
         )
+    }
+
+    /**
+     * Extracts cover image from EPUB file and saves it to app storage.
+     */
+    fun extractEpubCover(context: Context, file: File): String? {
+        return try {
+            file.inputStream().use { stream ->
+                val result = parseEpubStream(stream, file.nameWithoutExtension)
+                val bytes = result.coverBytes ?: return@use null
+                val coversDir = File(context.filesDir, "covers").apply { mkdirs() }
+                val coverFile = File(coversDir, "cover_epub_${System.currentTimeMillis()}_${file.nameWithoutExtension.take(20)}.jpg")
+                FileOutputStream(coverFile).use { out ->
+                    out.write(bytes)
+                }
+                coverFile.absolutePath
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun readBoundedByteArray(zis: ZipInputStream, maxBytes: Int): ByteArray {
+        val buffer = ByteArray(4096)
+        val baos = ByteArrayOutputStream()
+        var total = 0
+        var read: Int
+        while (zis.read(buffer).also { read = it } != -1) {
+            total += read
+            baos.write(buffer, 0, read)
+            if (total >= maxBytes) break
+        }
+        return baos.toByteArray()
+    }
+
+    private fun extractOpfCoverHref(opfContent: String): String? {
+        return try {
+            // Check for <item id="cover-image" href="..." properties="cover-image"/>
+            val propCoverMatch = Regex("<item[^>]+properties=[\"'][^\"']*cover-image[^\"']*[\"'][^>]+href=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(opfContent)
+            if (propCoverMatch != null) return propCoverMatch.groupValues[1]
+
+            // Check for <meta name="cover" content="cover-id"/> and match <item id="cover-id" href="..."/>
+            val metaCoverMatch = Regex("<meta[^>]+name=[\"']cover[\"'][^>]+content=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(opfContent)
+            if (metaCoverMatch != null) {
+                val coverId = Regex.escape(metaCoverMatch.groupValues[1])
+                val itemMatch = Regex("<item[^>]+id=[\"']$coverId[\"'][^>]+href=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(opfContent)
+                if (itemMatch != null) return itemMatch.groupValues[1]
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun readBoundedStream(zis: ZipInputStream, maxBytes: Int): String {

@@ -224,23 +224,48 @@ class BookRepository(private val context: Context, private val database: AppData
             }
 
             var title = displayName.substringBeforeLast(".")
-            var author = "Imported Document"
+                .replace(Regex("(?i)[-_]foulabook(?:\\.com)?[-_]?"), "")
+                .replace(Regex("[-_]+"), " ")
+                .trim()
+            if (title.isBlank()) title = displayName.substringBeforeLast(".")
+
+            val isArabic = title.any { it in '\u0600'..'\u06FF' } || displayName.any { it in '\u0600'..'\u06FF' }
+            var author = if (isArabic) "مستند مستورد" else "Imported Document"
             var totalPages = 50
-            var desc = "Imported local e-book document."
+            var desc = if (isArabic) "كتاب إلكتروني محلي مستورد ومحفوظ على الجهاز." else "Imported local e-book document."
+            var extractedCoverPath: String? = null
 
             if (format == BookFormat.EPUB) {
                 savedFile.inputStream().use { stream ->
                     val parsed = EpubParser.parseEpubStream(stream, title)
-                    title = parsed.title
-                    author = parsed.author
-                    totalPages = parsed.chapters.size * 5
+                    if (parsed.title.isNotBlank() && parsed.title != "Untitled EPUB") title = parsed.title
+                    if (parsed.author.isNotBlank() && parsed.author != "Unknown Author") author = parsed.author
+                    totalPages = (parsed.chapters.size * 5).coerceAtLeast(10)
+                }
+                extractedCoverPath = EpubParser.extractEpubCover(context, savedFile)
+            } else if (format == BookFormat.PDF) {
+                extractedCoverPath = com.example.reader.PdfManager.extractPdfCover(context, savedFile)
+                val chapters = com.example.reader.PdfTextExtractor.extractChaptersFromPdf(savedFile, title)
+                if (chapters.isNotEmpty()) {
+                    totalPages = chapters.size.coerceAtLeast(1)
                 }
             } else if (format == BookFormat.TXT) {
                 savedFile.inputStream().use { stream ->
                     val parsed = EpubParser.parsePlainTextStream(stream, displayName)
-                    totalPages = parsed.chapters.size * 3
+                    totalPages = (parsed.chapters.size * 3).coerceAtLeast(5)
                 }
             }
+
+            val palettes = listOf(
+                Pair(0xFF1B3B36L, 0xFF0D231FL), // Deep Emerald
+                Pair(0xFF1E293BL, 0xFF0F172AL), // Midnight Slate
+                Pair(0xFF3B1D28L, 0xFF240E17L), // Royal Burgundy
+                Pair(0xFF1E3A8AL, 0xFF172554L), // Deep Cobalt Navy
+                Pair(0xFF3F2D1DL, 0xFF271A0FL), // Vintage Amber Bronze
+                Pair(0xFF312E81L, 0xFF1E1B4BL), // Majestic Indigo
+                Pair(0xFF0F2F3CL, 0xFF081B24L)  // Dark Oceanic Teal
+            )
+            val palette = palettes[Math.abs(title.hashCode()) % palettes.size]
 
             val newBook = Book(
                 id = "imported-" + UUID.randomUUID().toString().take(8),
@@ -249,18 +274,20 @@ class BookRepository(private val context: Context, private val database: AppData
                 description = desc,
                 format = format,
                 status = ReadingStatus.WANT_TO_READ,
-                coverGradientStart = 0xFF1E293B,
-                coverGradientEnd = 0xFF475569,
+                coverGradientStart = palette.first,
+                coverGradientEnd = palette.second,
+                coverImageUrl = extractedCoverPath,
                 totalPages = totalPages,
                 currentPage = 1,
                 readingProgress = 0f,
                 isFavorite = false,
                 isDownloaded = true,
                 localFilePath = savedFile.absolutePath,
-                fileSize = "${(savedFile.length() / 1024 / 1024.0 * 10).toInt() / 10.0} MB",
-                genre = "Imported Document",
-                tags = listOf("Local Import", format.displayName),
+                fileSize = "${(savedFile.length() / 1024 / 1024.0 * 10).toInt() / 10.0} MB".ifBlank { "${savedFile.length() / 1024} KB" },
+                genre = if (isArabic) "كتاب مستورد" else "Imported Document",
+                tags = listOf(if (isArabic) "استيراد محلي" else "Local Import", format.displayName),
                 rating = 5.0f,
+                languageCode = if (isArabic) "ar" else "en",
                 addedTimestamp = System.currentTimeMillis()
             )
 
@@ -279,16 +306,26 @@ class BookRepository(private val context: Context, private val database: AppData
                 val parsed = EpubParser.parseEpubStream(stream, title)
                 totalPages = (parsed.chapters.size * 6).coerceAtLeast(10)
             }
+            val extractedCoverPath = EpubParser.extractEpubCover(context, file)
+            val isArabic = title.any { it in '\u0600'..'\u06FF' } || author.any { it in '\u0600'..'\u06FF' }
+
+            val palettes = listOf(
+                Pair(0xFF0D9488L, 0xFF064E3BL),
+                Pair(0xFF1E3A8AL, 0xFF172554L),
+                Pair(0xFF3B1D28L, 0xFF240E17L)
+            )
+            val palette = palettes[Math.abs(title.hashCode()) % palettes.size]
 
             val newBook = Book(
                 id = "epub-" + UUID.randomUUID().toString().take(8),
                 title = title,
                 author = author,
-                description = "Converted EPUB 3 digital publication with formatted typography and structured index.",
+                description = if (isArabic) "إصدار EPUB 3 منسق رقمياً مع فهرس منظم وخطوط قابلة للتخصيص." else "Converted EPUB 3 digital publication with formatted typography and structured index.",
                 format = BookFormat.EPUB,
                 status = ReadingStatus.WANT_TO_READ,
-                coverGradientStart = 0xFF0D9488,
-                coverGradientEnd = 0xFF059669,
+                coverGradientStart = palette.first,
+                coverGradientEnd = palette.second,
+                coverImageUrl = extractedCoverPath,
                 totalPages = totalPages,
                 currentPage = 1,
                 readingProgress = 0f,
@@ -296,9 +333,10 @@ class BookRepository(private val context: Context, private val database: AppData
                 isDownloaded = true,
                 localFilePath = file.absolutePath,
                 fileSize = "${(file.length() / 1024 / 1024.0 * 10).toInt() / 10.0} MB".ifBlank { "${(file.length() / 1024)} KB" },
-                genre = "Converted EPUB",
-                tags = listOf("EPUB 3", "Converted", "Digital Edition"),
+                genre = if (isArabic) "كتاب EPUB محول" else "Converted EPUB",
+                tags = listOf("EPUB 3", if (isArabic) "محول" else "Converted", "Digital Edition"),
                 rating = 5.0f,
+                languageCode = if (isArabic) "ar" else "en",
                 addedTimestamp = System.currentTimeMillis()
             )
 

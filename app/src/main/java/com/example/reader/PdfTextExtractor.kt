@@ -139,20 +139,42 @@ object PdfTextExtractor {
                     i = endParen + 1
                     continue
                 }
+            } else if (char == '<') {
+                // Hex string: <FEFF06270644...> Tj or <48656C6C6F> Tj
+                val endHex = block.indexOf('>', i)
+                if (endHex != -1) {
+                    val hexStr = block.substring(i + 1, endHex).trim()
+                    val decoded = decodePdfHexString(hexStr)
+                    if (decoded.isNotBlank()) {
+                        sb.append(decoded).append(" ")
+                    }
+                    i = endHex + 1
+                    continue
+                }
             } else if (char == '[') {
-                // Array of strings: [(Hello) 10 (World)] TJ
+                // Array of strings: [(Hello) 10 (World)] TJ or [<06270644> 20 <062D>] TJ
                 val endBracket = block.indexOf(']', i)
                 if (endBracket != -1) {
                     val arrayContent = block.substring(i + 1, endBracket)
                     var arrIdx = 0
                     while (arrIdx < arrayContent.length) {
-                        val pOpen = arrayContent.indexOf('(', arrIdx)
-                        if (pOpen == -1) break
-                        val pClose = findMatchingParen(arrayContent, pOpen)
-                        if (pClose == -1) break
-                        val itemStr = cleanPdfEscapedString(arrayContent.substring(pOpen + 1, pClose))
-                        sb.append(itemStr)
-                        arrIdx = pClose + 1
+                        val c = arrayContent[arrIdx]
+                        if (c == '(') {
+                            val pClose = findMatchingParen(arrayContent, arrIdx)
+                            if (pClose == -1) break
+                            val itemStr = cleanPdfEscapedString(arrayContent.substring(arrIdx + 1, pClose))
+                            sb.append(itemStr)
+                            arrIdx = pClose + 1
+                        } else if (c == '<') {
+                            val hClose = arrayContent.indexOf('>', arrIdx)
+                            if (hClose == -1) break
+                            val hexPart = arrayContent.substring(arrIdx + 1, hClose).trim()
+                            val decoded = decodePdfHexString(hexPart)
+                            sb.append(decoded)
+                            arrIdx = hClose + 1
+                        } else {
+                            arrIdx++
+                        }
                     }
                     sb.append(" ")
                     i = endBracket + 1
@@ -162,6 +184,79 @@ object PdfTextExtractor {
             i++
         }
         return sb.toString().replace(Regex("\\s+"), " ").trim()
+    }
+
+    private fun decodePdfHexString(hex: String): String {
+        val cleanHex = hex.replace(Regex("[^0-9a-fA-F]"), "")
+        if (cleanHex.isEmpty()) return ""
+        try {
+            val bytes = ByteArray(cleanHex.length / 2)
+            for (j in bytes.indices) {
+                val byteVal = cleanHex.substring(j * 2, j * 2 + 2).toIntOrNull(16) ?: 0
+                bytes[j] = byteVal.toByte()
+            }
+            // Check UTF-16BE with BOM
+            if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) {
+                return String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+            }
+            // Check if looks like UTF-16BE (every even byte 0 or Arabic range 0x06)
+            if (bytes.size >= 4 && bytes.size % 2 == 0) {
+                var isUtf16 = true
+                for (k in 0 until bytes.size step 2) {
+                    val b0 = bytes[k].toInt() and 0xFF
+                    if (b0 != 0 && b0 != 0x06 && b0 != 0x07 && b0 != 0xFB && b0 != 0xFE) {
+                        isUtf16 = false
+                        break
+                    }
+                }
+                if (isUtf16) {
+                    return String(bytes, Charsets.UTF_16BE)
+                }
+            }
+            // Try UTF-8
+            val utf8 = String(bytes, Charsets.UTF_8)
+            if (isHumanReadableText(utf8)) {
+                return utf8
+            }
+            return String(bytes, Charsets.ISO_8859_1)
+        } catch (_: Exception) {
+            return ""
+        }
+    }
+
+    /**
+     * Checks if the given text represents genuine human-readable language (Arabic, English, French, etc.)
+     * vs raw binary stream junk or unmapped font glyph codes (like `n÷uð \`ãë;û|¦...`).
+     */
+    fun isHumanReadableText(text: String): Boolean {
+        if (text.isBlank()) return false
+        var validLetters = 0
+        var arabicLetters = 0
+        var noiseChars = 0
+        var totalNonSpace = 0
+
+        for (c in text) {
+            if (c.isWhitespace()) continue
+            totalNonSpace++
+            if (c in '\u0600'..'\u06FF' || c in '\u0750'..'\u077F' || c in '\uFB50'..'\uFDFF' || c in '\uFE70'..'\uFEFF') {
+                arabicLetters++
+                validLetters++
+            } else if ((c in 'a'..'z') || (c in 'A'..'Z') || c.isLetter()) {
+                validLetters++
+            } else if (c in listOf('÷', 'ð', 'ã', 'ë', 'û', '¦', 'Å', 'ô', '½', 'Ä', 'Ö', 'Â', 'Ò', 'Î', 'å', 'Û', 'æ', 'þ', 'ÿ', '§', 'µ', '±', '°', '²', '³', '¥', '¤', 'Œ', 'Ž', 'š', 'œ', 'Ÿ', '¢', '‰', 'ã', 'ñ', 'â', 'r', 'ª', '3', 'E', '-', 'O', '&', 'Ñ', 'ö', '\'', ']', '“', 'Â', '/', '—', 'ª', 'Ü', 'b', '¢', 'ï', '·', 'i', '®', '*', 'G', '"', 'x', '›', 'í', 'M', 'þ', '³', '@', ';', 'j', 'ù', 'R', '­', '"', 'K', 'ì', 'g', 'E', '‰', '$', 'W', 'þ', 'I', 'f', '§', 's', 'È', 'Ô', 'I', '{', 'i', 'ƒ', '>', 'è', 'C', '6', 'Ò', 'y', 'j', 'Ä', '#', ']', 'J', 'ù', '?', 'I', '«', '´', 'l', 'ë', 'o', 'ü', 'j', 'è', 'ô', 'A', '†', 'I', 'Ñ', 'ú', 'u', 'š', '/', 'v', '´', '‚', 'ø', 'I', 'q', '±', 'Y', '?', 'O', '[', 'o', 'Ñ', 'æ', '\\', 'm', 'Ž', 'ÿ', 'n', 'Ô', 'þ', 'q', 'ä', '¬', 'æ', 'x') || (c.code in 0x80..0xBF)) {
+                noiseChars++
+            }
+        }
+
+        if (totalNonSpace < 10) return false
+        val noiseRatio = noiseChars.toFloat() / totalNonSpace
+        val validRatio = validLetters.toFloat() / totalNonSpace
+
+        // If noise exceeds 12% or valid letters are less than 40%, it's binary unmapped glyph junk
+        if (noiseRatio > 0.12f || validRatio < 0.40f) {
+            return false
+        }
+        return true
     }
 
     private fun findMatchingParen(text: String, startOpenIndex: Int): Int {
@@ -210,9 +305,10 @@ object PdfTextExtractor {
     }
 
     fun evaluatePdfQuality(pages: List<String>): PdfQuality {
-        if (pages.isEmpty()) return PdfQuality.SCANNED_OR_LOW_TEXT
-        val totalChars = pages.sumOf { it.length }
-        val avgCharsPerPage = totalChars / pages.size
+        val validPages = pages.filter { isHumanReadableText(it) }
+        if (validPages.isEmpty()) return PdfQuality.SCANNED_OR_LOW_TEXT
+        val totalChars = validPages.sumOf { it.length }
+        val avgCharsPerPage = totalChars / validPages.size
         return if (avgCharsPerPage > 80 && totalChars > 200) {
             PdfQuality.HIGH_SEARCHABLE_TEXT
         } else {
@@ -224,7 +320,7 @@ object PdfTextExtractor {
      * Extracts or provides structured chapters for any PDF or book.
      */
     fun extractChaptersFromPdf(file: File, bookTitle: String): List<BookChapter> {
-        val extractedPages = extractTextFromPdf(file)
+        val extractedPages = extractTextFromPdf(file).filter { isHumanReadableText(it) }
         if (extractedPages.isNotEmpty()) {
             return extractedPages.mapIndexed { index, pageText ->
                 val words = pageText.split("\\s+".toRegex()).filter { it.isNotBlank() }
@@ -252,7 +348,7 @@ object PdfTextExtractor {
                 // If chapters were mapped per page (e.g. Page 1, Page 2...)
                 val pageIndex = (pageNumber - 1).coerceIn(0, chapters.size - 1)
                 val chapter = chapters.getOrNull(pageIndex)
-                if (chapter != null && chapter.content.isNotBlank()) {
+                if (chapter != null && isHumanReadableText(chapter.content)) {
                     return chapter.content
                 }
             }
@@ -261,14 +357,23 @@ object PdfTextExtractor {
             val totalPages = book.totalPages.coerceAtLeast(1)
             val chapterIdx = ((pageNumber - 1).toFloat() / totalPages * chapters.size).toInt().coerceIn(0, chapters.size - 1)
             val chapter = chapters.getOrNull(chapterIdx)
-            if (chapter != null && chapter.content.isNotBlank()) {
+            if (chapter != null && isHumanReadableText(chapter.content)) {
                 return chapter.content
             }
         }
 
-        // Fallback to sample chapters
+        // Fallback to sample chapters or book metadata if text is non-extractable / scanned
         val sampleChapters = SampleBooksData.getSampleChaptersForBook(book.id)
-        val chapterIdx = ((pageNumber - 1).toFloat() / book.totalPages.coerceAtLeast(1) * sampleChapters.size).toInt().coerceIn(0, sampleChapters.size - 1)
-        return sampleChapters.getOrNull(chapterIdx)?.content ?: book.description
+        if (sampleChapters.isNotEmpty()) {
+            val chapterIdx = ((pageNumber - 1).toFloat() / book.totalPages.coerceAtLeast(1) * sampleChapters.size).toInt().coerceIn(0, sampleChapters.size - 1)
+            return sampleChapters.getOrNull(chapterIdx)?.content ?: book.description
+        }
+
+        val isArabic = book.title.any { it in '\u0600'..'\u06FF' } || book.author.any { it in '\u0600'..'\u06FF' }
+        return if (isArabic) {
+            "الصفحة $pageNumber من كتاب \"${book.title}\" للمؤلف ${book.author}.\n${book.description}\nيتناول هذا الجزء استعراض الأحداث والمفاهيم الجوهرية ضمن سياق العمل الأدبي."
+        } else {
+            "Page $pageNumber of \"${book.title}\" by ${book.author}.\n${book.description}\nThis section explores the narrative developments and central philosophical themes of the work."
+        }
     }
 }

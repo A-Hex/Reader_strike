@@ -1,6 +1,7 @@
 package com.example.util
 
 import com.example.model.Book
+import com.example.reader.PdfTextExtractor
 import java.util.Locale
 
 object AiReadingAssistantEngine {
@@ -11,6 +12,21 @@ object AiReadingAssistantEngine {
         val partOfSpeech: String,
         val definition: String,
         val contextSentence: String
+    )
+
+    private val ARABIC_LITERARY_DICTIONARY = mapOf(
+        "استبداد" to Pair("اسم", "ممارسة السلطة المطلقة والقهرية دون رقيب، وهو موضوع مركزي في أدب التحذير السياسي والفكري."),
+        "طغيان" to Pair("اسم", "تجاوز الحدود في ممارسة النفوذ وفرض الهيمنة على الجماعة بالقوة والدعاية المضللة."),
+        "يقظة" to Pair("اسم", "حالة الوعي التام والانتباه الحذر للحقائق والمؤامرات المحيطة."),
+        "كفاح" to Pair("اسم", "بذل أقصى الجهد ومجابهة الشدائد في سبيل المبادئ والكرامة."),
+        "حكمة" to Pair("اسم", "القدرة على إدراك الأمور بعمق وتمييز الحقيقة من الزيف والتضليل."),
+        "عدالة" to Pair("اسم", "إعطاء كل ذي حق حقه ومقاومة التمييز والاضطهاد."),
+        "إيثار" to Pair("اسم", "تفضيل المصلحة العامة ومساعدة الآخرين حتى مع التضحية الشخصية."),
+        "بصيرة" to Pair("اسم", "قوة الإدراك الداخلي وفهم ما وراء الظواهر السطحية للأحداث."),
+        "مآل" to Pair("اسم", "المصير والنتيجة النهائية الحتمية التي تفضي إليها القرارات."),
+        "صمود" to Pair("اسم", "الثبات والتحمل الراسخ في مواجهة التحديات والضغوط القاهرة."),
+        "ثورة" to Pair("اسم", "تغيير جذري وشامل في المفاهيم أو الأنظمة القائمة من أجل غاية أسمى."),
+        "ولاء" to Pair("اسم", "الإخلاص والتفاني في خدمة المبادئ أو الجماعة عن قناعة راسخة.")
     )
 
     private val LITERARY_DICTIONARY = mapOf(
@@ -34,71 +50,188 @@ object AiReadingAssistantEngine {
         "unremitting" to Pair("adj. /ˌʌn.rɪˈmɪt.ɪŋ/", "Never relaxing, slackening, or ceasing; persistent and relentless determination.")
     )
 
-    fun generateSummary(book: Book, chapterTitle: String, text: String): String {
-        val sentences = extractSentences(text)
-        val wordCount = text.split("\\s+".toRegex()).filter { it.isNotBlank() }.size
-        val readTimeMin = (wordCount / 220).coerceAtLeast(1)
+    private fun isArabic(book: Book, text: String): Boolean {
+        if (book.languageCode == "ar") return true
+        if (book.title.any { it in '\u0600'..'\u06FF' } || book.author.any { it in '\u0600'..'\u06FF' }) return true
+        val arabicCharCount = text.count { it in '\u0600'..'\u06FF' }
+        return arabicCharCount >= 10
+    }
 
-        val firstSentence = sentences.firstOrNull() ?: text.take(100)
+    private fun sanitizeText(text: String, book: Book): String {
+        if (text.isNotBlank() && PdfTextExtractor.isHumanReadableText(text)) {
+            return text
+        }
+        val isAr = isArabic(book, text)
+        return if (isAr) {
+            "يتناول كتاب \"${book.title}\" للمؤلف ${book.author} دراسة عميقة للقيم الإنسانية والتحولات الفكرية. يقدم النص تحليلاً منهجياً للصراع بين المبادئ والمصالح، مؤكداً على أهمية الوعي والتفكير النقدي المستقل."
+        } else {
+            "In \"${book.title}\", ${book.author} delivers a profound exploration of human agency, moral tension, and philosophical inquiry. The text examines how discipline, perception, and purpose guide meaningful transformation."
+        }
+    }
+
+    fun generateSummary(book: Book, chapterTitle: String, text: String): String {
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText)
+        val sentences = extractSentences(cleanText)
+        val wordCount = cleanText.split("\\s+".toRegex()).filter { it.isNotBlank() }.size
+        val readTimeMin = (wordCount / 180).coerceAtLeast(1)
+
+        val firstSentence = sentences.firstOrNull() ?: cleanText.take(120)
         val middleSentences = if (sentences.size > 2) sentences.subList(1, (sentences.size - 1).coerceAtMost(4)) else sentences
         val closingSentence = sentences.lastOrNull() ?: ""
 
         val sb = StringBuilder()
-        sb.append("📖 **Executive Summary: \"$chapterTitle\"**\n")
-        sb.append("• **Work**: *${book.title}* by ${book.author} (${book.genre})\n")
-        sb.append("• **Passage Scope**: ~$wordCount words | Est. Reading Time: $readTimeMin min\n\n")
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("📖 **الملخص التنفيذي: \"$cleanTitle\"**\n")
+            sb.append("• **العمل**: *${book.title}* بقلم ${book.author} (${book.genre})\n")
+            sb.append("• **نطاق المقطع**: ~$wordCount كلمة | الوقت التقديري للقراءة: $readTimeMin دقيقة\n\n")
 
-        sb.append("📌 **Primary Premise & Narrative Arc**:\n")
-        sb.append("The passage commences directly with the foundational circumstance: *\"${firstSentence.trim()}\"*\n\n")
+            sb.append("📌 **المحور السردي والفكرة الأساسية**:\n")
+            sb.append("يستهل المقطع مجرياته بالتركيز على القضية المحورية: *\"${firstSentence.trim()}\"*\n\n")
 
-        sb.append("🔍 **Key Thematic Points & Progression**:\n")
-        var count = 1
-        for (sentence in middleSentences.take(3)) {
-            val cleaned = sentence.trim().take(160)
-            sb.append("$count. **Key Development**: \"$cleaned${if (sentence.length > 160) "..." else ""}\"\n")
-            count++
-        }
+            sb.append("🔍 **أبرز التطورات والمحاور الموضوعية**:\n")
+            var count = 1
+            for (sentence in middleSentences.take(3)) {
+                val cleaned = sentence.trim().take(160)
+                sb.append("$count. **تطور محوري**: \"$cleaned${if (sentence.length > 160) "..." else ""}\"\n")
+                count++
+            }
+            if (count == 1) {
+                sb.append("1. **البناء السردي**: تطور متسلسل للأحداث يعكس التوترات الفكرية والشخصية للبطل.\n")
+                sb.append("2. **العمق الرمزي**: توظيف دقيق للتفاصيل لنقل أبعاد فلسفية واجتماعية أعمق.\n")
+            }
 
-        if (closingSentence.isNotBlank() && closingSentence != firstSentence) {
-            sb.append("\n🎯 **Concluding Resolution**:\n")
-            sb.append("The section culminates with: *\"${closingSentence.trim()}\"*, anchoring the overarching philosophical and emotional tension.")
+            if (closingSentence.isNotBlank() && closingSentence != firstSentence) {
+                sb.append("\n🎯 **الخلاصة والرسالة الختامية**:\n")
+                sb.append("يصل المشهد إلى ذروته مع: *\"${closingSentence.trim()}\"*، مما يرسخ الصراع الإنساني والفكري المحرك للعمل.")
+            }
+        } else {
+            sb.append("📖 **Executive Summary: \"$chapterTitle\"**\n")
+            sb.append("• **Work**: *${book.title}* by ${book.author} (${book.genre})\n")
+            sb.append("• **Passage Scope**: ~$wordCount words | Est. Reading Time: $readTimeMin min\n\n")
+
+            sb.append("📌 **Primary Premise & Narrative Arc**:\n")
+            sb.append("The passage commences directly with the foundational circumstance: *\"${firstSentence.trim()}\"*\n\n")
+
+            sb.append("🔍 **Key Thematic Points & Progression**:\n")
+            var count = 1
+            for (sentence in middleSentences.take(3)) {
+                val cleaned = sentence.trim().take(160)
+                sb.append("$count. **Key Development**: \"$cleaned${if (sentence.length > 160) "..." else ""}\"\n")
+                count++
+            }
+            if (count == 1) {
+                sb.append("1. **Narrative Tension**: Progressive elevation of thematic stakes and core character intent.\n")
+                sb.append("2. **Underlying Dynamic**: Methodical exploration of internal agency versus external constraints.\n")
+            }
+
+            if (closingSentence.isNotBlank() && closingSentence != firstSentence) {
+                sb.append("\n🎯 **Concluding Resolution**:\n")
+                sb.append("The section culminates with: *\"${closingSentence.trim()}\"*, anchoring the overarching philosophical tension.")
+            }
         }
 
         return sb.toString()
     }
 
     fun generateTakeaways(book: Book, chapterTitle: String, text: String): String {
-        val sentences = extractSentences(text)
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText)
+        val sentences = extractSentences(cleanText)
         val sb = StringBuilder()
-        sb.append("💡 **Core Takeaways & Actionable Insights from \"$chapterTitle\"**\n\n")
 
-        val quotes = sentences.filter { it.length in 30..180 }.take(3)
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("💡 **الرؤى والدروس المستفادة من \"$cleanTitle\"**\n\n")
 
-        if (quotes.isNotEmpty()) {
-            quotes.forEachIndexed { idx, quote ->
-                val insightTitle = when (idx) {
-                    0 -> "1. Internal Mastery Over Circumstance"
-                    1 -> "2. Strategic Perception & Focus"
-                    else -> "3. Resolution & Purposeful Action"
+            val quotes = sentences.filter { it.length in 30..180 }.take(3)
+            if (quotes.isNotEmpty()) {
+                quotes.forEachIndexed { idx, quote ->
+                    val insightTitle = when (idx) {
+                        0 -> "1. اليقظة الفكرية والتحصين ضد الزيف"
+                        1 -> "2. قوة التفكير النقدي والإرادة المستقلة"
+                        else -> "3. تحمل المسؤولية والتمسك بالقيم"
+                    }
+                    sb.append("✨ **$insightTitle**:\n")
+                    sb.append("• *شاهد من النص*: \"${quote.trim()}\"\n")
+                    sb.append("• *التطبيق العملي*: توجيه الطاقة الذهنية نحو تمييز الحقائق بموضوعية وفلترة المؤثرات الخارجية المضللة.\n\n")
                 }
-                sb.append("✨ **$insightTitle**:\n")
-                sb.append("• *Evidence from text*: \"${quote.trim()}\"\n")
-                sb.append("• *Application*: Direct your cognitive energy exclusively toward what is within your control, filtering out non-essential external friction.\n\n")
+            } else {
+                sb.append("1. **الوعي النقدي**: القراءة المتأملة للأدب الرفيع تعزز البصيرة وقوة الحكم على المواقف.\n\n")
+                sb.append("2. **إدراك السياق**: الانتباه للدوافع النفسية للشخصيات يكشف طبقات أعمق من المعنى الإنساني.\n\n")
+                sb.append("3. **ترسيخ المعرفة**: تدوين الملاحظات وتحليل الأفكار يحول التجربة القرائية إلى حكمة مستدامة.\n\n")
             }
+            sb.append("🚀 **سؤال للتأمل**: كيف تعكس الأزمة المحورية في هذا المقطع التحديات والقرارات التي تواجهها في واقعك؟")
         } else {
-            sb.append("1. **Mindful Focus**: Continuous engagement with challenging literature sharpens attention and emotional resilience.\n")
-            sb.append("2. **Contextual Awareness**: Observing subtle narrative choices deepens comprehension and critical thinking.\n")
-            sb.append("3. **Deliberate Retention**: Translating reading time into structured notes locks in lifelong knowledge.\n")
+            sb.append("💡 **Core Takeaways & Actionable Insights from \"$chapterTitle\"**\n\n")
+            val quotes = sentences.filter { it.length in 30..180 }.take(3)
+            if (quotes.isNotEmpty()) {
+                quotes.forEachIndexed { idx, quote ->
+                    val insightTitle = when (idx) {
+                        0 -> "1. Internal Mastery Over Circumstance"
+                        1 -> "2. Strategic Perception & Focus"
+                        else -> "3. Resolution & Purposeful Action"
+                    }
+                    sb.append("✨ **$insightTitle**:\n")
+                    sb.append("• *Evidence from text*: \"${quote.trim()}\"\n")
+                    sb.append("• *Application*: Direct your cognitive energy exclusively toward what is within your control, filtering out non-essential external friction.\n\n")
+                }
+            } else {
+                sb.append("1. **Mindful Focus**: Continuous engagement with challenging literature sharpens attention and emotional resilience.\n")
+                sb.append("2. **Contextual Awareness**: Observing subtle narrative choices deepens comprehension and critical thinking.\n")
+                sb.append("3. **Deliberate Retention**: Translating reading time into structured notes locks in lifelong knowledge.\n\n")
+            }
+            sb.append("🚀 **Reflective Prompt**: How does the central dilemma in this passage mirror your current daily challenges?")
         }
 
-        sb.append("🚀 **Reflective Prompt**: How does the central dilemma in this passage mirror your current daily challenges?")
         return sb.toString()
     }
 
     fun extractVocabulary(text: String): String {
         val lowerText = text.lowercase(Locale.getDefault())
+        val isAr = text.any { it in '\u0600'..'\u06FF' }
         val sentences = extractSentences(text)
         val foundVocab = mutableListOf<VocabularyEntry>()
+
+        if (isAr) {
+            for ((word, details) in ARABIC_LITERARY_DICTIONARY) {
+                if (text.contains(word)) {
+                    val matchingSentence = sentences.find { it.contains(word) } ?: ""
+                    val (pos, def) = details
+                    foundVocab.add(
+                        VocabularyEntry(
+                            word = word,
+                            phonetic = "",
+                            partOfSpeech = pos,
+                            definition = def,
+                            contextSentence = matchingSentence.trim()
+                        )
+                    )
+                }
+            }
+
+            val sb = StringBuilder()
+            sb.append("📚 **المفردات والسياق اللغوي والبلاغي**\n\n")
+            if (foundVocab.isEmpty()) {
+                // Return default rich Arabic literary entries
+                val defaultEntries = ARABIC_LITERARY_DICTIONARY.entries.take(3)
+                for (entry in defaultEntries) {
+                    sb.append("• **${entry.key}** *(${entry.value.first})*\n")
+                    sb.append("  📝 **الدلالة**: ${entry.value.second}\n\n")
+                }
+            } else {
+                foundVocab.take(4).forEach { entry ->
+                    sb.append("• **${entry.word}** *(${entry.partOfSpeech})*\n")
+                    sb.append("  📝 **الدلالة والسياق**: ${entry.definition}\n")
+                    if (entry.contextSentence.isNotBlank()) {
+                        sb.append("  🔍 **الشاهد من النص**: *\"${entry.contextSentence.take(140)}\"*\n")
+                    }
+                    sb.append("\n")
+                }
+            }
+            return sb.toString().trim()
+        }
 
         for ((word, details) in LITERARY_DICTIONARY) {
             if (lowerText.contains(word)) {
@@ -164,9 +297,41 @@ object AiReadingAssistantEngine {
     }
 
     fun generateAnalysis(book: Book, chapterTitle: String, text: String): String {
-        val sentences = extractSentences(text)
-        val wordCount = text.split("\\s+".toRegex()).filter { it.isNotBlank() }.size
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText)
+        val sentences = extractSentences(cleanText)
+        val wordCount = cleanText.split("\\s+".toRegex()).filter { it.isNotBlank() }.size
         val avgSentenceLength = if (sentences.isNotEmpty()) wordCount / sentences.size else 15
+
+        if (isAr) {
+            val readingLevel = when {
+                avgSentenceLength > 22 -> "متقدم / أدبي رفيع (مستوى فكري ونقدي عالي)"
+                avgSentenceLength > 14 -> "متوسط / سردي سلس (مناسب للقارئ العام والباحث)"
+                else -> "مبسط / حواري مباشر"
+            }
+            val tone = when {
+                cleanText.contains("عقل") || cleanText.contains("فكر") || cleanText.contains("حكمة") -> "تأملي وفلسفي رصين"
+                cleanText.contains("خوف") || cleanText.contains("ألم") || cleanText.contains("صراع") -> "درامي متصاعد ومحتدم"
+                cleanText.contains("حرب") || cleanText.contains("عدو") || cleanText.contains("نصر") -> "استراتيجي وتقريري حازم"
+                else -> "رمزي ونقدي استشرافي"
+            }
+
+            val sb = StringBuilder()
+            sb.append("🧠 **التحليل الأدبي والبلاغي والنقدي العميق**\n\n")
+            sb.append("📊 **المؤشرات اللغوية والأسلوبية**:\n")
+            sb.append("• **مستوى الصياغة**: $readingLevel\n")
+            sb.append("• **النبرة المهيمنة**: $tone\n")
+            sb.append("• **الكثافة التركيبية**: متوسط $avgSentenceLength كلمة لكل جملة\n\n")
+
+            sb.append("🎭 **الأساليب البلاغية والجمالية المرصودة**:\n")
+            sb.append("1. **الرمزية والإسقاط السياسي**: استخدام الحبكة الرمزية لتجسيد صراعات إنسانية كبرى.\n")
+            sb.append("2. **الطباق والمفارقة التصويرية**: إبراز التناقض بين الشعارات المعلنة والممارسات الواقعية.\n")
+            sb.append("3. **البناء التصاعدي**: تصعيد الإيقاع الدرامي لتعميق الأثر العاطفي والفكري لدى القارئ.\n\n")
+
+            sb.append("🏛️ **السياق التاريخي والفلسفي**:\n")
+            sb.append("يندرج العمل تحت تصنيف *${book.genre}*، حيث يقدم الكاتب ${book.author} دراسة خالدة لطبيعة القوة، ونزعة الحرية، وحدود السيطرة في النفس البشرية.")
+            return sb.toString()
+        }
 
         val readingLevel = when {
             avgSentenceLength > 24 -> "Advanced / Scholarly (Flesch-Kincaid Grade 12+)"
@@ -175,9 +340,9 @@ object AiReadingAssistantEngine {
         }
 
         val tone = when {
-            text.contains("reason", ignoreCase = true) || text.contains("mind", ignoreCase = true) -> "Introspective & Stoic"
-            text.contains("fear", ignoreCase = true) || text.contains("pain", ignoreCase = true) || text.contains("injury", ignoreCase = true) -> "Visceral & Dramatic"
-            text.contains("enemy", ignoreCase = true) || text.contains("war", ignoreCase = true) || text.contains("forces", ignoreCase = true) -> "Strategic & Prescriptive"
+            cleanText.contains("reason", ignoreCase = true) || cleanText.contains("mind", ignoreCase = true) -> "Introspective & Stoic"
+            cleanText.contains("fear", ignoreCase = true) || cleanText.contains("pain", ignoreCase = true) || cleanText.contains("injury", ignoreCase = true) -> "Visceral & Dramatic"
+            cleanText.contains("enemy", ignoreCase = true) || cleanText.contains("war", ignoreCase = true) || cleanText.contains("forces", ignoreCase = true) -> "Strategic & Prescriptive"
             else -> "Reflective & Analytic"
         }
 
@@ -189,10 +354,10 @@ object AiReadingAssistantEngine {
         sb.append("• **Syntactic Density**: Avg. $avgSentenceLength words per sentence\n\n")
 
         sb.append("🎭 **Rhetorical & Literary Devices Identified**:\n")
-        if (text.contains("like ", ignoreCase = true) || text.contains("as ", ignoreCase = true)) {
+        if (cleanText.contains("like ", ignoreCase = true) || cleanText.contains("as ", ignoreCase = true)) {
             sb.append("1. **Simile & Figurative Imagery**: Draws vivid parallels to enhance physical and emotional resonance.\n")
         }
-        if (text.contains("not ", ignoreCase = true) && text.contains("but ", ignoreCase = true)) {
+        if (cleanText.contains("not ", ignoreCase = true) && cleanText.contains("but ", ignoreCase = true)) {
             sb.append("2. **Antithesis & Contrast**: Juxtaposes contrasting states to clarify moral and intellectual distinctions.\n")
         }
         sb.append("3. **Didactic & Existential Exposition**: Uses structured progression to convey universal principles of the human condition.\n\n")
@@ -204,46 +369,91 @@ object AiReadingAssistantEngine {
     }
 
     fun answerQuery(book: Book, chapterTitle: String, text: String, query: String): String {
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText) || query.any { it in '\u0600'..'\u06FF' }
         val qLower = query.lowercase(Locale.getDefault())
-        val sentences = extractSentences(text)
+        val sentences = extractSentences(cleanText)
 
-        // Generate Quiz if user asked for a quiz or test
-        if (qLower.contains("quiz") || qLower.contains("test") || qLower.contains("questions")) {
-            return generateComprehensionQuiz(book, chapterTitle, text)
+        if (qLower.contains("quiz") || qLower.contains("test") || qLower.contains("questions") || 
+            query.contains("اختبار") || query.contains("أسئلة") || query.contains("امتحان")
+        ) {
+            return generateComprehensionQuiz(book, chapterTitle, cleanText, isAr)
         }
 
-        // Search for relevant sentences matching query keywords
-        val keywords = qLower.split("\\s+|[.,;!?]+".toRegex()).filter { it.length >= 4 }
+        val keywords = query.split("\\s+|[.,;!?؟]+".toRegex()).filter { it.length >= 3 }
         val matchingSentences = sentences.filter { sentence ->
-            val sLower = sentence.lowercase(Locale.getDefault())
-            keywords.any { k -> sLower.contains(k) }
+            keywords.any { k -> sentence.contains(k, ignoreCase = true) }
         }
 
         val sb = StringBuilder()
-        sb.append("🤖 **AI Assistant Response for: \"$query\"**\n\n")
-        sb.append("In *${book.title}* (${chapterTitle}):\n\n")
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("🤖 **إجابة المساعد الذكي عن: \"$query\"**\n\n")
+            sb.append("في كتاب *${book.title}* ($cleanTitle):\n\n")
 
-        if (matchingSentences.isNotEmpty()) {
-            sb.append("📌 **Direct Textual Findings**:\n")
-            matchingSentences.take(2).forEach { s ->
-                sb.append("• *\"${s.trim()}\"*\n")
+            if (matchingSentences.isNotEmpty()) {
+                sb.append("📌 **الشواهد المباشرة من النص**:\n")
+                matchingSentences.take(2).forEach { s ->
+                    sb.append("• *\"${s.trim()}\"*\n")
+                }
+                sb.append("\n💡 **التحليل والاستنتاج**:\n")
+                sb.append("يوضح الكاتب ${book.author} أن فهم هذا الجانب يتطلب إدراك الدوافع العميقة والظروف المحيطة التي توجه مسار الأحداث وتكشف جوهر الرسالة الأدبية.")
+            } else {
+                val sampleSentence = sentences.getOrNull(1) ?: sentences.firstOrNull() ?: cleanText.take(120)
+                sb.append("📌 **الرؤية السياقية المستخلصة**:\n")
+                sb.append("من خلال دراسة المقطع يتبين كيف تتجسد المبادئ الأساسية للعمل: *\"${sampleSentence.trim()}\"*.\n\n")
+                sb.append("💡 **الخلاصة**: يركز النص على أهمية التفكير النقدي، والمسؤولية الأخلاقية، والقدرة على مواجهة التحديات بوعي وثبات.")
             }
-            sb.append("\n💡 **Synthesis & Context**:\n")
-            sb.append("The author ${book.author} demonstrates that understanding this aspect requires careful attention to the underlying motives and external conditions shaping the narrative.")
         } else {
-            val sampleSentence = sentences.getOrNull(1) ?: sentences.firstOrNull() ?: text.take(120)
-            sb.append("📌 **Key Contextual Insight**:\n")
-            sb.append("Examining this passage reveals how the core thematic principles of ${book.genre.lowercase()} are applied. Specifically, the text highlights: *\"${sampleSentence.trim()}\"*.\n\n")
-            sb.append("💡 **Takeaway**: The narrative structure emphasizes personal responsibility, methodical perception, and resilient determination.")
+            sb.append("🤖 **AI Assistant Response for: \"$query\"**\n\n")
+            sb.append("In *${book.title}* (${chapterTitle}):\n\n")
+
+            if (matchingSentences.isNotEmpty()) {
+                sb.append("📌 **Direct Textual Findings**:\n")
+                matchingSentences.take(2).forEach { s ->
+                    sb.append("• *\"${s.trim()}\"*\n")
+                }
+                sb.append("\n💡 **Synthesis & Context**:\n")
+                sb.append("The author ${book.author} demonstrates that understanding this aspect requires careful attention to the underlying motives and external conditions shaping the narrative.")
+            } else {
+                val sampleSentence = sentences.getOrNull(1) ?: sentences.firstOrNull() ?: cleanText.take(120)
+                sb.append("📌 **Key Contextual Insight**:\n")
+                sb.append("Examining this passage reveals how the core thematic principles of ${book.genre.lowercase()} are applied. Specifically, the text highlights: *\"${sampleSentence.trim()}\"*.\n\n")
+                sb.append("💡 **Takeaway**: The narrative structure emphasizes personal responsibility, methodical perception, and resilient determination.")
+            }
         }
 
         return sb.toString()
     }
 
-    private fun generateComprehensionQuiz(book: Book, chapterTitle: String, text: String): String {
+    private fun generateComprehensionQuiz(book: Book, chapterTitle: String, text: String, isAr: Boolean): String {
         val sentences = extractSentences(text)
-        val s1 = sentences.getOrNull(0)?.trim()?.take(80) ?: "The opening circumstance"
-        val s2 = sentences.getOrNull(2)?.trim()?.take(80) ?: "The strategic choice"
+        val s1 = sentences.getOrNull(0)?.trim()?.take(80) ?: if (isAr) "الحدث الافتتاحي المحوري" else "The opening circumstance"
+
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            return """
+            📝 **اختبار الفهم والاستيعاب: "$cleanTitle"**
+            
+            **السؤال الأول**: ما الفكرة الأساسية التي ينطلق منها هذا المقطع؟
+            • [أ] أزمة مفاجئة دون أبعاد فكرية
+            • [ب] *"$s1"* (الإجابة الصحيحة)
+            • [ج] استسلام كامل للظروف الخارجية
+            • [د] تفاصيل هامشية غير مؤثرة
+            
+            **السؤال الثاني**: ما المبدأ الذي يؤكد عليه الكاتب ${book.author} في معالجة الموقف؟
+            • [أ] التصرف الانفعالي دون تخطيط
+            • [ب] التفكير النقدي وفحص الدوافع والمآلات (الإجابة الصحيحة)
+            • [ج] الاعتماد الكلي على آراء الآخرين
+            
+            **السؤال الثالث**: كيف تتبلور النتيجة في هذا السياق؟
+            • [أ] من خلال اليقظة والتمسك بالمبادئ الجوهرية (الإجابة الصحيحة)
+            • [ب] بالصدفة المجردة دون مبرر
+            • [ج] بتجاهل المشكلة تماماً
+            
+            💡 *فائدة: اختبارات الاستيعاب السريعة ترفع نسبة تثبيت المعلومات وتعميق الفهم بنسبة تصل إلى 40%!*
+            """.trimIndent()
+        }
 
         return """
         📝 **Comprehension & Retention Quiz: "${chapterTitle}"**
@@ -270,8 +480,9 @@ object AiReadingAssistantEngine {
     }
 
     private fun extractSentences(text: String): List<String> {
-        return text.split(Regex("(?<=[.!?])\\s+"))
+        return text.split(Regex("(?<=[.!?؟\n])\\s+"))
             .map { it.trim().replace(Regex("\\s+"), " ") }
-            .filter { it.isNotBlank() && it.length >= 15 }
+            .filter { it.isNotBlank() && it.length >= 15 && PdfTextExtractor.isHumanReadableText(it) }
     }
 }
+

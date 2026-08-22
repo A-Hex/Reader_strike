@@ -45,22 +45,41 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.notification.ReadingNotificationManager.initChannels(this)
         enableEdgeToEdge()
+
+        val initialTab = parseInitialTab(intent)
         setContent {
             MyApplicationTheme(darkTheme = true) {
-                MainAppContent(viewModel = viewModel)
+                MainAppContent(viewModel = viewModel, initialTab = initialTab)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
+    private fun parseInitialTab(intent: android.content.Intent?): NavigationTab {
+        val target = intent?.getStringExtra("target_tab") ?: return NavigationTab.LIBRARY
+        return when (target.uppercase()) {
+            "STREAK" -> NavigationTab.STREAK
+            "HIGHLIGHTS" -> NavigationTab.HIGHLIGHTS
+            "DISCOVER" -> NavigationTab.DISCOVER
+            "SETTINGS" -> NavigationTab.SETTINGS
+            else -> NavigationTab.LIBRARY
         }
     }
 }
 
 @Composable
-fun MainAppContent(viewModel: MainViewModel) {
+fun MainAppContent(viewModel: MainViewModel, initialTab: NavigationTab = NavigationTab.LIBRARY) {
     val isOnboardingCompleted by viewModel.isOnboardingCompleted.collectAsState()
     val isTutorialVisible by viewModel.isTutorialVisible.collectAsState()
     val currentBook by viewModel.currentBook.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
-    var currentTab by remember { mutableStateOf(NavigationTab.LIBRARY) }
+    var currentTab by remember { mutableStateOf(initialTab) }
 
     val layoutDirection = if (currentLanguage.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 

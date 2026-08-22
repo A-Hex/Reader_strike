@@ -202,7 +202,7 @@ fun SettingsScreen(
                     }
 
                     Text(
-                        text = "Access your private on-device vault, local storage allocation, local NLP relation analysis, database optimization, and local encrypted backups.",
+                        text = "Access your private on-device vault, local storage allocation, database optimization, and local encrypted backups.",
                         style = MaterialTheme.typography.bodySmall,
                         color = NaturalDarkText
                     )

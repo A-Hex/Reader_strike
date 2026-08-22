@@ -3,18 +3,14 @@ package com.example.ui.screens
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,21 +20,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.MindMapProvider
-import com.example.model.Book
-import com.example.ui.components.CharacterMindMapDialog
 import com.example.ui.theme.*
-import com.example.util.AppLanguage
-import com.example.util.AppStrings
-import com.example.util.LocalAiRelationDetector
 import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,15 +36,7 @@ fun LocalSpaceScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val allBooks by viewModel.allBooks.collectAsState()
-    val currentLanguage by viewModel.currentLanguage.collectAsState()
 
-    var selectedBookForAi by remember(allBooks) {
-        mutableStateOf(allBooks.firstOrNull())
-    }
-
-    var isAnalyzingLocalAi by remember { mutableStateOf(false) }
-    var lastAiDetectionStats by remember { mutableStateOf<LocalAiRelationDetector.DetectionStats?>(null) }
     var showOptimizeSuccessToast by remember { mutableStateOf(false) }
 
     // Backup Export Launcher
@@ -159,175 +138,7 @@ fun LocalSpaceScreen(
                 AirGappedStatusCard()
             }
 
-            // 2. Local AI Relation & Plot Engine Studio
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    border = BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.5f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF8E24AA).copy(alpha = 0.25f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.Psychology, contentDescription = null, tint = Color(0xFFCE93D8), modifier = Modifier.size(20.dp))
-                                }
-                                Column {
-                                    Text(
-                                        text = "On-Device AI Relation Detector",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = "Pre-computes character co-occurrences & plot tension locally",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = NaturalDarkTextMuted
-                                    )
-                                }
-                            }
-                        }
-
-                        // Book Selector
-                        Text(
-                            text = "Select Book to Analyze:",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = NaturalDarkText
-                        )
-
-                        if (allBooks.isNotEmpty()) {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(allBooks) { book ->
-                                    val isSelected = selectedBookForAi?.id == book.id
-                                    Surface(
-                                        color = if (isSelected) NaturalPrimary else Color(0xFF141C15),
-                                        shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, if (isSelected) NaturalOchreAccent else NaturalDarkBorder),
-                                        modifier = Modifier.clickable { selectedBookForAi = book }
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            Text(
-                                                text = book.title,
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                    fontSize = 11.sp
-                                                ),
-                                                color = if (isSelected) Color(0xFF141C15) else Color.White,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = book.author,
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                color = if (isSelected) Color(0xFF283629) else NaturalDarkTextMuted
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Action: Run Local AI Pre-computation
-                        Button(
-                            onClick = {
-                                val currentBook = selectedBookForAi ?: allBooks.firstOrNull()
-                                if (currentBook != null) {
-                                    coroutineScope.launch {
-                                        isAnalyzingLocalAi = true
-                                        delay(350)
-                                        val (detected, stats) = LocalAiRelationDetector.analyzeBook(
-                                            book = currentBook,
-                                            fullText = "${currentBook.title}. ${currentBook.description}. By ${currentBook.author}."
-                                        )
-                                        MindMapProvider.saveCustomMindMap(detected)
-                                        lastAiDetectionStats = stats
-                                        isAnalyzingLocalAi = false
-                                        Toast.makeText(context, "Local AI detected ${stats.charactersFound} characters & ${stats.relationshipsMapped} relationships in ${stats.processingDurationMs}ms!", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary),
-                            enabled = !isAnalyzingLocalAi && selectedBookForAi != null
-                        ) {
-                            if (isAnalyzingLocalAi) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color(0xFF141C15))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Analyzing On-Device...", color = Color(0xFF141C15), fontSize = 12.sp)
-                            } else {
-                                Icon(Icons.Default.AutoFixHigh, contentDescription = null, tint = Color(0xFF141C15), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Run Local AI Analysis", color = Color(0xFF141C15), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        // Reader screen prompt note
-                        Surface(
-                            color = NaturalDarkBackground,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Default.MenuBook, contentDescription = null, tint = NaturalOchreAccent, modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = "Interactive Character & Plot Codex is available live while reading inside the Reader Screen.",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = NaturalDarkTextMuted
-                                )
-                            }
-                        }
-
-                        // Last Detection Metrics Display
-                        if (lastAiDetectionStats != null) {
-                            val stats = lastAiDetectionStats!!
-                            Surface(
-                                color = NaturalDarkBackground,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceAround
-                                ) {
-                                    StatMiniItem(label = "Characters", value = "${stats.charactersFound}")
-                                    StatMiniItem(label = "Relations", value = "${stats.relationshipsMapped}")
-                                    StatMiniItem(label = "Plot Stages", value = "${stats.plotPointsIdentified}")
-                                    StatMiniItem(label = "Speed", value = "${stats.processingDurationMs}ms")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 3. Local Space Storage & Database Health Breakdown
+            // 2. Local Space Storage & Database Health Breakdown
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -356,7 +167,7 @@ fun LocalSpaceScreen(
                                         color = Color.White
                                     )
                                     Text(
-                                        text = "Local SQLite DB • EPUBs • Annotations • AI Cache",
+                                        text = "Local SQLite DB • EPUBs • Annotations • Storage Cache",
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         color = NaturalDarkTextMuted
                                     )
@@ -373,10 +184,9 @@ fun LocalSpaceScreen(
                                     .clip(RoundedCornerShape(5.dp))
                                     .background(Color(0xFF243026))
                             ) {
-                                Box(modifier = Modifier.weight(0.45f).fillMaxHeight().background(NaturalPrimary))
-                                Box(modifier = Modifier.weight(0.25f).fillMaxHeight().background(NaturalOchreAccent))
-                                Box(modifier = Modifier.weight(0.18f).fillMaxHeight().background(Color(0xFF8E24AA)))
-                                Box(modifier = Modifier.weight(0.12f).fillMaxHeight().background(Color(0xFF29B6F6)))
+                                Box(modifier = Modifier.weight(0.50f).fillMaxHeight().background(NaturalPrimary))
+                                Box(modifier = Modifier.weight(0.30f).fillMaxHeight().background(NaturalOchreAccent))
+                                Box(modifier = Modifier.weight(0.20f).fillMaxHeight().background(Color(0xFF29B6F6)))
                             }
 
                             Row(
@@ -385,7 +195,6 @@ fun LocalSpaceScreen(
                             ) {
                                 StorageLegendItem(color = NaturalPrimary, label = "Books & Media")
                                 StorageLegendItem(color = NaturalOchreAccent, label = "Highlights & Notes")
-                                StorageLegendItem(color = Color(0xFF8E24AA), label = "AI Neural Cache")
                                 StorageLegendItem(color = Color(0xFF29B6F6), label = "Voice Profiles")
                             }
                         }
@@ -415,21 +224,21 @@ fun LocalSpaceScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    Toast.makeText(context, "AI Detection Cache cleared safely.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Temporary cache cleared safely.", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.weight(1f),
                                 border = BorderStroke(1.dp, NaturalDarkBorder)
                             ) {
                                 Icon(Icons.Default.Cached, contentDescription = null, tint = NaturalDarkTextMuted, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Clear AI Cache", color = NaturalDarkTextMuted, fontSize = 11.sp)
+                                Text("Clear Cache", color = NaturalDarkTextMuted, fontSize = 11.sp)
                             }
                         }
                     }
                 }
             }
 
-            // 4. Encrypted Local Backup & Portable Migration
+            // 3. Encrypted Local Backup & Portable Migration
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -453,7 +262,7 @@ fun LocalSpaceScreen(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = "Save your reading history, highlights & AI mindmaps into an encrypted local file",
+                                    text = "Save your reading history, highlights & annotations into a local backup file",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = NaturalDarkTextMuted
                                 )
@@ -549,7 +358,7 @@ private fun AirGappedStatusCard() {
             }
 
             Text(
-                text = "All relationship extraction, character recognition, plot tension analysis, text-to-speech voice profiling, and reading statistics run entirely on your device's CPU/GPU. No reading data ever leaves your hardware.",
+                text = "All text-to-speech voice profiling, local reading statistics, and database operations run entirely on your device's hardware. No reading data ever leaves your device.",
                 style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
                 color = NaturalDarkText
             )
@@ -560,7 +369,7 @@ private fun AirGappedStatusCard() {
             ) {
                 PrivacyMetricBadge(icon = Icons.Default.CloudOff, label = "0 Cloud Requests")
                 PrivacyMetricBadge(icon = Icons.Default.Lock, label = "Local SQLite Storage")
-                PrivacyMetricBadge(icon = Icons.Default.Bolt, label = "Local NLP Engine")
+                PrivacyMetricBadge(icon = Icons.Default.Security, label = "Air-Gapped Vault")
             }
         }
     }
@@ -581,14 +390,6 @@ private fun PrivacyMetricBadge(
 }
 
 @Composable
-private fun StatMiniItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = NaturalPrimary)
-        Text(text = label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = NaturalDarkTextMuted)
-    }
-}
-
-@Composable
 private fun StorageLegendItem(color: Color, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -598,3 +399,4 @@ private fun StorageLegendItem(color: Color, label: String) {
         Text(text = label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.5.sp), color = NaturalDarkTextMuted)
     }
 }
+
