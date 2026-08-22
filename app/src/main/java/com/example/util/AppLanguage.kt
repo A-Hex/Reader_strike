@@ -24,7 +24,6 @@ object AppStrings {
     private val englishStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "Library",
-        "tab_club" to "Club",
         "tab_streak" to "Streak",
         "tab_highlights" to "Highlights",
         "tab_discover" to "Discover",
@@ -80,14 +79,13 @@ object AppStrings {
         "daily_goal_desc" to "Set your target minutes of reading per day to build your streak.",
         "export_backup" to "Export Backup",
         "restore_backup" to "Restore Backup",
-        "post_community" to "Post to Community",
         "share_progress" to "Share Progress",
         "streak_zero_title" to "Ready to start your streak!",
         "streak_zero_desc" to "Read today to begin your day 1 reading streak.",
 
         // TTS & Audio
         "tts_title" to "Text to Speech Voice Reader",
-        "tts_initializing" to "Initializing TTS Engine...",
+        "tts_initializing" to "Initializing Voice Engine...",
         "tts_ready" to "Voice Engine Ready",
         "tts_playing" to "Reading aloud...",
         "tts_paused" to "Voice paused",
@@ -119,18 +117,12 @@ object AppStrings {
         "face_presence_disclaimer" to "Note: Estimates attention presence on-device only. Does not guarantee reading comprehension.",
         "face_privacy_badge" to "100% On-Device & Zero Image Storage",
 
-        // Offline Voiceprint Speaker Verification
-        "voice_auth_title" to "Offline Voiceprint Verification",
-        "voice_auth_desc" to "Protect your reader and reading statistics with on-device biometric speaker verification. 100% offline and encrypted.",
-        "voice_auth_enroll_prompt" to "Hold button and speak for 3 seconds to enroll your unique voiceprint.",
-        "voice_auth_verify_prompt" to "Speak to verify your voice before listening.",
-        "voice_auth_enrolled" to "Voiceprint Enrolled",
-        "voice_auth_not_enrolled" to "No Voiceprint Enrolled",
-        "voice_auth_match_success" to "Voice Verified (%1\$d%% Match)",
-        "voice_auth_match_failed" to "Voice mismatch (%1\$d%% Match). Try speaking clearly.",
-        "voice_auth_delete" to "Delete Voiceprint",
-        "voice_auth_record_btn" to "Hold to Record Voice",
-        "voice_auth_recording" to "Recording Voice Sample...",
+        // Custom Voice Narrator Profile
+        "voice_narrator_title" to "Custom Voice Narrator Studio",
+        "voice_narrator_desc" to "Train your own personalized AI Voice Profile to narrate books in your unique vocal timbre, cadence, and pitch.",
+        "voice_narrator_train_btn" to "Train Custom Voice Narrator",
+        "voice_narrator_active" to "Cloned Voice Active",
+        "voice_narrator_system" to "System Voice Active",
 
         // PDF Extraction Quality
         "pdf_scanned_notice" to "Scanned / Image-Only PDF: Text operations (TTS, RSVP, Search) may be limited.",
@@ -151,7 +143,6 @@ object AppStrings {
     private val arabicStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "المكتبة",
-        "tab_club" to "المجتمع",
         "tab_streak" to "الإنجاز",
         "tab_highlights" to "الاقتباسات",
         "tab_discover" to "استكشاف",
@@ -207,7 +198,6 @@ object AppStrings {
         "daily_goal_desc" to "حدد دقائق القراءة اليومية المستهدفة لبناء واستمرار سلسلتك اليومية.",
         "export_backup" to "تصدير نسخة احتياطية",
         "restore_backup" to "استعادة نسخة احتياطية",
-        "post_community" to "مشاركة مع المجتمع",
         "share_progress" to "مشاركة التقدم",
         "streak_zero_title" to "جاهز لبدء سلسلتك القرائية!",
         "streak_zero_desc" to "اقرأ اليوم للبدء في أول يوم من سلسلة قراءتك اليومية.",
@@ -246,18 +236,12 @@ object AppStrings {
         "face_presence_disclaimer" to "ملاحظة: يقدر التواجد الفعلي للشخص فقط ولا يعتبر مقياساً دقيقاً للاستيعاب القرائي.",
         "face_privacy_badge" to "100% معالجة محلية بدون حفظ أي صور",
 
-        // Offline Voiceprint Speaker Verification
-        "voice_auth_title" to "التحقق المحلي بالبصمة الصوتية",
-        "voice_auth_desc" to "حماية القارئ وسجلاتك ببصمة صوتك بدون إنترنت تماماً ومع تشفير تام.",
-        "voice_auth_enroll_prompt" to "اضغط مطولاً وتحدث لمدة 3 ثوانٍ لتسجيل بصمتك الصوتية.",
-        "voice_auth_verify_prompt" to "تحدث للتحقق من هويتك قبل الاستماع للقراءة.",
-        "voice_auth_enrolled" to "البصمة الصوتية مسجلة",
-        "voice_auth_not_enrolled" to "لم يتم تسجيل بصمة صوتية بعد",
-        "voice_auth_match_success" to "تم التحقق من الصوت بنجاح (%1\$d%% تطابق)",
-        "voice_auth_match_failed" to "الصوت غير متطابق (%1\$d%% تطابق). يرجى التحدث بوضوح.",
-        "voice_auth_delete" to "حذف البصمة الصوتية",
-        "voice_auth_record_btn" to "اضغط مطولاً للتسجيل",
-        "voice_auth_recording" to "جاري تسجيل عينة الصوت...",
+        // Custom Voice Narrator Profile
+        "voice_narrator_title" to "استوديو الراوي الصوتي المخصص",
+        "voice_narrator_desc" to "أنشئ ملفك الصوتي الخاص لقراءة الكتب بصوتك وبنبرتك وسرعتك المفضلة.",
+        "voice_narrator_train_btn" to "تسجيل وتدريب الراوي الصوتي",
+        "voice_narrator_active" to "الصوت المخصص مفعل",
+        "voice_narrator_system" to "صوت النظام مفعل",
 
         // PDF Extraction Quality
         "pdf_scanned_notice" to "مستند مصور / ماسح ضوئي: قد تكون وظائف النص (الصوت، RSVP، البحث) محدودة.",
@@ -278,7 +262,6 @@ object AppStrings {
     private val frenchStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "Bibliothèque",
-        "tab_club" to "Club",
         "tab_streak" to "Série",
         "tab_highlights" to "Extraits",
         "tab_discover" to "Découvrir",
@@ -334,7 +317,6 @@ object AppStrings {
         "daily_goal_desc" to "Définissez votre objectif de lecture quotidien en minutes pour maintenir votre série.",
         "export_backup" to "Exporter la sauvegarde",
         "restore_backup" to "Restaurer la sauvegarde",
-        "post_community" to "Publier sur la communauté",
         "share_progress" to "Partager la progression",
         "streak_zero_title" to "Prêt à commencer votre série !",
         "streak_zero_desc" to "Lisez aujourd'hui pour démarrer votre premier jour de série.",
@@ -373,18 +355,12 @@ object AppStrings {
         "face_presence_disclaimer" to "Note : Estime uniquement l'attention physique devant l'écran, sans mesurer la compréhension.",
         "face_privacy_badge" to "100% sur l'appareil & Zéro stockage d'images",
 
-        // Offline Voiceprint Speaker Verification
-        "voice_auth_title" to "Vérification vocale hors-ligne",
-        "voice_auth_desc" to "Protégez vos lectures avec une empreinte vocale biométrique locale 100% hors-ligne et chiffrée.",
-        "voice_auth_enroll_prompt" to "Maintenez le bouton et parlez 3 secondes pour enregistrer votre empreinte vocale.",
-        "voice_auth_verify_prompt" to "Parlez pour vérifier votre voix avant l'écoute.",
-        "voice_auth_enrolled" to "Empreinte vocale enregistrée",
-        "voice_auth_not_enrolled" to "Aucune empreinte vocale enregistrée",
-        "voice_auth_match_success" to "Voix vérifiée (%1\$d%% de correspondance)",
-        "voice_auth_match_failed" to "Voix non reconnue (%1\$d%%). Parlez distinctement.",
-        "voice_auth_delete" to "Supprimer l'empreinte vocale",
-        "voice_auth_record_btn" to "Maintenir pour enregistrer",
-        "voice_auth_recording" to "Enregistrement de l'échantillon vocal...",
+        // Custom Voice Narrator Profile
+        "voice_narrator_title" to "Studio du Narrateur Vocal Personnalisé",
+        "voice_narrator_desc" to "Créez votre profil vocal personnalisé pour écouter vos livres avec votre propre timbre, cadence et intonation.",
+        "voice_narrator_train_btn" to "Enregistrer et créer mon profil vocal",
+        "voice_narrator_active" to "Voix personnalisée active",
+        "voice_narrator_system" to "Voix système active",
 
         // PDF Extraction Quality
         "pdf_scanned_notice" to "Document numérisé / image : les fonctions texte (TTS, RSVP, recherche) peuvent être limitées.",

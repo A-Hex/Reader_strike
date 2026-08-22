@@ -82,7 +82,7 @@ fun ReaderScreen(
     var showVocabVault by remember { mutableStateOf(false) }
     var showMindMap by remember { mutableStateOf(false) }
     var showEpubExport by remember { mutableStateOf(false) }
-    var showVoiceAuthDialog by remember { mutableStateOf(false) }
+    var showVoiceStudioDialog by remember { mutableStateOf(false) }
     var selectedTextForHighlight by remember { mutableStateOf("") }
 
     val ttsEngineState by viewModel.ttsManager.engineState.collectAsState()
@@ -431,12 +431,8 @@ fun ReaderScreen(
                             }
 
                             IconButton(onClick = {
-                                if (viewModel.voiceAuthRepository.isVoiceAuthEnabled.value && !viewModel.voiceAuthRepository.isVerified) {
-                                    showVoiceAuthDialog = true
-                                } else {
-                                    showTtsBar = !showTtsBar
-                                    if (showTtsBar) viewModel.playTtsForCurrentChapter()
-                                }
+                                showTtsBar = !showTtsBar
+                                if (showTtsBar) viewModel.playTtsForCurrentChapter()
                             }) {
                                 Icon(Icons.Default.VolumeUp, contentDescription = "Audio Reader", tint = if (showTtsBar) activeTheme.accentColor else activeTheme.textColor)
                             }
@@ -472,8 +468,9 @@ fun ReaderScreen(
             // Floating TTS Player Bar
             if (showTtsBar) {
                 TtsFloatingBar(
-                    ttsManager = viewModel.ttsManager,
+                    viewModel = viewModel,
                     currentLanguage = currentLanguage,
+                    onOpenVoiceStudio = { showVoiceStudioDialog = true },
                     onClose = { showTtsBar = false },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -586,20 +583,6 @@ fun ReaderScreen(
         }
 
         // Modal Sheets
-        if (showVoiceAuthDialog) {
-            VoiceprintDialog(
-                viewModel = viewModel,
-                mode = VoiceAuthMode.VERIFY,
-                currentLanguage = currentLanguage,
-                onSuccess = {
-                    showVoiceAuthDialog = false
-                    showTtsBar = true
-                    viewModel.playTtsForCurrentChapter()
-                },
-                onDismiss = { showVoiceAuthDialog = false }
-            )
-        }
-
         if (showThemeSheet) {
             ReaderThemeSheet(
                 preferences = readerPreferences,
@@ -750,6 +733,14 @@ fun ReaderScreen(
                     viewModel.addConvertedEpubToLibrary(file, title, author, autoOpen = false)
                 },
                 onDismiss = { showEpubExport = false }
+            )
+        }
+
+        if (showVoiceStudioDialog) {
+            VoiceNarratorStudioDialog(
+                viewModel = viewModel,
+                currentLanguage = currentLanguage,
+                onDismiss = { showVoiceStudioDialog = false }
             )
         }
     }

@@ -23,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.repository.BackupOperationState
+import com.example.model.VoiceMode
 import com.example.ui.components.DailyGoalPickerDialog
-import com.example.ui.components.VoiceAuthMode
-import com.example.ui.components.VoiceprintDialog
+import com.example.ui.components.VoiceNarratorStudioDialog
 import com.example.ui.theme.*
 import com.example.util.AppLanguage
 import com.example.util.AppStrings
@@ -45,11 +45,11 @@ fun SettingsScreen(
     val dailyGoalMinutes by viewModel.dailyGoalMinutes.collectAsState()
     val backupInfo by viewModel.localBackupInfo.collectAsState()
     val isFaceAssistedEnabled by viewModel.isFaceAssistedEnabled.collectAsState()
-    val isVoiceAuthEnrolled by viewModel.voiceAuthRepository.isEnrolled.collectAsState()
-    val isVoiceAuthEnabled by viewModel.voiceAuthRepository.isVoiceAuthEnabled.collectAsState()
+    val customVoiceProfile by viewModel.voiceProfileRepository.voiceProfile.collectAsState()
+    val activeVoiceMode by viewModel.voiceProfileRepository.voiceMode.collectAsState()
 
     var showGoalPickerDialog by remember { mutableStateOf(false) }
-    var showVoiceEnrollDialog by remember { mutableStateOf(false) }
+    var showVoiceStudioDialog by remember { mutableStateOf(false) }
 
     // Android Storage Access Framework document export & restore launchers
     val exportBackupLauncher = rememberLauncherForActivityResult(
@@ -75,15 +75,11 @@ fun SettingsScreen(
         )
     }
 
-    if (showVoiceEnrollDialog) {
-        VoiceprintDialog(
+    if (showVoiceStudioDialog) {
+        VoiceNarratorStudioDialog(
             viewModel = viewModel,
-            mode = VoiceAuthMode.ENROLL,
             currentLanguage = currentLanguage,
-            onSuccess = {
-                showVoiceEnrollDialog = false
-            },
-            onDismiss = { showVoiceEnrollDialog = false }
+            onDismiss = { showVoiceStudioDialog = false }
         )
     }
 
@@ -156,28 +152,28 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.TrackChanges, contentDescription = null, tint = NaturalPrimary)
+                            Icon(Icons.Default.Timer, contentDescription = null, tint = NaturalPrimary)
                             Text(
-                                text = "Daily Reading Goal Target",
+                                text = AppStrings.get("daily_goal_title", currentLanguage),
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Surface(
                             color = NaturalPrimary.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(6.dp)
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "$dailyGoalMinutes min / day",
+                                text = "$dailyGoalMinutes min/day",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = NaturalPrimary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
 
                     Text(
-                        text = "Customize your daily target minutes. This target determines your daily streak progress bar and celebration milestones.",
+                        text = AppStrings.get("daily_goal_desc", currentLanguage),
                         style = MaterialTheme.typography.bodySmall,
                         color = NaturalDarkTextMuted
                     )
@@ -188,15 +184,15 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
                     ) {
-                        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Customize Target Minutes", fontWeight = FontWeight.SemiBold)
+                        Text("Customize Daily Goal", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
 
-        // Face-Assisted Reading Presence (Smart Auto-Pause)
+        // Custom AI Voice Narrator Studio (TTS Custom Voice Generation)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -214,7 +210,135 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.Visibility, contentDescription = null, tint = NaturalForestAccent)
+                            Icon(Icons.Default.GraphicEq, contentDescription = null, tint = NaturalPrimary)
+                            Text(
+                                text = AppStrings.get("voice_narrator_title", currentLanguage),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        if (customVoiceProfile != null) {
+                            Switch(
+                                checked = activeVoiceMode == VoiceMode.USER_CLONED_VOICE,
+                                onCheckedChange = { checked ->
+                                    viewModel.setVoiceMode(if (checked) VoiceMode.USER_CLONED_VOICE else VoiceMode.SYSTEM_DEFAULT)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = NaturalPrimary,
+                                    checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = AppStrings.get("voice_narrator_desc", currentLanguage),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    if (customVoiceProfile == null) {
+                        Button(
+                            onClick = { showVoiceStudioDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(AppStrings.get("voice_narrator_train_btn", currentLanguage), fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        val profile = customVoiceProfile!!
+                        Surface(
+                            color = MaterialTheme.colorScheme.background,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = profile.name,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Timbre: ${profile.timbreDescriptor} • Pitch: ${String.format("%.2fx", profile.estimatedPitch)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalPrimary
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalForestAccent.copy(alpha = 0.25f) else NaturalDarkSurfaceVariant
+                                ) {
+                                    Text(
+                                        text = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) "Active" else "Standby",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalForestAccent else NaturalDarkTextMuted,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showVoiceStudioDialog = true },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                            ) {
+                                Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Voice Studio", style = MaterialTheme.typography.labelMedium)
+                            }
+
+                            OutlinedButton(
+                                onClick = { viewModel.testVoiceNarration() },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NaturalPrimary)
+                            ) {
+                                Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Test Sample", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Smart Face Presence Counter
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Face, contentDescription = null, tint = NaturalPrimary)
                             Text(
                                 text = AppStrings.get("face_presence_title", currentLanguage),
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -224,7 +348,10 @@ fun SettingsScreen(
                         Switch(
                             checked = isFaceAssistedEnabled,
                             onCheckedChange = { viewModel.setFaceAssistedEnabled(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = NaturalPrimary, checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f))
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = NaturalPrimary,
+                                checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f)
+                            )
                         )
                     }
 
@@ -234,88 +361,22 @@ fun SettingsScreen(
                         color = NaturalDarkTextMuted
                     )
 
-                    Text(
-                        text = AppStrings.get("face_presence_privacy", currentLanguage),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NaturalForestAccent
-                    )
-                }
-            }
-        }
-
-        // Offline Voiceprint Security (Voice Authentication)
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
-            ) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Surface(
+                        color = NaturalPrimary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
+                            modifier = Modifier.padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.Fingerprint, contentDescription = null, tint = NaturalPrimary)
+                            Icon(Icons.Default.Shield, contentDescription = null, tint = NaturalPrimary, modifier = Modifier.size(18.dp))
                             Text(
-                                text = AppStrings.get("voice_auth_title", currentLanguage),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = AppStrings.get("face_privacy_badge", currentLanguage),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = NaturalPrimary
                             )
-                        }
-                        if (isVoiceAuthEnrolled) {
-                            Switch(
-                                checked = isVoiceAuthEnabled,
-                                onCheckedChange = { viewModel.voiceAuthRepository.setVoiceAuthEnabled(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = NaturalPrimary, checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f))
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = AppStrings.get("voice_auth_desc", currentLanguage),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NaturalDarkTextMuted
-                    )
-
-                    if (!isVoiceAuthEnrolled) {
-                        Button(
-                            onClick = { showVoiceEnrollDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
-                        ) {
-                            Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Enroll Voiceprint (Offline)", fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { showVoiceEnrollDialog = true },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NaturalPrimary)
-                            ) {
-                                Text("Re-Enroll")
-                            }
-
-                            OutlinedButton(
-                                onClick = { viewModel.voiceAuthRepository.deleteVoiceprint() },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
-                            ) {
-                                Text("Remove", color = Color(0xFFEF4444))
-                            }
                         }
                     }
                 }
@@ -448,7 +509,7 @@ fun SettingsScreen(
                                 text = "${currentLanguage.flag} ${currentLanguage.nativeName}",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = NaturalPrimary,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -470,25 +531,15 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (isSelected) NaturalPrimary else NaturalDarkBackground
+                                    containerColor = if (isSelected) NaturalPrimary else NaturalDarkSurfaceVariant,
+                                    contentColor = if (isSelected) NaturalOnPrimary else NaturalDarkText
                                 )
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "${lang.flag} ${lang.nativeName}",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) NaturalOnPrimary else NaturalDarkText
-                                        )
-                                    )
-                                    Text(
-                                        text = lang.displayName,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 9.sp,
-                                            color = if (isSelected) NaturalOnPrimary.copy(alpha = 0.8f) else NaturalDarkTextMuted
-                                        )
-                                    )
-                                }
+                                Text(
+                                    text = "${lang.flag} ${lang.displayName}",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
                         }
                     }
@@ -496,90 +547,46 @@ fun SettingsScreen(
             }
         }
 
-        // Storage & Library Statistics
+        // Storage & Library Statistics Card
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.5f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.6f))
             ) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Storage & Database",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                        text = AppStrings.get("storage_title", currentLanguage),
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Installed Books in Library", style = MaterialTheme.typography.bodyMedium, color = NaturalDarkTextMuted)
-                        Text("${books.size} Books", fontWeight = FontWeight.SemiBold, color = NaturalPrimary)
+                        Text(AppStrings.get("installed_books", currentLanguage), style = MaterialTheme.typography.bodySmall, color = NaturalDarkTextMuted)
+                        Text("${books.size}", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = NaturalPrimary)
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total Saved Highlights", style = MaterialTheme.typography.bodyMedium, color = NaturalDarkTextMuted)
-                        Text("${highlights.size} Highlights", fontWeight = FontWeight.SemiBold, color = NaturalPrimary)
+                        Text(AppStrings.get("saved_highlights", currentLanguage), style = MaterialTheme.typography.bodySmall, color = NaturalDarkTextMuted)
+                        Text("${highlights.size}", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = NaturalPrimary)
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Offline Local Cache", style = MaterialTheme.typography.bodyMedium, color = NaturalDarkTextMuted)
-                        Text("Optimized SQLite DB", fontWeight = FontWeight.SemiBold, color = NaturalDarkText)
+                        Text(AppStrings.get("offline_cache", currentLanguage), style = MaterialTheme.typography.bodySmall, color = NaturalDarkTextMuted)
+                        Text("Active (SQLite + Room)", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = NaturalForestAccent)
                     }
                 }
             }
         }
-
-        // Features Checklist
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.5f))
-            ) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Included Engine Features",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                    )
-
-                    FeatureRow(icon = Icons.Default.Check, text = "EPUB, PDF, and TXT parsing & rendering")
-                    FeatureRow(icon = Icons.Default.Check, text = "Smart Privacy-First Face-Assisted Auto Pause")
-                    FeatureRow(icon = Icons.Default.Check, text = "Offline Spectral Voiceprint Authentication")
-                    FeatureRow(icon = Icons.Default.Check, text = "Multilingual TTS with Punctuation & Segment Highlighting")
-                    FeatureRow(icon = Icons.Default.Check, text = "RSVP Speed Reader with WPM Control")
-                    FeatureRow(icon = Icons.Default.Check, text = "A-Hex Streak Engine with daily reading goals & widgets")
-                    FeatureRow(icon = Icons.Default.Check, text = "Offline access with local database export and restore")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FeatureRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = NaturalSageAccent,
-            modifier = Modifier.size(16.dp)
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface
-        )
     }
 }

@@ -6,6 +6,8 @@ import android.media.AudioAttributes
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import com.example.model.CustomVoiceProfile
+import com.example.model.VoiceMode
 import com.example.util.AppLanguage
 import com.example.util.LocaleResolver
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,8 +41,14 @@ class TtsManager(private val context: Context) {
     private val _speechPitch = MutableStateFlow(1.0f)
     val speechPitch: StateFlow<Float> = _speechPitch.asStateFlow()
 
+    private val _voiceMode = MutableStateFlow(VoiceMode.SYSTEM_DEFAULT)
+    val voiceMode: StateFlow<VoiceMode> = _voiceMode.asStateFlow()
+
+    private var activeCustomProfile: CustomVoiceProfile? = null
+
     private var currentSegments: List<TextSegment> = emptyList()
-    private var currentSegmentIndex = 0
+    var currentSegmentIndex = 0
+        private set
     private var currentSessionToken = UUID.randomUUID().toString()
     private var currentConfiguredLocale: Locale = Locale.US
 
@@ -81,9 +89,24 @@ class TtsManager(private val context: Context) {
         }
     }
 
+    fun setVoiceProfileConfig(mode: VoiceMode, profile: CustomVoiceProfile?) {
+        _voiceMode.value = mode
+        activeCustomProfile = profile
+
+        if (mode == VoiceMode.USER_CLONED_VOICE && profile != null) {
+            _speechPitch.value = profile.estimatedPitch
+            _speechRate.value = profile.preferredSpeed
+            tts?.setPitch(profile.estimatedPitch)
+            tts?.setSpeechRate(profile.preferredSpeed)
+        } else {
+            _speechPitch.value = 1.0f
+            tts?.setPitch(1.0f)
+            tts?.setSpeechRate(_speechRate.value)
+        }
+    }
+
     /**
      * Configures the voice engine for the requested language or candidate locales.
-     * Does NOT silently fallback to US English if Arabic or French is requested.
      */
     fun configureForLanguage(language: AppLanguage, candidateLocales: List<Locale>? = null): Boolean {
         val candidates = candidateLocales ?: LocaleResolver.getTtsPreferredLocales(language)
@@ -128,8 +151,7 @@ class TtsManager(private val context: Context) {
                     }
                 } catch (_: Exception) {}
 
-                currentTts.setSpeechRate(_speechRate.value)
-                currentTts.setPitch(_speechPitch.value)
+                applyCurrentVoiceSettings()
                 _engineState.value = TtsEngineState.Ready(targetLocale, chosenVoiceName)
                 return true
             }
@@ -137,6 +159,17 @@ class TtsManager(private val context: Context) {
                 _engineState.value = TtsEngineState.Unsupported(targetLocale)
                 return false
             }
+        }
+    }
+
+    private fun applyCurrentVoiceSettings() {
+        val currentTts = tts ?: return
+        if (_voiceMode.value == VoiceMode.USER_CLONED_VOICE && activeCustomProfile != null) {
+            currentTts.setPitch(activeCustomProfile!!.estimatedPitch)
+            currentTts.setSpeechRate(activeCustomProfile!!.preferredSpeed)
+        } else {
+            currentTts.setPitch(_speechPitch.value)
+            currentTts.setSpeechRate(_speechRate.value)
         }
     }
 
@@ -191,7 +224,6 @@ class TtsManager(private val context: Context) {
 
         val configured = candidateLocales.any { configureLocaleAndVoice(it) }
         if (!configured && (_engineState.value is TtsEngineState.MissingVoiceData || _engineState.value is TtsEngineState.Unsupported)) {
-            // Keep the actionable error state for the user
             return
         }
 
@@ -205,9 +237,36 @@ class TtsManager(private val context: Context) {
         val segment = currentSegments[index]
         val utteranceId = "${currentSessionToken}_seg_$index"
 
+        applyCurrentVoiceSettings()
+
         val params = android.os.Bundle()
         params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
         tts?.speak(segment.text, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
+    }
+
+    fun speakTextSample(text: String, pitch: Float = 1.0f, speed: Float = 1.0f, onDone: (() -> Unit)? = null) {
+        val utteranceId = "sample_test_${System.currentTimeMillis()}"
+        tts?.setPitch(pitch)
+        tts?.setSpeechRate(speed)
+
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(id: String?) {}
+            override fun onDone(id: String?) {
+                if (id == utteranceId) {
+                    setupProgressListener()
+                    onDone?.invoke()
+                }
+            }
+            override fun onError(id: String?) {
+                if (id == utteranceId) {
+                    setupProgressListener()
+                    onDone?.invoke()
+                }
+            }
+        })
+
+        val params = android.os.Bundle()
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
     }
 
     fun pause() {

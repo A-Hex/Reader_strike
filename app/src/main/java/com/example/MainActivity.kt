@@ -32,7 +32,6 @@ enum class NavigationTab(
     val unselectedIcon: ImageVector
 ) {
     LIBRARY("tab_library", "Library", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    COMMUNITY("tab_club", "Club", Icons.Filled.Groups, Icons.Outlined.Groups),
     STREAK("tab_streak", "Streak", Icons.Filled.LocalFireDepartment, Icons.Outlined.LocalFireDepartment),
     HIGHLIGHTS("tab_highlights", "Highlights", Icons.Filled.Highlight, Icons.Outlined.Highlight),
     DISCOVER("tab_discover", "Discover", Icons.Filled.Public, Icons.Outlined.Public),
@@ -152,7 +151,6 @@ fun MainAppContent(viewModel: MainViewModel) {
                                     onNavigateToDiscover = { currentTab = NavigationTab.DISCOVER },
                                     onNavigateToStreak = { currentTab = NavigationTab.STREAK }
                                 )
-                                NavigationTab.COMMUNITY -> CommunityScreen(viewModel = viewModel)
                                 NavigationTab.STREAK -> StreakStatsScreen(viewModel = viewModel)
                                 NavigationTab.HIGHLIGHTS -> HighlightsScreen(viewModel = viewModel)
                                 NavigationTab.DISCOVER -> DiscoverStoreScreen(

@@ -14,7 +14,7 @@ import com.example.data.repository.BookRepository
 import com.example.data.repository.LocalBackupRepository
 import com.example.data.repository.QuestsAndShieldsManager
 import com.example.data.repository.VocabVaultManager
-import com.example.data.repository.VoiceAuthRepository
+import com.example.data.repository.VoiceProfileRepository
 import com.example.model.*
 import com.example.reader.*
 import com.example.receiver.ReadingStreakWidgetProvider
@@ -40,8 +40,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val vocabVaultManager = VocabVaultManager(context)
     val questsManager = QuestsAndShieldsManager(context)
 
-    // Offline Voiceprint Security
-    val voiceAuthRepository = VoiceAuthRepository(context)
+    // Voice Narration Profile Studio (TTS Book Reading)
+    val voiceProfileRepository = VoiceProfileRepository(context)
     val audioRecorder = AudioRecorder(context)
 
     // Smart Privacy-First Face Presence Tracking
@@ -241,6 +241,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             bookRepository.seedInitialDataIfEmpty()
             refreshStreakData()
+        }
+
+        // Sync initial voice profile settings with TTS engine
+        val profile = voiceProfileRepository.voiceProfile.value
+        val mode = voiceProfileRepository.voiceMode.value
+        ttsManager.setVoiceProfileConfig(mode, profile)
+    }
+
+    fun setVoiceMode(mode: VoiceMode) {
+        voiceProfileRepository.setVoiceMode(mode)
+        val profile = voiceProfileRepository.voiceProfile.value
+        ttsManager.setVoiceProfileConfig(mode, profile)
+        val msg = if (mode == VoiceMode.USER_CLONED_VOICE) "Custom Voice Narrator activated!" else "Default System Voice activated"
+        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    fun setTtsSpeed(rate: Float) {
+        ttsManager.setSpeed(rate)
+        if (voiceProfileRepository.voiceMode.value == VoiceMode.USER_CLONED_VOICE) {
+            voiceProfileRepository.updateSpeed(rate)
+        }
+    }
+
+    fun setTtsPitch(pitch: Float) {
+        ttsManager.setPitch(pitch)
+        if (voiceProfileRepository.voiceMode.value == VoiceMode.USER_CLONED_VOICE) {
+            voiceProfileRepository.updatePitch(pitch)
+        }
+    }
+
+    fun testVoiceNarration(pitch: Float = 1.0f, speed: Float = 1.0f, onComplete: () -> Unit = {}) {
+        val sample = "Books are the quietest and most constant of friends; they are the most accessible and wisest of counselors."
+        ttsManager.speakTextSample(sample, pitch, speed) {
+            onComplete()
         }
     }
 
