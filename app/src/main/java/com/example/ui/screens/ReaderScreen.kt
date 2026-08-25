@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.graphics.Bitmap
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -61,6 +62,15 @@ fun ReaderScreen(
     val streakData by viewModel.streakData.collectAsState()
     val activeSessionState by viewModel.activeSessionState.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
+
+    val handleClose = {
+        viewModel.closeReader()
+        onClose()
+    }
+
+    BackHandler {
+        handleClose()
+    }
 
     val facePresenceState by viewModel.facePresenceEngine.presenceState.collectAsState()
     val isFaceAssistedEnabled by viewModel.isFaceAssistedEnabled.collectAsState()
@@ -175,11 +185,14 @@ fun ReaderScreen(
         FontFamilyPreference.CURSIVE -> FontFamily.Cursive
     }
 
-    // Determine layout direction based on language or book language
-    val isArabic = currentBookObj.languageCode == "ar" || currentLanguage == AppLanguage.ARABIC
-    val textDirection = if (isArabic) LayoutDirection.Rtl else LayoutDirection.Ltr
+    // Determine layout direction for book content vs UI layout
+    val isArabicBook = currentBookObj.languageCode.equals("ar", ignoreCase = true) ||
+            currentBookObj.title.any { it in '\u0600'..'\u06FF' } ||
+            currentBookObj.author.any { it in '\u0600'..'\u06FF' }
+    val contentLayoutDirection = if (isArabicBook) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val uiLayoutDirection = if (currentLanguage.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    CompositionLocalProvider(LocalLayoutDirection provides textDirection) {
+    CompositionLocalProvider(LocalLayoutDirection provides uiLayoutDirection) {
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -245,107 +258,115 @@ fun ReaderScreen(
                     // EPUB & TXT Fluid Typography Viewer
                     val activeChapter = chapters.getOrNull(currentChapterIndex) ?: BookChapter(0, "Chapter", "No text content found.")
                     val paragraphs = remember(activeChapter.content) {
-                        activeChapter.content.split("\n\n").filter { it.isNotBlank() }
+                        val doubleSplit = activeChapter.content.split("\n\n").map { it.trim() }.filter { it.isNotBlank() }
+                        if (doubleSplit.isNotEmpty()) {
+                            doubleSplit
+                        } else {
+                            val singleSplit = activeChapter.content.split("\n").map { it.trim() }.filter { it.isNotBlank() }
+                            if (singleSplit.isNotEmpty()) singleSplit else listOf(activeChapter.content.trim().ifBlank { "..." })
+                        }
                     }
 
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = readerPreferences.horizontalMarginDp.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = activeChapter.title,
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = currentFontFamily,
-                                    color = activeTheme.accentColor
-                                ),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        itemsIndexed(paragraphs) { pIdx, paragraph ->
-                            val matchingHighlight = highlights.find { hl ->
-                                hl.chapterIndex == currentChapterIndex && paragraph.contains(hl.text)
-                            }
-                            val isTtsFocus = ttsPlaying && ttsSentenceIndex == pIdx
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        when {
-                                            matchingHighlight != null -> matchingHighlight.color.toComposeColor().copy(alpha = 0.25f)
-                                            isTtsFocus -> activeTheme.accentColor.copy(alpha = 0.15f)
-                                            else -> Color.Transparent
-                                        }
-                                    )
-                                    .border(
-                                        width = if (isTtsFocus) 1.dp else 0.dp,
-                                        color = if (isTtsFocus) activeTheme.accentColor.copy(alpha = 0.4f) else Color.Transparent,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(horizontal = 6.dp, vertical = 6.dp)
-                                    .combinedClickable(
-                                        onClick = {
-                                            selectedTextForHighlight = paragraph.take(180)
-                                            showHighlightSheet = true
-                                        },
-                                        onLongClick = {
-                                            val candidateWords = paragraph.split(" ", ",", ".", ";", "\"", "—", "-")
-                                                .map { it.trim().trim('“', '”', '‘', '’', '"', '\'') }
-                                                .filter { it.length >= 3 }
-                                            val chosen = candidateWords.firstOrNull { it.length > 5 } ?: candidateWords.firstOrNull() ?: "literature"
-                                            inspectingWord = chosen
-                                            inspectingSentence = paragraph
-                                            showWordInspector = chosen
-                                        }
-                                    )
-                            ) {
+                    CompositionLocalProvider(LocalLayoutDirection provides contentLayoutDirection) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(horizontal = readerPreferences.horizontalMarginDp.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            item {
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Text(
-                                    text = paragraph,
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        fontSize = readerPreferences.fontSizeSp.sp,
-                                        lineHeight = (readerPreferences.fontSizeSp * readerPreferences.lineSpacingMultiplier).sp,
-                                        letterSpacing = readerPreferences.letterSpacingSp.sp,
+                                    text = activeChapter.title,
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        fontWeight = FontWeight.Bold,
                                         fontFamily = currentFontFamily,
-                                        color = activeTheme.textColor
+                                        color = activeTheme.accentColor
                                     ),
-                                    textAlign = if (isArabic) TextAlign.Right else TextAlign.Left
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
-                        }
 
-                        item {
-                            Spacer(modifier = Modifier.height(30.dp))
-                            if (currentChapterIndex < chapters.size - 1) {
-                                Button(
-                                    onClick = {
-                                        viewModel.selectChapter(currentChapterIndex + 1)
-                                        coroutineScope.launch { listState.scrollToItem(0) }
-                                    },
+                            itemsIndexed(paragraphs) { pIdx, paragraph ->
+                                val matchingHighlight = highlights.find { hl ->
+                                    hl.chapterIndex == currentChapterIndex && paragraph.contains(hl.text)
+                                }
+                                val isTtsFocus = ttsPlaying && ttsSentenceIndex == pIdx
+
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = activeTheme.surfaceColor),
-                                    shape = RoundedCornerShape(12.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            when {
+                                                matchingHighlight != null -> matchingHighlight.color.toComposeColor().copy(alpha = 0.25f)
+                                                isTtsFocus -> activeTheme.accentColor.copy(alpha = 0.15f)
+                                                else -> Color.Transparent
+                                            }
+                                        )
+                                        .border(
+                                            width = if (isTtsFocus) 1.dp else 0.dp,
+                                            color = if (isTtsFocus) activeTheme.accentColor.copy(alpha = 0.4f) else Color.Transparent,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                                        .combinedClickable(
+                                            onClick = {
+                                                selectedTextForHighlight = paragraph.take(180)
+                                                showHighlightSheet = true
+                                            },
+                                            onLongClick = {
+                                                val candidateWords = paragraph.split(" ", ",", ".", ";", "\"", "—", "-")
+                                                    .map { it.trim().trim('“', '”', '‘', '’', '"', '\'') }
+                                                    .filter { it.length >= 3 }
+                                                val chosen = candidateWords.firstOrNull { it.length > 5 } ?: candidateWords.firstOrNull() ?: "literature"
+                                                inspectingWord = chosen
+                                                inspectingSentence = paragraph
+                                                showWordInspector = chosen
+                                            }
+                                        )
                                 ) {
                                     Text(
-                                        text = "${chapters.getOrNull(currentChapterIndex + 1)?.title ?: "Next Chapter"} →",
-                                        color = activeTheme.accentColor,
-                                        fontWeight = FontWeight.Bold
+                                        text = paragraph,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontSize = readerPreferences.fontSizeSp.sp,
+                                            lineHeight = (readerPreferences.fontSizeSp * readerPreferences.lineSpacingMultiplier).sp,
+                                            letterSpacing = readerPreferences.letterSpacingSp.sp,
+                                            fontFamily = currentFontFamily,
+                                            color = activeTheme.textColor
+                                        ),
+                                        textAlign = if (isArabicBook) TextAlign.Right else TextAlign.Left
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(80.dp))
+
+                            item {
+                                Spacer(modifier = Modifier.height(30.dp))
+                                if (currentChapterIndex < chapters.size - 1) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.selectChapter(currentChapterIndex + 1)
+                                            coroutineScope.launch { listState.scrollToItem(0) }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = activeTheme.surfaceColor),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text(
+                                            text = "${chapters.getOrNull(currentChapterIndex + 1)?.title ?: "Next Chapter"} →",
+                                            color = activeTheme.accentColor,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(80.dp))
+                            }
                         }
                     }
                 }
@@ -386,10 +407,7 @@ fun ReaderScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            IconButton(onClick = {
-                                viewModel.closeReader()
-                                onClose()
-                            }) {
+                            IconButton(onClick = handleClose) {
                                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = activeTheme.textColor)
                             }
                             Column {

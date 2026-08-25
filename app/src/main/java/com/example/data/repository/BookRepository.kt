@@ -236,12 +236,10 @@ class BookRepository(private val context: Context, private val database: AppData
             var extractedCoverPath: String? = null
 
             if (format == BookFormat.EPUB) {
-                savedFile.inputStream().use { stream ->
-                    val parsed = EpubParser.parseEpubStream(stream, title)
-                    if (parsed.title.isNotBlank() && parsed.title != "Untitled EPUB") title = parsed.title
-                    if (parsed.author.isNotBlank() && parsed.author != "Unknown Author") author = parsed.author
-                    totalPages = (parsed.chapters.size * 5).coerceAtLeast(10)
-                }
+                val parsed = EpubParser.parseEpubFile(savedFile, title)
+                if (parsed.title.isNotBlank() && parsed.title != "Untitled EPUB") title = parsed.title
+                if (parsed.author.isNotBlank() && parsed.author != "Unknown Author") author = parsed.author
+                totalPages = (parsed.chapters.size * 5).coerceAtLeast(10)
                 extractedCoverPath = EpubParser.extractEpubCover(context, savedFile)
             } else if (format == BookFormat.PDF) {
                 extractedCoverPath = com.example.reader.PdfManager.extractPdfCover(context, savedFile)
@@ -302,10 +300,8 @@ class BookRepository(private val context: Context, private val database: AppData
     suspend fun addConvertedEpubBook(file: File, title: String, author: String): Book? = withContext(Dispatchers.IO) {
         try {
             var totalPages = 50
-            file.inputStream().use { stream ->
-                val parsed = EpubParser.parseEpubStream(stream, title)
-                totalPages = (parsed.chapters.size * 6).coerceAtLeast(10)
-            }
+            val parsed = EpubParser.parseEpubFile(file, title)
+            totalPages = (parsed.chapters.size * 6).coerceAtLeast(10)
             val extractedCoverPath = EpubParser.extractEpubCover(context, file)
             val isArabic = title.any { it in '\u0600'..'\u06FF' } || author.any { it in '\u0600'..'\u06FF' }
 

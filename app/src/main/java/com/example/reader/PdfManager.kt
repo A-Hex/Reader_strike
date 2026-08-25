@@ -24,7 +24,7 @@ class PdfManager(private val context: Context) {
     private var fileDescriptor: ParcelFileDescriptor? = null
     private var pdfRenderer: PdfRenderer? = null
     private var pageCount: Int = 0
-    private var lastRenderedBitmap: Bitmap? = null
+    private var currentFilePath: String? = null
 
     suspend fun openPdf(fileUri: Uri): PdfLoadResult = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -37,6 +37,7 @@ class PdfManager(private val context: Context) {
                 val renderer = PdfRenderer(pfd)
                 pdfRenderer = renderer
                 pageCount = renderer.pageCount
+                currentFilePath = fileUri.toString()
                 PdfLoadResult.Success(pageCount)
             } catch (e: SecurityException) {
                 closeInternal()
@@ -50,6 +51,9 @@ class PdfManager(private val context: Context) {
 
     suspend fun openPdfFile(file: File): PdfLoadResult = withContext(Dispatchers.IO) {
         mutex.withLock {
+            if (pdfRenderer != null && currentFilePath == file.absolutePath) {
+                return@withContext PdfLoadResult.Success(pageCount)
+            }
             closeInternal()
             if (!file.exists() || !file.canRead()) {
                 return@withContext PdfLoadResult.Error("PDF file does not exist or cannot be read.")
@@ -62,6 +66,7 @@ class PdfManager(private val context: Context) {
                 val renderer = PdfRenderer(pfd)
                 pdfRenderer = renderer
                 pageCount = renderer.pageCount
+                currentFilePath = file.absolutePath
                 PdfLoadResult.Success(pageCount)
             } catch (e: SecurityException) {
                 closeInternal()
@@ -74,7 +79,7 @@ class PdfManager(private val context: Context) {
     }
 
     /**
-     * Renders a page with memory constraints to avoid OOM on low-end Android 11+ devices.
+     * Renders a page with memory constraints to avoid OOM on Android devices.
      * Dimensions are clamped to safe maximums (max width 1080, max height 1920).
      */
     suspend fun renderPage(pageIndex: Int, targetWidth: Int = 1080): Bitmap? = withContext(Dispatchers.IO) {
@@ -94,10 +99,6 @@ class PdfManager(private val context: Context) {
                 val safeWidth = targetWidth.coerceIn(360, 1080)
                 val safeHeight = (safeWidth * aspectRatio).toInt().coerceIn(400, 1920)
 
-                // Recycle old cached bitmap to free memory immediately
-                lastRenderedBitmap?.recycle()
-                lastRenderedBitmap = null
-
                 val bitmap = Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bitmap)
                 canvas.drawColor(Color.WHITE)
@@ -105,7 +106,6 @@ class PdfManager(private val context: Context) {
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 page.close()
 
-                lastRenderedBitmap = bitmap
                 return@withContext bitmap
             } catch (e: OutOfMemoryError) {
                 System.gc()
@@ -121,20 +121,21 @@ class PdfManager(private val context: Context) {
 
     private fun closeInternal() {
         try {
-            lastRenderedBitmap?.recycle()
-            lastRenderedBitmap = null
             pdfRenderer?.close()
             pdfRenderer = null
             fileDescriptor?.close()
             fileDescriptor = null
             pageCount = 0
+            currentFilePath = null
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     fun close() {
-        closeInternal()
+        synchronized(this) {
+            closeInternal()
+        }
     }
 
     companion object {

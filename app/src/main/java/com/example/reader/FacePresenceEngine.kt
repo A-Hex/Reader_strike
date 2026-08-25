@@ -36,30 +36,37 @@ class FacePresenceEngine(private val context: Context) {
     private var consecutiveNoFaceFrames = 0
 
     fun startAnalyzing(lifecycleOwner: LifecycleOwner) {
+        stopAnalyzing()
         _presenceState.value = FacePresenceState.Detecting
         consecutiveFaceFrames = 0
         consecutiveNoFaceFrames = 0
 
-        cameraExecutor = Executors.newSingleThreadExecutor()
+        val executor = Executors.newSingleThreadExecutor()
+        cameraExecutor = executor
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
-                cameraProvider = cameraProviderFuture.get()
+                if (cameraExecutor !== executor) {
+                    // Canceled or restarted before future completed
+                    return@addListener
+                }
+                val provider = cameraProviderFuture.get()
+                cameraProvider = provider
 
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setTargetResolution(Size(320, 240))
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
 
-                imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy ->
+                imageAnalysis.setAnalyzer(executor) { imageProxy ->
                     analyzeFrame(imageProxy)
                 }
 
                 val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
-                cameraProvider?.unbindAll()
-                cameraProvider?.bindToLifecycle(
+                provider.unbindAll()
+                provider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     imageAnalysis

@@ -11,12 +11,15 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.SampleBooksData
 import com.example.data.repository.BookRepository
+import com.example.data.repository.BookSearchRepository
 import com.example.data.repository.LocalBackupRepository
 import com.example.data.repository.QuestsAndShieldsManager
 import com.example.data.repository.VocabVaultManager
 import com.example.data.repository.VoiceProfileRepository
+import com.example.data.sync.GoogleDriveSyncManager
 import com.example.model.*
 import com.example.reader.*
+import com.example.notification.ReadingNotificationManager
 import com.example.receiver.ReadingStreakWidgetProvider
 import com.example.util.AppLanguage
 import com.example.util.AppStrings
@@ -33,6 +36,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val database = AppDatabase.getDatabase(context)
     val bookRepository = BookRepository(context, database)
     val localBackupRepository = LocalBackupRepository(database)
+    val bookSearchRepository = BookSearchRepository(context, database)
+    val googleDriveSyncManager = GoogleDriveSyncManager(context, database)
+
+    val cloudSyncInfo = googleDriveSyncManager.syncInfo
+
+    // Online Search State
+    private val _onlineSearchUiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
+    val onlineSearchUiState: StateFlow<SearchUiState> = _onlineSearchUiState.asStateFlow()
+
+    private val _downloadStatus = MutableStateFlow<DownloadStatus>(DownloadStatus.Idle)
+    val downloadStatus: StateFlow<DownloadStatus> = _downloadStatus.asStateFlow()
 
     val pdfManager = PdfManager(context)
     val ttsManager = TtsManager(context)
@@ -114,6 +128,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         _selectedGenres.value = current
         prefs.edit().putStringSet("user_genres", current).apply()
+    }
+
+    private val notifPrefs = context.getSharedPreferences(ReadingNotificationManager.PREFS_NAME, Context.MODE_PRIVATE)
+
+    private val _isNotificationsEnabled = MutableStateFlow(notifPrefs.getBoolean(ReadingNotificationManager.KEY_NOTIFICATIONS_ENABLED, true))
+    val isNotificationsEnabled: StateFlow<Boolean> = _isNotificationsEnabled.asStateFlow()
+
+    private val _reminderHour = MutableStateFlow(notifPrefs.getInt(ReadingNotificationManager.KEY_REMINDER_HOUR, 20))
+    val reminderHour: StateFlow<Int> = _reminderHour.asStateFlow()
+
+    private val _reminderMinute = MutableStateFlow(notifPrefs.getInt(ReadingNotificationManager.KEY_REMINDER_MINUTE, 0))
+    val reminderMinute: StateFlow<Int> = _reminderMinute.asStateFlow()
+
+    private val _isGoalAlertsEnabled = MutableStateFlow(notifPrefs.getBoolean(ReadingNotificationManager.KEY_GOAL_ALERTS_ENABLED, true))
+    val isGoalAlertsEnabled: StateFlow<Boolean> = _isGoalAlertsEnabled.asStateFlow()
+
+    private val _isStreakAlertsEnabled = MutableStateFlow(notifPrefs.getBoolean(ReadingNotificationManager.KEY_STREAK_ALERTS_ENABLED, true))
+    val isStreakAlertsEnabled: StateFlow<Boolean> = _isStreakAlertsEnabled.asStateFlow()
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        _isNotificationsEnabled.value = enabled
+        notifPrefs.edit().putBoolean(ReadingNotificationManager.KEY_NOTIFICATIONS_ENABLED, enabled).apply()
+        if (enabled) {
+            ReadingNotificationManager.scheduleDailyReminder(context, _reminderHour.value, _reminderMinute.value)
+            Toast.makeText(context, "Daily reading reminder scheduled for %02d:%02d".format(_reminderHour.value, _reminderMinute.value), Toast.LENGTH_SHORT).show()
+        } else {
+            ReadingNotificationManager.cancelDailyReminder(context)
+            Toast.makeText(context, "Daily reading reminders paused", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun setReminderTime(hour: Int, minute: Int) {
+        val validHour = hour.coerceIn(0, 23)
+        val validMinute = minute.coerceIn(0, 59)
+        _reminderHour.value = validHour
+        _reminderMinute.value = validMinute
+        notifPrefs.edit()
+            .putInt(ReadingNotificationManager.KEY_REMINDER_HOUR, validHour)
+            .putInt(ReadingNotificationManager.KEY_REMINDER_MINUTE, validMinute)
+            .apply()
+
+        if (_isNotificationsEnabled.value) {
+            ReadingNotificationManager.scheduleDailyReminder(context, validHour, validMinute)
+        }
+        Toast.makeText(context, "Reminder time updated to %02d:%02d".format(validHour, validMinute), Toast.LENGTH_SHORT).show()
+    }
+
+    fun setGoalAlertsEnabled(enabled: Boolean) {
+        _isGoalAlertsEnabled.value = enabled
+        notifPrefs.edit().putBoolean(ReadingNotificationManager.KEY_GOAL_ALERTS_ENABLED, enabled).apply()
+    }
+
+    fun setStreakAlertsEnabled(enabled: Boolean) {
+        _isStreakAlertsEnabled.value = enabled
+        notifPrefs.edit().putBoolean(ReadingNotificationManager.KEY_STREAK_ALERTS_ENABLED, enabled).apply()
+    }
+
+    fun sendTestNotification() {
+        ReadingNotificationManager.sendTestNotification(context)
+        Toast.makeText(context, "Test notification dispatched!", Toast.LENGTH_SHORT).show()
     }
 
     private val _isFaceAssistedEnabled = MutableStateFlow(prefs.getBoolean("face_assisted_enabled", false))
@@ -281,6 +355,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var readingSessionJob: Job? = null
 
     init {
+        ReadingNotificationManager.initChannels(context)
+        if (_isNotificationsEnabled.value) {
+            ReadingNotificationManager.scheduleDailyReminder(context, _reminderHour.value, _reminderMinute.value)
+        }
+
         viewModelScope.launch {
             bookRepository.seedInitialDataIfEmpty()
             refreshStreakData()
@@ -385,10 +464,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val file = File(book.localFilePath)
             if (file.exists()) {
                 if (book.format == BookFormat.EPUB) {
-                    file.inputStream().use { stream ->
-                        val parsed = EpubParser.parseEpubStream(stream, book.title)
-                        _currentChapters.value = parsed.chapters
-                    }
+                    val parsed = EpubParser.parseEpubFile(file, book.title)
+                    _currentChapters.value = parsed.chapters
                 } else if (book.format == BookFormat.TXT) {
                     file.inputStream().use { stream ->
                         val parsed = EpubParser.parsePlainTextStream(stream, book.title)
@@ -454,6 +531,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         stopReadingSession()
         ttsManager.stop()
         facePresenceEngine.stopAnalyzing()
+        pdfManager.close()
         _currentBook.value = null
     }
 
@@ -817,6 +895,107 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         com.example.util.SocialShareHelper.shareContent(context, shareText, "Book Reading Progress")
     }
 
+    // Direct Online Book Search Methods
+    fun searchOnlineBooks(query: String) {
+        if (query.isBlank()) {
+            _onlineSearchUiState.value = SearchUiState.Idle
+            return
+        }
+        viewModelScope.launch {
+            _onlineSearchUiState.value = SearchUiState.Loading
+            try {
+                val results = bookSearchRepository.searchOnlineAndMatchLibrary(query)
+                if (results.isEmpty()) {
+                    _onlineSearchUiState.value = SearchUiState.Empty(query)
+                } else {
+                    _onlineSearchUiState.value = SearchUiState.Success(results, query)
+                }
+            } catch (e: Exception) {
+                _onlineSearchUiState.value = SearchUiState.Error(e.message ?: "Failed to query book indexes")
+            }
+        }
+    }
+
+    fun clearOnlineSearch() {
+        _onlineSearchUiState.value = SearchUiState.Idle
+    }
+
+    fun downloadSearchResult(result: SearchBookResult, onCompleted: ((Book) -> Unit)? = null) {
+        viewModelScope.launch {
+            _downloadStatus.value = DownloadStatus.Downloading(0.05f, "Connecting to ${result.source}...")
+            val downloadRes = bookSearchRepository.downloadAndImportBook(result) { prog ->
+                _downloadStatus.value = DownloadStatus.Downloading(
+                    progress = prog,
+                    statusMessage = if (prog < 0.7f) "Downloading ${result.title} (${(prog * 100).toInt()}%)..." else "Extracting chapters and indexing..."
+                )
+            }
+
+            downloadRes.onSuccess { book ->
+                _downloadStatus.value = DownloadStatus.Success(book)
+                Toast.makeText(context, "Added '${book.title}' to your library!", Toast.LENGTH_SHORT).show()
+                refreshStreakData()
+                
+                // Update search results to mark book as already in library
+                val curState = _onlineSearchUiState.value
+                if (curState is SearchUiState.Success) {
+                    val updated = curState.results.map {
+                        if (it.stableId == result.stableId) it.copy(isAlreadyInLibrary = true) else it
+                    }
+                    _onlineSearchUiState.value = curState.copy(results = updated)
+                }
+                
+                onCompleted?.invoke(book)
+            }.onFailure { err ->
+                _downloadStatus.value = DownloadStatus.Error(err.message ?: "Failed to download book")
+                Toast.makeText(context, "Download failed: ${err.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Real Google Drive Cloud Sync Controls
+    fun performGoogleDriveSync() {
+        viewModelScope.launch {
+            val res = googleDriveSyncManager.performSync()
+            res.onSuccess { count ->
+                Toast.makeText(context, "Google Drive Sync complete ($count items)", Toast.LENGTH_SHORT).show()
+                refreshStreakData()
+            }.onFailure { e ->
+                Toast.makeText(context, "Sync issue: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun signInGoogleDrive(email: String) {
+        googleDriveSyncManager.signInWithAccount(email)
+        Toast.makeText(context, "Signed in as $email", Toast.LENGTH_SHORT).show()
+        performGoogleDriveSync()
+    }
+
+    fun signOutGoogleDrive() {
+        googleDriveSyncManager.signOut()
+        Toast.makeText(context, "Signed out of Google Drive sync", Toast.LENGTH_SHORT).show()
+    }
+
+    fun setDriveAutoSync(enabled: Boolean) {
+        googleDriveSyncManager.setAutoSync(enabled)
+    }
+
+    fun setDriveSyncWifiOnly(enabled: Boolean) {
+        googleDriveSyncManager.setSyncOnWifiOnly(enabled)
+    }
+
+    fun setDriveSyncLibrary(enabled: Boolean) {
+        googleDriveSyncManager.setSyncLibrary(enabled)
+    }
+
+    fun setDriveSyncHighlights(enabled: Boolean) {
+        googleDriveSyncManager.setSyncHighlights(enabled)
+    }
+
+    fun setDriveSyncStreak(enabled: Boolean) {
+        googleDriveSyncManager.setSyncStreak(enabled)
+    }
+
     private fun startReadingSession(book: Book) {
         sessionAccumulatedSeconds = 0L
         sessionPagesTurned = 0
@@ -871,6 +1050,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (goalMet && !isGoalCelebratedThisSession && !current.isDailyGoalReached) {
                         isGoalCelebratedThisSession = true
                         Toast.makeText(context, "🔥 Daily Streak Goal Achieved! ($dailyGoal min completed)", Toast.LENGTH_SHORT).show()
+                        ReadingNotificationManager.sendDailyGoalAchievedNotification(
+                            context = context,
+                            minutesRead = newTotalTodayMinutes,
+                            streakDays = _streakData.value.currentStreakDays.coerceAtLeast(1)
+                        )
                     }
 
                     _activeSessionState.value = current.copy(

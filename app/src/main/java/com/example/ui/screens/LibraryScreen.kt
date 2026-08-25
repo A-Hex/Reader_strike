@@ -742,9 +742,14 @@ fun LibraryScreen(
 
     if (showTrustedSearchDialog) {
         TrustedBookSearchDialog(
+            viewModel = viewModel,
             initialQuery = searchQuery,
             currentLanguage = currentLanguage,
-            onDismiss = { showTrustedSearchDialog = false }
+            onDismiss = { showTrustedSearchDialog = false },
+            onOpenBookInReader = { book ->
+                showTrustedSearchDialog = false
+                viewModel.openBook(book)
+            }
         )
     }
 }

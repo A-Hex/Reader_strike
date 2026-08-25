@@ -203,10 +203,8 @@ object EpubExporter {
             if (file.exists()) {
                 when (book.format) {
                     BookFormat.EPUB -> {
-                        file.inputStream().use { stream ->
-                            val parsed = EpubParser.parseEpubStream(stream, fallbackTitle)
-                            if (parsed.chapters.isNotEmpty()) return parsed.chapters
-                        }
+                        val parsed = EpubParser.parseEpubFile(file, fallbackTitle)
+                        if (parsed.chapters.isNotEmpty()) return parsed.chapters
                     }
                     BookFormat.TXT -> {
                         file.inputStream().use { stream ->

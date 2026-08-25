@@ -138,7 +138,7 @@ fun DiscoverStoreScreen(
             }
         }
 
-        // Trusted Search Engine Card (Google Books, PDF Files, Gutenberg, Open Library)
+        // Online Search Engine Card (Noor Book for Arabic & Gutenberg for English)
         item {
             Card(
                 modifier = Modifier
@@ -176,13 +176,13 @@ fun DiscoverStoreScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Trusted Book & PDF Search Engine",
+                                text = "Online Book Search (Noor Book & Gutenberg)",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Text(
-                            text = "Search Google Books, Google PDF files, Project Gutenberg, and Open Library",
+                            text = "Search www.noor-book.com for Arabic books and gutenberg.org for English classics",
                             style = MaterialTheme.typography.bodySmall,
                             color = NaturalDarkTextMuted
                         )
@@ -435,9 +435,14 @@ fun DiscoverStoreScreen(
 
     if (showTrustedSearchDialog) {
         TrustedBookSearchDialog(
+            viewModel = viewModel,
             initialQuery = "",
             currentLanguage = currentLanguage,
-            onDismiss = { showTrustedSearchDialog = false }
+            onDismiss = { showTrustedSearchDialog = false },
+            onOpenBookInReader = { book ->
+                showTrustedSearchDialog = false
+                viewModel.openBook(book)
+            }
         )
     }
 

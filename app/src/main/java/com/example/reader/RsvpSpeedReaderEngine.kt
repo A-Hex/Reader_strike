@@ -21,9 +21,13 @@ data class RsvpPlaybackState(
 
 object RsvpSpeedReaderEngine {
 
+    private fun isArabicDiacritic(c: Char): Boolean {
+        return (c in '\u064B'..'\u065F') || c == '\u0670' || (c in '\u06D6'..'\u06ED')
+    }
+
     /**
      * Tokenizes text for RSVP speed reading.
-     * Preserves Arabic script ligatures and handles French contractions/punctuation.
+     * Preserves Arabic script ligatures, Tashkeel/diacritics, and handles French contractions/punctuation.
      */
     fun tokenize(content: String): List<RsvpToken> {
         if (content.isBlank()) return emptyList()
@@ -43,9 +47,15 @@ object RsvpSpeedReaderEngine {
                 else -> 1.0f
             }
 
-            // ORP calculation (For LTR: index ~30%; For RTL: natural center)
+            // ORP calculation (For LTR: index ~30%; For RTL: natural center of base graphemes)
             val focalIndex = if (isRtl) {
-                (raw.length / 2).coerceIn(0, (raw.length - 1).coerceAtLeast(0))
+                // Count base characters excluding combining diacritics
+                val baseIndices = raw.indices.filter { !isArabicDiacritic(raw[it]) }
+                if (baseIndices.isNotEmpty()) {
+                    baseIndices[baseIndices.size / 2]
+                } else {
+                    0
+                }
             } else {
                 when (raw.length) {
                     1 -> 0
