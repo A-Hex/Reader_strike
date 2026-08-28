@@ -9,10 +9,12 @@ import com.example.model.ReaderPreferences
 import com.example.model.ReaderTheme
 import com.example.ui.theme.*
 
-enum class ReadingMode(val id: String, val displayName: String, val iconName: String) {
-    LIGHT("light", "Light", "light_mode"),
-    SEPIA("sepia", "Sepia", "menu_book"),
-    DARK("dark", "Dark", "dark_mode")
+enum class ReadingMode(val id: String, val displayName: String, val iconName: String, val stringKey: String) {
+    LIGHT("light", "Light", "light_mode", "mode_light"),
+    SEPIA("sepia", "Sepia", "menu_book", "mode_sepia"),
+    DARK("dark", "Dark", "dark_mode", "mode_dark");
+
+    fun getLocalizedTitle(language: AppLanguage): String = AppStrings.get(stringKey, language)
 }
 
 object ThemeManager {

@@ -130,7 +130,7 @@ fun DiscoverStoreScreen(
                             )
                         )
                         Text(
-                            text = "Curated public domain classics with AI recommendation engine",
+                            text = "Curated public domain classics, philosophy, literature & history",
                             style = MaterialTheme.typography.bodySmall.copy(color = NaturalDarkTextMuted)
                         )
                     }

@@ -24,6 +24,8 @@ import com.example.model.Bookmark
 import com.example.model.BookChapter
 import com.example.model.Highlight
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,12 +34,20 @@ fun TableOfContentsDialog(
     currentChapterIndex: Int,
     bookmarks: List<Bookmark>,
     highlights: List<Highlight>,
+    currentLanguage: AppLanguage = AppLanguage.ENGLISH,
     onSelectChapter: (Int) -> Unit,
     onSelectBookmark: (Bookmark) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Contents (${chapters.size})", "Bookmarks (${bookmarks.size})", "Highlights (${highlights.size})")
+    val contentsLabel = AppStrings.get("toc_contents", currentLanguage)
+    val bookmarksLabel = AppStrings.get("toc_bookmarks", currentLanguage)
+    val highlightsLabel = AppStrings.get("toc_highlights", currentLanguage)
+    val wordsLabel = AppStrings.get("toc_words", currentLanguage)
+    val pageLabel = AppStrings.get("toc_page", currentLanguage)
+    val noteLabel = AppStrings.get("toc_note", currentLanguage)
+
+    val tabs = listOf("$contentsLabel (${chapters.size})", "$bookmarksLabel (${bookmarks.size})", "$highlightsLabel (${highlights.size})")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -51,7 +61,7 @@ fun TableOfContentsDialog(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Book Navigation",
+                text = AppStrings.get("toc_navigation", currentLanguage),
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
@@ -74,60 +84,76 @@ fun TableOfContentsDialog(
             when (selectedTab) {
                 0 -> {
                     // Chapters List
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 420.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        itemsIndexed(chapters) { index, chapter ->
-                            val isCurrent = index == currentChapterIndex
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        onSelectChapter(index)
-                                        onDismiss()
-                                    },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isCurrent) NaturalSageBg else MaterialTheme.colorScheme.surfaceVariant
-                                ),
-                                border = if (isCurrent) androidx.compose.foundation.BorderStroke(1.dp, NaturalSageBorder)
-                                else androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.4f))
-                            ) {
-                                Row(
+                    if (chapters.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = AppStrings.get("toc_no_chapters", currentLanguage),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = NaturalDarkTextMuted,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 420.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            itemsIndexed(chapters) { index, chapter ->
+                                val isCurrent = index == currentChapterIndex
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            onSelectChapter(index)
+                                            onDismiss()
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isCurrent) NaturalSageBg else MaterialTheme.colorScheme.surfaceVariant
+                                    ),
+                                    border = if (isCurrent) androidx.compose.foundation.BorderStroke(1.dp, NaturalSageBorder)
+                                    else androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.4f))
                                 ) {
                                     Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.weight(1f)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.FormatListBulleted,
-                                            contentDescription = null,
-                                            tint = if (isCurrent) NaturalSageAccent else NaturalDarkTextMuted,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = chapter.title,
-                                            style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (isCurrent) NaturalSageAccent else NaturalDarkText
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FormatListBulleted,
+                                                contentDescription = null,
+                                                tint = if (isCurrent) NaturalSageAccent else NaturalDarkTextMuted,
+                                                modifier = Modifier.size(18.dp)
                                             )
+                                            Text(
+                                                text = chapter.title,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isCurrent) NaturalSageAccent else NaturalDarkText
+                                                )
+                                            )
+                                        }
+                                        Text(
+                                            text = "${chapter.wordCount} $wordsLabel",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = NaturalDarkTextMuted
                                         )
                                     }
-                                    Text(
-                                        text = "${chapter.wordCount} words",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = NaturalDarkTextMuted
-                                    )
                                 }
                             }
                         }
@@ -143,7 +169,7 @@ fun TableOfContentsDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No bookmarks in this book yet.\nTap the bookmark icon while reading to add one.",
+                                text = AppStrings.get("toc_no_bookmarks", currentLanguage),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = NaturalDarkTextMuted,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -196,7 +222,7 @@ fun TableOfContentsDialog(
                                             }
                                         }
                                         Text(
-                                            text = "Page ${bookmark.page}",
+                                            text = "$pageLabel ${bookmark.page}",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                                             color = NaturalPrimary
                                         )
@@ -216,7 +242,7 @@ fun TableOfContentsDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No highlights in this book yet.\nSelect text or tap to highlight passages.",
+                                text = AppStrings.get("toc_no_highlights", currentLanguage),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = NaturalDarkTextMuted,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -266,7 +292,7 @@ fun TableOfContentsDialog(
                                         if (!hl.note.isNullOrBlank()) {
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = "Note: ${hl.note}",
+                                                text = "$noteLabel: ${hl.note}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = NaturalDarkTextMuted
                                             )

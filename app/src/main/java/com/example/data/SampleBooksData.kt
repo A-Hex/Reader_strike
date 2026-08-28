@@ -641,18 +641,236 @@ No father could claim the gratitude of his child so completely as I should deser
 These thoughts supported my spirits, while I pursued my undertaking with unremitting ardour. My cheek had grown pale with study, and my person had become emaciated with confinement. Sometimes, on the very brink of certainty, I failed; yet still I clung to the hope which the next day or the next hour might realise."""
                 )
             )
-            else -> listOf(
+            "cat-great-gatsby" -> listOf(
                 BookChapter(
                     index = 0,
-                    title = "Chapter 1: The Beginning",
-                    content = """Literature is the immortal beacon of the human spirit. Through every generation, words carry the deepest convictions, fears, and triumphs of humanity across the boundaries of time and space.
+                    title = "Chapter 1: West Egg & The Green Light",
+                    content = """In my younger and more vulnerable years my father gave me some advice that I've been turning over in my mind ever since.
 
-As you embark on this reading journey with A-Hex streak, each page read strengthens the neural pathways of focus, deep comprehension, and intellectual resilience. The hexagon is nature's most efficient structure—strong, balanced, and interconnected. May your reading streak reflect the same harmonious strength."""
+"Whenever you feel like criticizing any one," he told me, "just remember that all the people in this world haven't had the advantages that you've had."
+
+He didn't say any more, but we've always been unusually communicative in a reserved way, and I understood that he meant a great deal more than that. In consequence, I'm inclined to reserve all judgments, a habit that has opened up many curious natures to me and also made me the victim of not a few veteran bores.
+
+When I came back from the East last autumn I felt that I wanted the world to be in uniform and at a sort of moral attention forever; I wanted no more riotous excursions with privileged glimpses into the human heart. Only Gatsby, the man who gives his name to this book, was exempt from my reaction—Gatsby, who represented everything for which I have an unaffected scorn.
+
+If personality is an unbroken series of successful gestures, then there was something gorgeous about him, some heightened sensitivity to the promises of life, as if he were related to one of those intricate machines that register earthquakes ten thousand miles away.
+
+He stretched out his arms toward the dark water in a curious way, and, far as I was from him, I could have sworn he was trembling. Involuntarily I glanced seaward—and distinguished nothing except a single green light, minute and far away, that might have been the end of a dock."""
                 ),
                 BookChapter(
                     index = 1,
-                    title = "Chapter 2: Insights and Perspectives",
-                    content = """The true value of a book lies not merely in the information it presents, but in the questions it provokes within the reader's consciousness. Take your time to highlight striking passages, add personal annotations, and reflect upon the universal truths woven between the lines."""
+                    title = "Chapter 3: The Sumptuous Parties",
+                    content = """There was music from my neighbor's house through the summer nights. In his blue gardens men and girls came and went like moths among the whisperings and the champagne and the stars. At high tide in the afternoon I watched his guests diving from the tower of his raft, or taking the sun on the hot sand of his beach while his two motor-boats slit the waters of the Sound.
+
+On week-ends his Rolls-Royce became an omnibus, bearing parties to and from the city between nine in the morning and long past midnight, while his station wagon scampered like a brisk yellow bug to meet all trains.
+
+I believe that on the first night I went to Gatsby's house I was one of the few guests who had actually been invited. People were not invited—they went there. They got into automobiles which bore them out to Long Island, and somehow they ended up at Gatsby's door.
+
+"I'm Gatsby," he said suddenly. "I thought you knew, old sport. I'm afraid I'm not a very good host."
+
+He smiled understandingly—much more than understandingly. It was one of those rare smiles with a quality of eternal reassurance in it, that you may come across four or five times in life. It faced—or seemed to face—the whole external world for an instant, and then concentrated on you with an irresistible prejudice in your favor."""
+                )
+            )
+            "cat-dracula" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Chapter 1: Jonathan Harker's Journal",
+                    content = """3 May. Bistritz.—Left Munich at 8:35 P. M., on 1st May, arriving at Vienna early next morning; should have arrived at 6:46, but train was an hour late. Buda-Pesth seems a wonderful place, from the glimpse which I got of it from the train and the little I could see of the streets. I feared to go very far from the station, as we had arrived late and would start as near the correct time as possible.
+
+The impression I had was that we were leaving the West and entering the East; the most western of splendid bridges over the Danube, which is here of noble width and depth, took us among the traditions of Turkish rule.
+
+We left in pretty good time, and came after nightfall to Klausenburgh. Here I stopped for the night at the Hotel Royale. I had for dinner, or rather supper, a chicken done up some way with red pepper, which was very good but thirsty. (Mem., get recipe for Mina.)
+
+The crowd at the inn door, which had by this time swelled to a considerable size, all made the sign of the cross and pointed two fingers towards me. With some difficulty I got a fellow-passenger to tell me what they meant; he would not answer at first, but on learning that I was English, he explained that it was a charm against the evil eye."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter 2: Castle Dracula",
+                    content = """5 May.—I must have been asleep, for certainly if I had been fully awake I must have noticed the approach of so remarkable a place. In the gloom the courtyard looked of considerable size, and as several dark ways led from it under great round arches, it perhaps seemed bigger than it really is. I have not yet been seen by any servant.
+
+Within, stood a tall old man, clean shaven save for a long white moustache, and clad in black from head to foot, without a single speck of colour about him anywhere. He held in his hand an antique silver lamp, in which the flame burned without chimney or globe of any kind, throwing long quivering shadows as it flickered in the draught of the open door.
+
+The old man motioned me in with his right hand with a courtly gesture, saying in excellent English, but with a strange intonation:
+
+"Welcome to my house! Enter freely and of your own will!"
+
+He made no motion of stepping to meet me, but stood like a statue, as though his gesture of welcome had fixed him into stone. The instant, however, that I had stepped over the threshold, he moved impulsively forward, and holding out his hand grasped mine with a strength which made me wince, an effect which was not lessened by the fact that it seemed cold as ice—more like the hand of a dead than a living man."""
+                )
+            )
+            "cat-pride-prejudice" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Chapter 1: Netherfield Park",
+                    content = """It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
+
+However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters.
+
+"My dear Mr. Bennet," said his lady to him one day, "have you heard that Netherfield Park is let at last?"
+
+Mr. Bennet replied that he had not.
+
+"But it is," returned she; "for Mrs. Long has just been here, and she told me all about it."
+
+Mr. Bennet made no answer.
+
+"Do you not want to know who has taken it?" cried his wife impatiently.
+
+"You want to tell me, and I have no objection to hearing it."
+
+This was invitation enough.
+
+"Why, my dear, you must know, Mrs. Long says that Netherfield is taken by a young man of large fortune from the north of England; that he came down on Monday in a chaise and four to see the place, and was so much delighted with it, that he agreed with Mr. Morris immediately; that he is to take possession before Michaelmas, and some of his servants are to be in the house by the end of next week."
+
+"What is his name?"
+
+"Bingley."
+
+"Is he married or single?"
+
+"Oh! Single, my dear, to be sure! A single man of large fortune; four or five thousand a year. What a fine thing for our girls!""""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter 3: The Assembly Ball",
+                    content = """Not all that Mrs. Bennet, however, with the assistance of her five daughters, could ask on the subject, was sufficient to draw from her husband any satisfactory description of Mr. Bingley. They attacked him in various ways—with barefaced questions, ingenious suppositions, and distant surmises; but he eluded the skill of them all, and they were at last obliged to accept the second-hand intelligence of their neighbour, Lady Lucas.
+
+Her report was highly favourable. Sir William had been delighted with him. He was quite young, wonderfully handsome, extremely agreeable, and, to crown the whole, he meant to be at the next assembly with a large party.
+
+Mr. Bingley was good-looking and gentlemanlike; he had a pleasant countenance, and easy, unaffected manners. His sisters were fine women, with an air of decided fashion. His brother-in-law, Mr. Hurst, merely looked the gentleman; but his friend Mr. Darcy soon drew the attention of the room by his fine, tall person, handsome features, noble mien, and the report which was in general circulation within five minutes after his entrance, of his having ten thousand a year.
+
+The gentlemen pronounced him to be a fine figure of a man, the ladies declared he was much handsomer than Mr. Bingley, and he was looked at with great admiration for about half the evening, till his manners gave a disgust which turned the tide of his popularity; for he was discovered to be proud; to be above his company, and above being pleased; and not all his large estate in Derbyshire could then save him from having a most forbidding, disagreeable countenance, and being unworthy to be compared with his friend."""
+                )
+            )
+            "cat-beyond-good-evil" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Chapter 1: On the Prejudices of Philosophers",
+                    content = """The Will to Truth, which is to tempt us to many a hazardous enterprise, the famous Truthfulness of which all philosophers have hitherto spoken with respect, what questions has this Will to Truth not laid before us! What strange, perplexing, questionable questions!
+
+Is it any wonder if we at last grow distrustful, lose patience, and turn impatiently away? That this Sphinx teaches us at last to ask questions ourselves? Who is it really that puts questions to us here? What really is this "Will to Truth" in us?
+
+In fact we made a long halt at the question as to the origin of this Will—until at last we came to an absolute standstill before a yet more fundamental question. We inquired about the value of this Will. Granted that we want the truth: WHY NOT RATHER untruth? And uncertainty? Even ignorance?
+
+The problem of the value of truth presented itself before us—or was it we who presented ourselves before the problem? Which of us is the Oedipus here? Which the Sphinx? It would seem to be a rendezvous of questions and notes of interrogation.
+
+And could it be believed that it at last seems to us as if the problem had never been propounded before, as if we were the first to discern it, get a sight of it, and RISK RAISING it?"""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter 2: The Free Spirit",
+                    content = """O sancta simplicitas! In what strange simplification and falsification man lives! One can never cease wondering when once one has got eyes for this marvel! How we have made everything around us clear and free and easy and simple! How we have been able to give our senses a passport to everything superficial, our thoughts a godlike desire for wanton prancing and wrong inferences!
+
+How from the beginning, we have contrived to retain our ignorance in order to enjoy an almost inconceivable freedom, thoughtlessness, imprudence, heartiness, and gaiety—in order to enjoy life! And only on this solidified, granite-like foundation of ignorance could knowledge rear itself hitherto, the will to knowledge on the foundation of a far more powerful will: the will to ignorance, to the uncertain, to the untrue! Not as its opposite, but—as its refinement!
+
+It is the business of the very few to be independent; it is a privilege of the strong. And whoever attempts it, even with the best right, but without being OBLIGED to do so, proves that he is probably not only strong, but also daring beyond measure."""
+                )
+            )
+            "cat-republic" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Book I: Justice and the Nature of Right",
+                    content = """I went down yesterday to the Piraeus with Glaucon the son of Ariston, that I might offer up my prayers to the goddess; and also because I wanted to see in what manner they would celebrate the festival, which was a new thing. I was delighted with the procession of the inhabitants; but that of the Thracians was equally, if not more, beautiful. When we had finished our prayers and viewed the spectacle, we turned in the direction of the city; and at that instant Polemarchus the son of Cephalus chanced to catch sight of us from a distance as we were starting on our way home, and told his servant to run and bid us wait for him.
+
+"Socrates," said Cephalus, "you ought to come oftener to the city and see us; for I am getting old, and my bodily strength is failing, but my delight in conversation and the pleasures of the mind only increase."
+
+"Cephalus," I said, "there is nothing which I like better than conversing with aged men; for I regard them as travellers who have gone a journey which I too may have to go, and of whom I ought to inquire, whether the way is smooth and easy, or rugged and difficult. And this is a question which I should like to ask of you who have arrived at that time which the poets call the 'threshold of old age'—Is life harder towards the end, or what report do you give of it?"
+
+"I will tell you, Socrates," he said, "what my own feeling is. Men of my age flock together; we are birds of a feather, as the old proverb says; and at our meetings the tale of my acquaintance commonly is—I cannot eat, I cannot drink; the pleasures of youth and love are fled away. But in my opinion, he who is of a calm and happy nature will hardly feel the pressure of age.""""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Book VII: The Allegory of the Cave",
+                    content = """And now, I said, let me show in a figure how far our nature is enlightened or unenlightened:—Behold! human beings living in an underground den, which has a mouth open towards the light and reaching all along the den; here they have been from their childhood, and have their legs and necks chained so that they cannot move, and can only see before them, being prevented by the chains from turning round their heads.
+
+Above and behind them a fire is blazing at a distance, and between the fire and the prisoners there is a raised way; and you will see, if you look, a low wall built along the way, like the screen which marionette players have in front of them, over which they show the puppets.
+
+"I see."
+
+And do you see, I said, men passing along the wall carrying all sorts of vessels, and statues and figures of animals made of wood and stone and various materials, which appear over the wall? Some of them are talking, others silent.
+
+"You have shown me a strange image, and they are strange prisoners."
+
+"Like ourselves," I replied; "and they see only their own shadows, or the shadows of one another, which the fire throws on the opposite wall of the cave?"
+
+"True," he said; "how could they see anything but the shadows if they were never allowed to move their heads?""""
+                )
+            )
+            "cat-letters-stoic" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Letter I: On Saving Time",
+                    content = """Seneca greets his friend Lucilius.
+
+Continue to act thus, my dear Lucilius: set yourself free for your own sake; gather and save your time, which till lately has been forced from you, or filched away, or has merely slipped between your fingers. Make yourself believe the truth of my words—that certain moments are torn from us, that some are gently removed, and that others glide beyond our reach. The most disgraceful kind of loss, however, is that due to carelessness.
+
+If you will pay close heed to the problem, you will find that the largest portion of our life passes while we are doing ill, a goodly share while we are doing nothing, and the whole while we are doing that which is not to the purpose.
+
+What man can you show me who places any value on his time, who reckons the worth of each day, who understands that he is dying daily? For we are mistaken when we look forward to death; the major part of death has already passed. Whatever years lie behind us are in death's hands.
+
+Therefore, Lucilius, do what you write me you are doing: hold every hour in your grasp. Lay hold of today's task, and you will not need to depend so much upon tomorrow's. While we are postponing, life speeds by."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Letter II: On Discursiveness in Reading",
+                    content = """Judging by what you write me and by what I hear, I am full of good hope for you. You do not run about or stir yourself with new residences; for such restlessness is the sign of a disordered spirit. The primary indication, to my mind, of a well-ordered mind is a man's ability to remain in one place and linger in his own company.
+
+Be careful, however, lest this reading of many authors and books of every sort may tend to make you discursive and unsteady. You must linger among a limited number of master-thinkers, and digest their works, if you would derive ideas which shall win firm hold in your mind.
+
+Everywhere means nowhere. When a person spends all his time in foreign travel, he ends by having many acquaintances, but no friends. And the same thing must hold true of men who seek intimate acquaintance with no single author, but visit them all in a fleeting, hurried manner.
+
+Food does no good and is not assimilated into the body if it is left in the stomach only a moment; nothing hinders a cure so much as frequent change of medicine. To be always changing books is like never giving medicine time to work. Read therefore from the most respected authors, and if at any time you turn aside for a moment to others, return immediately to the masters."""
+                )
+            )
+            "cat-dorian-gray" -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "The Preface & Chapter 1: The Studio",
+                    content = """The artist is the creator of beautiful things. To reveal art and conceal the artist is art's aim. The critic is he who can translate into another manner or a new material his impression of beautiful things.
+
+The highest as the lowest form of criticism is a mode of autobiography. Those who find ugly meanings in beautiful things are corrupt without being charming. This is a fault. Those who find beautiful meanings in beautiful things are the cultivated. For these there is hope. They are the elect to whom beautiful things mean only beauty.
+
+There is no such thing as a moral or an immoral book. Books are well written, or badly written. That is all.
+
+The studio was filled with the rich odour of roses, and when the light summer wind stirred amidst the trees of the garden, there came through the open door the heavy scent of the lilac, or the more delicate perfume of the pink-flowering thorn.
+
+From the corner of the divan of Persian saddle-bags on which he was lying, smoking, as was his custom, innumerable cigarettes, Lord Henry Wotton could just catch the gleam of the honey-sweet and honey-coloured blossoms of a laburnum, whose tremulous branches seemed hardly able to bear the burden of a beauty so flame-like as theirs.
+
+In the centre of the room, clamped to an upright easel, stood the full-length portrait of a young man of extraordinary personal beauty, and in front of it, some little distance away, was sitting the artist himself, Basil Hallward."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Chapter 2: The Philosophy of Lord Henry",
+                    content = """As they entered they saw Dorian Gray. He was seated at the piano, with his back to them, turning over the pages of a volume of Schumann's "Forest Scenes."
+
+"You must lend me these, Basil," he cried. "I want to learn them. They are perfectly charming."
+
+"That entirely depends on how you sit to-day, Dorian."
+
+"Oh, I am tired of sitting, and I don't want a life-sized portrait of myself," answered the boy, swinging round on the music-stool in a wilful, petulant manner. When he caught sight of Lord Henry, a faint blush coloured his cheeks for a moment, and he started up. "I beg your pardon, Basil, but I didn't know you had any one with you."
+
+"This is Lord Henry Wotton, an old Oxford friend of mine. I have just been telling him what a capital sitter you were, and now you have spoiled everything."
+
+"You have only a few years in which to live really, perfectly, and fully," whispered Lord Henry, leaning close to Dorian. "When your youth goes, your beauty will go with it, and then you will suddenly discover that there are no triumphs left for you. Time is jealous of you, and wars against your lilies and your roses. You will become sallow, and hollow-cheeked, and dull-eyed. You will suffer horribly... Ah! Realize your youth while you have it!""""
+                )
+            )
+            else -> listOf(
+                BookChapter(
+                    index = 0,
+                    title = "Part I: Historical & Philosophical Foundations",
+                    content = """The pursuit of literature and philosophical inquiry represents the enduring effort of human thought to articulate the nature of existence, duty, truth, and society. Across classical antiquities, the Enlightenment, and the modern era, the written word serves as an uncorrupted record of human consciousness.
+
+When reading deeply, the mind is challenged to engage not passively, but in an active dialectic with the author's arguments. Every sustained inquiry demands methodical attention: observing how initial premises are established, testing each proposition against reason and human experience, and noting the underlying tensions between individual freedom and societal duty.
+
+As you progress through this volume, engage directly with the text through careful annotations, highlighting pivotal arguments, and reflecting on how these timeless principles illuminate modern dilemmas."""
+                ),
+                BookChapter(
+                    index = 1,
+                    title = "Part II: Analysis & Critical Reflections",
+                    content = """The enduring quality of a masterwork is demonstrated when its central propositions continue to evoke critical scrutiny and fresh interpretation across generations.
+
+In examining this text, attend carefully to the author's use of rhetoric, deductive structure, and thematic symbolism. A thoughtful reader interrogates the narrative: What assumptions remain unstated? How do the actions of the central figures reflect universal human instincts? In what ways does the historical context shape the boundaries of the discussion?
+
+True literacy is the practice of contemplative reflection—transforming discrete observations into enduring wisdom."""
                 )
             )
         }

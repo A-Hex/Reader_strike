@@ -2,6 +2,8 @@ package com.example.model
 
 import androidx.compose.ui.graphics.Color
 import com.example.R
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 
 enum class BookFormat(val extension: String, val displayName: String) {
     EPUB("epub", "EPUB"),
@@ -9,21 +11,25 @@ enum class BookFormat(val extension: String, val displayName: String) {
     TXT("txt", "TXT")
 }
 
-enum class ReadingStatus(val displayName: String) {
-    ALL("All Books"),
-    READING("Currently Reading"),
-    WANT_TO_READ("Want to Read"),
-    FINISHED("Finished"),
-    FAVORITES("Favorites"),
-    DOWNLOADED("Offline Ready")
+enum class ReadingStatus(val displayName: String, val stringKey: String) {
+    ALL("All Books", "status_all"),
+    READING("Currently Reading", "status_reading"),
+    WANT_TO_READ("Want to Read", "status_want_to_read"),
+    FINISHED("Finished", "status_finished"),
+    FAVORITES("Favorites", "status_favorites"),
+    DOWNLOADED("Offline Ready", "status_downloaded");
+
+    fun getLocalizedTitle(language: AppLanguage): String = AppStrings.get(stringKey, language)
 }
 
-enum class SortOption(val displayName: String) {
-    RECENTLY_READ("Recently Read"),
-    TITLE("Title (A-Z)"),
-    AUTHOR("Author"),
-    PROGRESS("Reading Progress"),
-    DATE_ADDED("Recently Added")
+enum class SortOption(val displayName: String, val stringKey: String) {
+    RECENTLY_READ("Recently Read", "sort_recent"),
+    TITLE("Title (A-Z)", "sort_title"),
+    AUTHOR("Author", "sort_author"),
+    PROGRESS("Reading Progress", "sort_progress"),
+    DATE_ADDED("Recently Added", "sort_date_added");
+
+    fun getLocalizedTitle(language: AppLanguage): String = AppStrings.get(stringKey, language)
 }
 
 data class Book(

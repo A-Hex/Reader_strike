@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -42,6 +43,7 @@ enum class NavigationTab(
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val requestedTabFlow = kotlinx.coroutines.flow.MutableStateFlow<NavigationTab?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +53,7 @@ class MainActivity : ComponentActivity() {
         val initialTab = parseInitialTab(intent)
         setContent {
             MyApplicationTheme(darkTheme = true) {
-                MainAppContent(viewModel = viewModel, initialTab = initialTab)
+                MainAppContent(viewModel = viewModel, initialTab = initialTab, requestedTabFlow = requestedTabFlow)
             }
         }
     }
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        requestedTabFlow.value = parseInitialTab(intent)
     }
 
     private fun parseInitialTab(intent: android.content.Intent?): NavigationTab {
@@ -74,12 +77,24 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainAppContent(viewModel: MainViewModel, initialTab: NavigationTab = NavigationTab.LIBRARY) {
+fun MainAppContent(
+    viewModel: MainViewModel,
+    initialTab: NavigationTab = NavigationTab.LIBRARY,
+    requestedTabFlow: kotlinx.coroutines.flow.StateFlow<NavigationTab?> = remember { kotlinx.coroutines.flow.MutableStateFlow(null) }
+) {
     val isOnboardingCompleted by viewModel.isOnboardingCompleted.collectAsState()
     val isTutorialVisible by viewModel.isTutorialVisible.collectAsState()
     val currentBook by viewModel.currentBook.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
     var currentTab by remember { mutableStateOf(initialTab) }
+
+    LaunchedEffect(requestedTabFlow) {
+        requestedTabFlow.collect { newTab ->
+            if (newTab != null) {
+                currentTab = newTab
+            }
+        }
+    }
 
     val layoutDirection = if (currentLanguage.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
@@ -173,6 +188,9 @@ fun MainAppContent(viewModel: MainViewModel, initialTab: NavigationTab = Navigat
                                         }
                                     }
                                 ) { innerPadding ->
+                                    BackHandler(enabled = currentTab != NavigationTab.LIBRARY) {
+                                        currentTab = NavigationTab.LIBRARY
+                                    }
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()

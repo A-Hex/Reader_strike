@@ -242,10 +242,19 @@ class BookRepository(private val context: Context, private val database: AppData
                 totalPages = (parsed.chapters.size * 5).coerceAtLeast(10)
                 extractedCoverPath = EpubParser.extractEpubCover(context, savedFile)
             } else if (format == BookFormat.PDF) {
-                extractedCoverPath = com.example.reader.PdfManager.extractPdfCover(context, savedFile)
-                val chapters = com.example.reader.PdfTextExtractor.extractChaptersFromPdf(savedFile, title)
-                if (chapters.isNotEmpty()) {
-                    totalPages = chapters.size.coerceAtLeast(1)
+                if (com.example.reader.PdfGeneratorHelper.isValidPdfFile(savedFile)) {
+                    extractedCoverPath = com.example.reader.PdfManager.extractPdfCover(context, savedFile)
+                    val chapters = com.example.reader.PdfTextExtractor.extractChaptersFromPdf(savedFile, title)
+                    if (chapters.isNotEmpty()) {
+                        totalPages = chapters.size.coerceAtLeast(1)
+                    }
+                } else {
+                    // Self-healing: if file is non-standard or text stream, synthesize valid PDF document
+                    val rawText = try { savedFile.readText() } catch (_: Exception) { "" }
+                    val chList = listOf(BookChapter(0, title, rawText.ifBlank { desc }))
+                    val placeholderBook = Book(id = "imported", title = title, author = author, description = desc, format = BookFormat.PDF)
+                    com.example.reader.PdfGeneratorHelper.generatePdfDocument(savedFile, placeholderBook, chList)
+                    extractedCoverPath = com.example.reader.PdfManager.extractPdfCover(context, savedFile)
                 }
             } else if (format == BookFormat.TXT) {
                 savedFile.inputStream().use { stream ->

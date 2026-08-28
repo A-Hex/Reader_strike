@@ -21,6 +21,15 @@ object AppStrings {
         }
     }
 
+    fun get(key: String, language: AppLanguage, vararg args: Any): String {
+        val raw = get(key, language)
+        return try {
+            if (args.isNotEmpty()) String.format(raw, *args) else raw
+        } catch (_: Exception) {
+            raw
+        }
+    }
+
     private val englishStrings = mapOf(
         "app_name" to "A-Hex streak",
         "tab_library" to "Library",
@@ -51,7 +60,38 @@ object AppStrings {
         "filter_txt" to "TXT",
         "sort_recent" to "Recently Read",
         "sort_title" to "Title (A-Z)",
+        "sort_author" to "Author",
         "sort_progress" to "Highest Progress",
+        "sort_date_added" to "Recently Added",
+
+        // Shelves & Statuses
+        "status_all" to "All Books",
+        "status_reading" to "Currently Reading",
+        "status_want_to_read" to "Want to Read",
+        "status_finished" to "Finished",
+        "status_favorites" to "Favorites",
+        "status_downloaded" to "Offline Ready",
+
+        // Reader Controls
+        "reader_next_chapter" to "Next Chapter",
+        "reader_prev_chapter" to "Previous Chapter",
+        "reader_auto_scroll" to "Auto-Scroll",
+        "reader_night_light" to "Night Light Filter",
+        "reader_font_family" to "Typography",
+        "reader_bookmark_added" to "Bookmark saved",
+        "reader_highlight_saved" to "Highlight saved",
+        "reader_text_copied" to "Copied to clipboard",
+
+        // Sync & Backup
+        "sync_now" to "Sync Now",
+        "sync_google_drive" to "Google Drive Cloud Sync",
+        "sync_auto_label" to "Automatic Background Sync",
+        "sync_wifi_label" to "Sync on Wi-Fi Only",
+        "sync_signed_in_as" to "Connected Account",
+        "sync_offline_notice" to "Offline - Changes will sync automatically when reconnected",
+        "download_started" to "Downloading book...",
+        "download_complete" to "Book downloaded successfully",
+        "download_failed" to "Download failed. Please check internet connection.",
 
         // Settings & Storage
         "language_title" to "Language / اللغة / Langue",
@@ -117,9 +157,9 @@ object AppStrings {
 
         // Custom Voice Narrator Profile
         "voice_narrator_title" to "Custom Voice Narrator Studio",
-        "voice_narrator_desc" to "Train your own personalized AI Voice Profile to narrate books in your unique vocal timbre, cadence, and pitch.",
-        "voice_narrator_train_btn" to "Train Custom Voice Narrator",
-        "voice_narrator_active" to "Cloned Voice Active",
+        "voice_narrator_desc" to "Calibrate your personalized narrator profile to listen to books with your preferred pitch, cadence, and vocal timbre.",
+        "voice_narrator_train_btn" to "Record & Calibrate Voice Narrator",
+        "voice_narrator_active" to "Custom Voice Active",
         "voice_narrator_system" to "System Voice Active",
 
         // PDF Extraction Quality
@@ -161,7 +201,43 @@ object AppStrings {
         "tutorial_step4_title" to "Voice Studio & Privacy First",
         "tutorial_step4_desc" to "Train a personalized voice profile to read books aloud. 100% on-device processing with zero cloud data tracking.",
         "settings_replay_onboarding" to "Replay Onboarding Flow",
-        "settings_replay_tutorial" to "Interactive Feature Tour"
+        "settings_replay_tutorial" to "Interactive Feature Tour",
+
+        // TOC & Bookmarks
+        "toc_navigation" to "Book Navigation",
+        "toc_contents" to "Contents",
+        "toc_bookmarks" to "Bookmarks",
+        "toc_highlights" to "Highlights",
+        "toc_no_bookmarks" to "No bookmarks in this book yet.\nTap the bookmark icon while reading to add one.",
+        "toc_no_highlights" to "No highlights in this book yet.\nSelect text or tap to highlight passages.",
+        "toc_no_chapters" to "No chapters found in this document.",
+        "toc_words" to "words",
+        "toc_page" to "Page",
+        "toc_note" to "Note",
+
+        // In-Book Search
+        "search_in_book_title" to "Search Inside Book",
+        "search_in_book_placeholder" to "Type word or phrase to locate...",
+        "search_in_book_matches" to "%1\$d match(es) found",
+        "search_in_book_no_matches" to "No matching passages found.",
+
+        // Customizer & Typography
+        "customizer_title" to "Reader Customization",
+        "customizer_saved_for" to "Settings saved for %1\$s",
+        "font_serif" to "Serif (Classic Book)",
+        "font_sans_serif" to "Sans-Serif (Modern Clean)",
+        "font_monospace" to "Monospace (Focus)",
+        "font_cursive" to "Literary Cursive",
+        "nav_mode_title" to "Page Navigation",
+        "nav_page_turn" to "Page Turn",
+        "nav_continuous" to "Continuous Scroll",
+        "warm_filter_title" to "Warm Filter",
+        "filter_amber_on" to "Amber Active",
+        "filter_amber_off" to "Off",
+        "line_spacing_title" to "Line Height Spacing",
+        "pdf_fluid_switch" to "Switch to Fluid Text Flow",
+        "pdf_page_view_switch" to "Switch to PDF Page Layout",
+        "pdf_fluid_reader_title" to "Fluid Typography Reader"
     )
 
     private val arabicStrings = mapOf(
@@ -194,7 +270,38 @@ object AppStrings {
         "filter_txt" to "TXT",
         "sort_recent" to "المقروء مؤخراً",
         "sort_title" to "العنوان (أ - ي)",
+        "sort_author" to "المؤلف",
         "sort_progress" to "الأعلى تقدماً",
+        "sort_date_added" to "المضاف حديثاً",
+
+        // Shelves & Statuses
+        "status_all" to "كافة الكتب",
+        "status_reading" to "جاري القراءة",
+        "status_want_to_read" to "أرغب بقراءته",
+        "status_finished" to "مكتمل",
+        "status_favorites" to "المفضلة",
+        "status_downloaded" to "محمل محلياً",
+
+        // Reader Controls
+        "reader_next_chapter" to "الفصل التالي",
+        "reader_prev_chapter" to "الفصل السابق",
+        "reader_auto_scroll" to "التمرير التلقائي",
+        "reader_night_light" to "فلتر الإضاءة الليلية",
+        "reader_font_family" to "نوع الخط",
+        "reader_bookmark_added" to "تم حفظ العلامة المرجعية",
+        "reader_highlight_saved" to "تم حفظ التحديد",
+        "reader_text_copied" to "تم النسخ إلى الحافظة",
+
+        // Sync & Backup
+        "sync_now" to "مزامنة الآن",
+        "sync_google_drive" to "المزامنة السحابية Google Drive",
+        "sync_auto_label" to "المزامنة التلقائية بالخلفية",
+        "sync_wifi_label" to "المزامنة عبر Wi-Fi فقط",
+        "sync_signed_in_as" to "الحساب المتصل",
+        "sync_offline_notice" to "بدون إنترنت - ستتم المزامنة تلقائياً عند الاتصال",
+        "download_started" to "جاري تنزيل الكتاب...",
+        "download_complete" to "اكتمل تنزيل الكتاب بنجاح",
+        "download_failed" to "تعذر التنزيل. يرجى التحقق من الاتصال بالإنترنت.",
 
         // Settings & Storage
         "language_title" to "لغة التطبيق",
@@ -304,7 +411,43 @@ object AppStrings {
         "tutorial_step4_title" to "استوديو الصوت والخصوصية",
         "tutorial_step4_desc" to "أنشئ ملفك الصوتي الخاص لقراءة الكتب بصوتك. معالجة 100% داخل جهازك دون رفع أي بيانات.",
         "settings_replay_onboarding" to "إعادة تشغيل شاشات الترحيب",
-        "settings_replay_tutorial" to "جولة الميزات التفاعلية"
+        "settings_replay_tutorial" to "جولة الميزات التفاعلية",
+
+        // TOC & Bookmarks
+        "toc_navigation" to "التنقل في الكتاب",
+        "toc_contents" to "الفصول",
+        "toc_bookmarks" to "العلامات المرجعية",
+        "toc_highlights" to "التحديدات",
+        "toc_no_bookmarks" to "لا توجد علامات مرجعية في هذا الكتاب بعد.\nاضغط على أيقونة الإشارة المرجعية أثناء القراءة لحفظ واحدة.",
+        "toc_no_highlights" to "لا توجد اقتباسات محددة بعد.\nحدد أي نص لحفظه واقتباسه.",
+        "toc_no_chapters" to "لم يتم العثور على فصول في هذا المستند.",
+        "toc_words" to "كلمة",
+        "toc_page" to "الصفحة",
+        "toc_note" to "ملاحظة",
+
+        // In-Book Search
+        "search_in_book_title" to "البحث داخل الكتاب",
+        "search_in_book_placeholder" to "اكتب كلمة أو عبارة للبحث عنها...",
+        "search_in_book_matches" to "تم العثور على %1\$d نتيجة",
+        "search_in_book_no_matches" to "لم يتم العثور على نتائج مطابقة.",
+
+        // Customizer & Typography
+        "customizer_title" to "تخصيص القارئ",
+        "customizer_saved_for" to "تم الحفظ لـ %1\$s",
+        "font_serif" to "خط كلاسيكي (نسخ)",
+        "font_sans_serif" to "خط عصري (رقعة/حديث)",
+        "font_monospace" to "خط ثابت (تركيز)",
+        "font_cursive" to "خط أدبي مخصص",
+        "nav_mode_title" to "طريقة التصفح",
+        "nav_page_turn" to "تقليب الصفحات",
+        "nav_continuous" to "تمرير مستمر",
+        "warm_filter_title" to "الفلتر الدافئ",
+        "filter_amber_on" to "مفعل",
+        "filter_amber_off" to "معطل",
+        "line_spacing_title" to "تباعد الأسطر",
+        "pdf_fluid_switch" to "التحويل إلى وضع القراءة الانسيابية",
+        "pdf_page_view_switch" to "التحويل إلى تخطيط صفحات PDF",
+        "pdf_fluid_reader_title" to "قارئ النصوص الانسيابي"
     )
 
     private val frenchStrings = mapOf(
@@ -337,7 +480,38 @@ object AppStrings {
         "filter_txt" to "TXT",
         "sort_recent" to "Lus récemment",
         "sort_title" to "Titre (A-Z)",
+        "sort_author" to "Auteur",
         "sort_progress" to "Meilleure progression",
+        "sort_date_added" to "Ajoutés récemment",
+
+        // Shelves & Statuses
+        "status_all" to "Tous les livres",
+        "status_reading" to "En cours de lecture",
+        "status_want_to_read" to "À lire",
+        "status_finished" to "Terminés",
+        "status_favorites" to "Favoris",
+        "status_downloaded" to "Disponibles hors-ligne",
+
+        // Reader Controls
+        "reader_next_chapter" to "Chapitre suivant",
+        "reader_prev_chapter" to "Chapitre précédent",
+        "reader_auto_scroll" to "Défilement automatique",
+        "reader_night_light" to "Filtre anti-lumière bleue",
+        "reader_font_family" to "Typographie",
+        "reader_bookmark_added" to "Marque-page enregistré",
+        "reader_highlight_saved" to "Passage surligné",
+        "reader_text_copied" to "Copié dans le presse-papiers",
+
+        // Sync & Backup
+        "sync_now" to "Synchroniser maintenant",
+        "sync_google_drive" to "Synchronisation Google Drive",
+        "sync_auto_label" to "Synchronisation automatique en arrière-plan",
+        "sync_wifi_label" to "Wi-Fi uniquement",
+        "sync_signed_in_as" to "Compte connecté",
+        "sync_offline_notice" to "Hors-ligne - Synchronisation automatique dès la reconnexion",
+        "download_started" to "Téléchargement du livre...",
+        "download_complete" to "Livre téléchargé avec succès",
+        "download_failed" to "Échec du téléchargement. Vérifiez votre connexion Internet.",
 
         // Settings & Storage
         "language_title" to "Langue de l'application",
@@ -447,6 +621,42 @@ object AppStrings {
         "tutorial_step4_title" to "Studio Vocal & Confidentialité",
         "tutorial_step4_desc" to "Créez votre profil vocal personnalisé. 100% exécuté sur l'appareil sans transmission de données.",
         "settings_replay_onboarding" to "Revoir l'introduction",
-        "settings_replay_tutorial" to "Visite guidée interactive"
+        "settings_replay_tutorial" to "Visite guidée interactive",
+
+        // TOC & Bookmarks
+        "toc_navigation" to "Navigation dans l'ouvrage",
+        "toc_contents" to "Sommaire",
+        "toc_bookmarks" to "Marque-pages",
+        "toc_highlights" to "Passages surlignés",
+        "toc_no_bookmarks" to "Aucun marque-page dans ce livre.\nTouchez l'icône de marque-page pendant la lecture pour en ajouter un.",
+        "toc_no_highlights" to "Aucun passage surligné.\nSélectionnez du texte pour l'enregistrer.",
+        "toc_no_chapters" to "Aucun chapitre détecté dans ce document.",
+        "toc_words" to "mots",
+        "toc_page" to "Page",
+        "toc_note" to "Note",
+
+        // In-Book Search
+        "search_in_book_title" to "Rechercher dans le livre",
+        "search_in_book_placeholder" to "Rechercher un mot ou une phrase...",
+        "search_in_book_matches" to "%1\$d correspondance(s) trouvée(s)",
+        "search_in_book_no_matches" to "Aucun résultat correspondant.",
+
+        // Customizer & Typography
+        "customizer_title" to "Personnalisation du lecteur",
+        "customizer_saved_for" to "Paramètres enregistrés pour %1\$s",
+        "font_serif" to "Serif (Livre classique)",
+        "font_sans_serif" to "Sans-Serif (Moderne épuré)",
+        "font_monospace" to "Monospace (Concentration)",
+        "font_cursive" to "Cursive littéraire",
+        "nav_mode_title" to "Mode de navigation",
+        "nav_page_turn" to "Tourner la page",
+        "nav_continuous" to "Défilement continu",
+        "warm_filter_title" to "Filtre chaud",
+        "filter_amber_on" to "Ambre actif",
+        "filter_amber_off" to "Désactivé",
+        "line_spacing_title" to "Espacement des lignes",
+        "pdf_fluid_switch" to "Passer au flux de texte fluide",
+        "pdf_page_view_switch" to "Passer à la mise en page PDF",
+        "pdf_fluid_reader_title" to "Lecteur typographique fluide"
     )
 }

@@ -24,6 +24,7 @@ import com.example.receiver.ReadingStreakWidgetProvider
 import com.example.util.AppLanguage
 import com.example.util.AppStrings
 import com.example.util.BackupResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -254,13 +255,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (query.isNotBlank()) {
-            val q = query.trim().lowercase()
+            val q = query.trim()
             list = list.filter { book ->
-                book.title.lowercase().contains(q) ||
-                book.author.lowercase().contains(q) ||
-                book.genre.lowercase().contains(q) ||
-                book.tags.any { it.lowercase().contains(q) } ||
-                book.description.lowercase().contains(q)
+                com.example.util.TextNormalizer.matches(book.title, q) ||
+                com.example.util.TextNormalizer.matches(book.author, q) ||
+                com.example.util.TextNormalizer.matches(book.genre, q) ||
+                book.tags.any { tag -> com.example.util.TextNormalizer.matches(tag, q) } ||
+                com.example.util.TextNormalizer.matches(book.description, q)
             }
         }
 
@@ -292,8 +293,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _inBookSearchQuery = MutableStateFlow("")
     val inBookSearchQuery: StateFlow<String> = _inBookSearchQuery.asStateFlow()
 
-    private val _inBookSearchResults = MutableStateFlow<List<String>>(emptyList())
-    val inBookSearchResults: StateFlow<List<String>> = _inBookSearchResults.asStateFlow()
+    private val _inBookSearchResults = MutableStateFlow<List<com.example.model.InBookSearchMatch>>(emptyList())
+    val inBookSearchResults: StateFlow<List<com.example.model.InBookSearchMatch>> = _inBookSearchResults.asStateFlow()
 
     // Active Reading Session State & Precise Timer
     private val _activeSessionState = MutableStateFlow(ActiveSessionState())
@@ -476,14 +477,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (extracted.isNotEmpty()) {
                         _currentChapters.value = extracted
                     } else {
-                        _currentChapters.value = SampleBooksData.getSampleChaptersForBook(book.id)
+                        val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+                        _currentChapters.value = if (sampleCh.isNotEmpty()) sampleCh else listOf(
+                            BookChapter(0, book.title, book.description)
+                        )
                     }
                 }
             } else {
-                _currentChapters.value = SampleBooksData.getSampleChaptersForBook(book.id)
+                val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+                _currentChapters.value = if (sampleCh.isNotEmpty()) sampleCh else listOf(
+                    BookChapter(0, book.title, book.description)
+                )
             }
         } else {
-            _currentChapters.value = SampleBooksData.getSampleChaptersForBook(book.id)
+            val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+            _currentChapters.value = if (sampleCh.isNotEmpty()) sampleCh else listOf(
+                BookChapter(0, book.title, book.description)
+            )
+        }
+
+        // For PDF books, ensure on-disk PDF file exists asynchronously
+        if (book.format == BookFormat.PDF) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val pdfFile = com.example.reader.PdfGeneratorHelper.getOrCreatePdfForBook(
+                        context = context,
+                        book = book,
+                        customChapters = _currentChapters.value
+                    )
+                    if (pdfFile.exists() && pdfFile.length() > 100) {
+                        _currentBook.value = _currentBook.value?.copy(localFilePath = pdfFile.absolutePath)
+                    }
+                } catch (_: Exception) {}
+            }
         }
 
         _currentChapterIndex.value = 0
@@ -493,6 +519,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _readerPreferences.value = _readerPreferences.value.copy(themeId = bookTheme.id)
 
         startReadingSession(book)
+    }
+
+    fun repairBookPdf(book: Book) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val validPdf = com.example.reader.PdfGeneratorHelper.getOrCreatePdfForBook(
+                    context = context,
+                    book = book,
+                    customChapters = _currentChapters.value
+                )
+                _currentBook.value = book.copy(localFilePath = validPdf.absolutePath)
+            } catch (_: Exception) {}
+        }
     }
 
     fun getCurrentReadingText(): String {
@@ -741,14 +780,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _inBookSearchResults.value = emptyList()
             return
         }
-        val results = mutableListOf<String>()
-        val q = query.lowercase()
-        _currentChapters.value.forEachIndexed { _, ch ->
+        val results = mutableListOf<com.example.model.InBookSearchMatch>()
+        val trimmed = query.trim()
+        _currentChapters.value.forEachIndexed { chIdx, ch ->
             val paragraphs = ch.content.split("\n\n")
-            paragraphs.forEach { p ->
-                if (p.lowercase().contains(q)) {
-                    val snippet = p.trim().take(120) + "..."
-                    results.add("[${ch.title}] $snippet")
+            paragraphs.forEachIndexed { pIdx, p ->
+                if (com.example.util.TextNormalizer.matches(p, trimmed)) {
+                    val rawSnippet = p.trim().replace(Regex("\\s+"), " ")
+                    val snippet = if (rawSnippet.length > 130) rawSnippet.take(130) + "..." else rawSnippet
+                    results.add(
+                        com.example.model.InBookSearchMatch(
+                            chapterIndex = chIdx,
+                            chapterTitle = ch.title.ifBlank { "Chapter ${chIdx + 1}" },
+                            paragraphIndex = pIdx,
+                            snippet = snippet,
+                            fullParagraph = p.trim(),
+                            matchQuery = trimmed
+                        )
+                    )
                 }
             }
         }

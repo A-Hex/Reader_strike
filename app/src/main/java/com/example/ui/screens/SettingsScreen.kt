@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.Manifest
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -46,6 +47,10 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     var showLocalSpaceScreen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showLocalSpaceScreen) {
+        showLocalSpaceScreen = false
+    }
 
     if (showLocalSpaceScreen) {
         LocalSpaceScreen(

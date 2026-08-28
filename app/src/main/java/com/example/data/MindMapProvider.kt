@@ -28,6 +28,14 @@ object MindMapProvider {
             "book-alice-wonderland" -> getAliceMap()
             "book-art-of-war" -> getArtOfWarMap()
             "book-meditations" -> getMeditationsMap()
+            "book-metamorphosis" -> getMetamorphosisMap()
+            "cat-great-gatsby" -> getGreatGatsbyMap()
+            "cat-dracula" -> getDraculaMap()
+            "cat-pride-prejudice" -> getPridePrejudiceMap()
+            "cat-beyond-good-evil" -> getBeyondGoodEvilMap()
+            "cat-republic" -> getRepublicMap()
+            "cat-letters-stoic" -> getLettersStoicMap()
+            "cat-dorian-gray" -> getDorianGrayMap()
             else -> {
                 val (dynMap, _) = LocalAiRelationDetector.analyzeBook(book, fullText)
                 dynMap
@@ -43,7 +51,15 @@ object MindMapProvider {
             "book-frankenstein",
             "book-alice-wonderland",
             "book-art-of-war",
-            "book-meditations"
+            "book-meditations",
+            "book-metamorphosis",
+            "cat-great-gatsby",
+            "cat-dracula",
+            "cat-pride-prejudice",
+            "cat-beyond-good-evil",
+            "cat-republic",
+            "cat-letters-stoic",
+            "cat-dorian-gray"
         )
     }
 
@@ -519,6 +535,674 @@ object MindMapProvider {
             edges = edges,
             plotPoints = plotPoints,
             thematicSummary = "Intimate spiritual exercises cultivating resilience, detachment from external praise, and devotion to the common good."
+        )
+    }
+
+    private fun getMetamorphosisMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "gregor",
+                name = "Gregor Samsa",
+                role = "Travelling Salesman & Vermin",
+                faction = "Samsa Household",
+                description = "Awakens transformed into a monstrous insect; struggles between human dignity and alienation.",
+                keyQuote = "What's happened to me? It wasn't a dream.",
+                avatarEmoji = "🪲",
+                xPercent = 0.50f,
+                yPercent = 0.35f,
+                significance = 1.35f,
+                mentionCount = 175,
+                sentimentScore = -0.4f
+            ),
+            CharacterNode(
+                id = "grete",
+                name = "Grete Samsa",
+                role = "Sister & Caregiver",
+                faction = "Samsa Household",
+                description = "Initially brings food and cares for Gregor, later demands that the family rid themselves of him.",
+                keyQuote = "We must try to get rid of it. It is killing our parents.",
+                avatarEmoji = "🎻",
+                xPercent = 0.22f,
+                yPercent = 0.65f,
+                significance = 1.2f,
+                mentionCount = 110,
+                sentimentScore = 0.1f
+            ),
+            CharacterNode(
+                id = "father",
+                name = "Herr Samsa (Father)",
+                role = "Authoritarian Patriarch",
+                faction = "Samsa Household",
+                description = "Hostile toward Gregor; throws apples that inflict Gregor's fatal wound.",
+                keyQuote = "He threw apple after apple with astonishing accuracy.",
+                avatarEmoji = "👨‍🦳",
+                xPercent = 0.78f,
+                yPercent = 0.65f,
+                significance = 1.15f,
+                mentionCount = 85,
+                sentimentScore = -0.8f
+            ),
+            CharacterNode(
+                id = "clerk",
+                name = "The Chief Clerk",
+                role = "Corporate Enforcer",
+                faction = "Commercial Enterprise",
+                description = "Visits Gregor's home immediately when he misses the morning train, representing economic pressure.",
+                keyQuote = "Your productivity has lately been very unsatisfactory.",
+                avatarEmoji = "💼",
+                xPercent = 0.50f,
+                yPercent = 0.85f,
+                significance = 0.95f,
+                mentionCount = 30,
+                sentimentScore = -0.7f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("grete", "gregor", "Initial Compassion Turns to Rejection", RelationType.KINSHIP, 0.95f, 0.2f, listOf("His sister alone had retained some courage and brought him milk and bread.")),
+            RelationshipEdge("father", "gregor", "Antagonistic & Violent Control", RelationType.RIVAL, 1.0f, -0.9f, listOf("His father clenched his fist with a hostile expression.")),
+            RelationshipEdge("clerk", "gregor", "Economic Surveillance & Demands", RelationType.RIVAL, 0.8f, -0.6f, listOf("The representative of the firm demanding immediate labor."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("meta_1", "Chapter 1", "The Morning Transformation", PlotStage.EXPOSITION, "Gregor wakes to find himself transformed into a giant insect.", listOf("gregor"), ConflictType.PERSON_VS_SELF, 0.3f, "He found himself transformed in his bed into a horrible vermin."),
+            PlotNode("meta_2", "Chapter 1", "The Chief Clerk's Visit", PlotStage.INCITING_INCIDENT, "Gregor unlocks the door and reveals his horrifying form to the family and clerk.", listOf("gregor", "clerk", "father"), ConflictType.PERSON_VS_SOCIETY, 0.75f, "The chief clerk fled down the stairs in terror."),
+            PlotNode("meta_3", "Chapter 2", "Apples and Exile", PlotStage.RISING_ACTION, "His father attacks him with apples, one of which lodges painfully in his back.", listOf("gregor", "father"), ConflictType.PERSON_VS_PERSON, 0.85f, "An apple lodged firmly in Gregor's back, remaining as an inflamed reminder."),
+            PlotNode("meta_4", "Chapter 3", "The Violin and the Lodgers", PlotStage.CLIMAX, "Drawn by Grete's violin playing, Gregor creeps out, causing the lodgers to give notice.", listOf("gregor", "grete"), ConflictType.PERSON_VS_SOCIETY, 0.95f, "Was he an animal, that music could move him so?"),
+            PlotNode("meta_5", "Chapter 3", "Gregor's Demise", PlotStage.FALLING_ACTION, "Gregor dies quietly in his room during the night, thinking of his family with love.", listOf("gregor"), ConflictType.PERSON_VS_SELF, 0.4f, "He thought back on his family with deep affection and love."),
+            PlotNode("meta_6", "Chapter 3", "The Spring Excursion", PlotStage.RESOLUTION, "The family takes a tram ride into the countryside with renewed hopes for Grete's future.", listOf("grete", "father"), ConflictType.PERSON_VS_FATE, 0.2f, "Their daughter sprang to her feet first and stretched her young body.")
+        )
+
+        return BookMindMap(
+            bookId = "book-metamorphosis",
+            bookTitle = "The Metamorphosis",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "A searing existential exploration of dehumanization, corporate exhaustion, familial guilt, and conditional love."
+        )
+    }
+
+    private fun getGreatGatsbyMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "gatsby",
+                name = "Jay Gatsby",
+                role = "Enigmatic Millionaire",
+                faction = "West Egg",
+                description = "Self-made visionary pursuing his idealized romantic past with Daisy Buchanan.",
+                keyQuote = "Can't repeat the past? Why of course you can!",
+                avatarEmoji = "🥂",
+                xPercent = 0.50f,
+                yPercent = 0.30f,
+                significance = 1.35f,
+                mentionCount = 210,
+                sentimentScore = 0.7f
+            ),
+            CharacterNode(
+                id = "nick",
+                name = "Nick Carraway",
+                role = "Narrator & Moral Anchor",
+                faction = "West Egg",
+                description = "Bond salesman from Minnesota; inclined to reserve all judgments.",
+                keyQuote = "I am one of the few honest people that I have ever known.",
+                avatarEmoji = "📝",
+                xPercent = 0.22f,
+                yPercent = 0.60f,
+                significance = 1.25f,
+                mentionCount = 190,
+                sentimentScore = 0.8f
+            ),
+            CharacterNode(
+                id = "daisy",
+                name = "Daisy Buchanan",
+                role = "Golden Girl & Illusion",
+                faction = "East Egg",
+                description = "Nick's cousin and the object of Gatsby's lifelong obsession; voice full of money.",
+                keyQuote = "Her voice is full of money. That was the inexhaustible charm that rose and fell in it.",
+                avatarEmoji = "✨",
+                xPercent = 0.78f,
+                yPercent = 0.35f,
+                significance = 1.2f,
+                mentionCount = 140,
+                sentimentScore = 0.4f
+            ),
+            CharacterNode(
+                id = "tom",
+                name = "Tom Buchanan",
+                role = "Aristocratic Bully",
+                faction = "East Egg",
+                description = "Brutal, wealthy old-money heir; aggressive and hypocritical defender of social hierarchy.",
+                keyQuote = "They were careless people, Tom and Daisy—they smashed up things and creatures.",
+                avatarEmoji = "🏇",
+                xPercent = 0.78f,
+                yPercent = 0.75f,
+                significance = 1.15f,
+                mentionCount = 95,
+                sentimentScore = -0.7f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("gatsby", "daisy", "Idealized Passion & Obsession", RelationType.ROMANTIC, 1.0f, 0.8f, listOf("He had thrown himself into it with a creative passion.")),
+            RelationshipEdge("nick", "gatsby", "Loyal Friendship & Chronicler", RelationType.ALLY, 0.9f, 0.9f, listOf("They're a rotten crowd. You're worth the whole damn bunch put together.")),
+            RelationshipEdge("tom", "gatsby", "Class Hostility & Rivalry", RelationType.RIVAL, 0.95f, -0.9f, listOf("An intense clash at the Plaza Hotel over Daisy.")),
+            RelationshipEdge("tom", "daisy", "Careless Aristocratic Marriage", RelationType.NEUTRAL, 0.8f, -0.2f, listOf("They retreated back into their money and vast carelessness."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("gg_1", "Chapter 1", "The Green Light at the Dock", PlotStage.EXPOSITION, "Nick arrives in West Egg and sees Gatsby reaching into the darkness across the Sound.", listOf("nick", "gatsby"), ConflictType.PERSON_VS_SELF, 0.2f, "A single green light, minute and far away, at the end of a dock."),
+            PlotNode("gg_2", "Chapter 5", "Tea and Reunion", PlotStage.INCITING_INCIDENT, "Nick hosts tea, reuniting Gatsby and Daisy after five years of separation.", listOf("nick", "gatsby", "daisy"), ConflictType.PERSON_VS_PERSON, 0.6f, "The colossal significance of that light had now vanished forever."),
+            PlotNode("gg_3", "Chapter 7", "The Confrontation at the Plaza", PlotStage.RISING_ACTION, "A sweltering afternoon in Manhattan where Tom confronts Gatsby over his origins.", listOf("gatsby", "tom", "daisy"), ConflictType.PERSON_VS_PERSON, 0.9f, "Your wife doesn't love you. She loves me."),
+            PlotNode("gg_4", "Chapter 7", "The Valley of Ashes Tragedy", PlotStage.CLIMAX, "Myrtle Wilson is struck and killed by Daisy driving Gatsby's yellow roadster.", listOf("daisy", "gatsby"), ConflictType.PERSON_VS_SOCIETY, 1.0f, "Her life violently extinguished in the dust."),
+            PlotNode("gg_5", "Chapter 8", "The Gunshot in the Pool", PlotStage.FALLING_ACTION, "George Wilson murders Gatsby in his swimming pool before taking his own life.", listOf("gatsby"), ConflictType.PERSON_VS_FATE, 0.8f, "The holocaust was complete."),
+            PlotNode("gg_6", "Chapter 9", "Boats Against the Current", PlotStage.RESOLUTION, "Nick reflects on Gatsby's incorruptible dream and departs for the Midwest.", listOf("nick"), ConflictType.PERSON_VS_FATE, 0.1f, "So we beat on, boats against the current, borne back ceaselessly into the past.")
+        )
+
+        return BookMindMap(
+            bookId = "cat-great-gatsby",
+            bookTitle = "The Great Gatsby",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "A poetic critique of the American Dream, reckless consumerism, class stratification, and romantic illusion."
+        )
+    }
+
+    private fun getDraculaMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "dracula",
+                name = "Count Dracula",
+                role = "Ancient Vampire Lord",
+                faction = "Transylvania / Carfax",
+                description = "Centuries-old undead nobleman seeking to conquer Victorian London.",
+                keyQuote = "My revenge is just begun! I spread it over centuries, and time is on my side.",
+                avatarEmoji = "🧛",
+                xPercent = 0.50f,
+                yPercent = 0.30f,
+                significance = 1.35f,
+                mentionCount = 230,
+                sentimentScore = -0.9f
+            ),
+            CharacterNode(
+                id = "jonathan",
+                name = "Jonathan Harker",
+                role = "Solicitor & Prisoner",
+                faction = "Crew of Light",
+                description = "Young English lawyer trapped inside Castle Dracula; survives to aid the hunt.",
+                keyQuote = "Welcome to my house! Enter freely and of your own will!",
+                avatarEmoji = "📜",
+                xPercent = 0.20f,
+                yPercent = 0.65f,
+                significance = 1.15f,
+                mentionCount = 120,
+                sentimentScore = 0.6f
+            ),
+            CharacterNode(
+                id = "mina",
+                name = "Mina Harker",
+                role = "Intellectual Heroine",
+                faction = "Crew of Light",
+                description = "Jonathan's wife whose stenographic records, telepathic connection, and bravery defeat Dracula.",
+                keyQuote = "She has a man's brain and a woman's heart.",
+                avatarEmoji = "🧠",
+                xPercent = 0.80f,
+                yPercent = 0.65f,
+                significance = 1.3f,
+                mentionCount = 150,
+                sentimentScore = 0.9f
+            ),
+            CharacterNode(
+                id = "van_helsing",
+                name = "Prof. Van Helsing",
+                role = "Occult Scholar & Physician",
+                faction = "Crew of Light",
+                description = "Polymath scholar armed with garlic, communion wafers, and scientific acumen.",
+                keyQuote = "We learn from failure, not from our success.",
+                avatarEmoji = "✝️",
+                xPercent = 0.50f,
+                yPercent = 0.80f,
+                significance = 1.25f,
+                mentionCount = 135,
+                sentimentScore = 0.8f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("dracula", "jonathan", "Imprisons & Feeds Off Fear", RelationType.RIVAL, 1.0f, -0.95f, listOf("A chilling host holding Harker hostage in the Carpathians.")),
+            RelationshipEdge("van_helsing", "mina", "Guides & Protects with Science", RelationType.MENTOR, 0.95f, 0.9f, listOf("United in forensic pursuit through telepathic hypnosis.")),
+            RelationshipEdge("jonathan", "mina", "Devoted Marital Union", RelationType.ROMANTIC, 1.0f, 0.95f, listOf("Steadfast devotion across terror and psychological torment.")),
+            RelationshipEdge("van_helsing", "dracula", "Metaphysical Duel", RelationType.RIVAL, 1.0f, -1.0f, listOf("Science and ancient ritual combined to cleanse the undead."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("drac_1", "Chapters 1-4", "Castle Dracula", PlotStage.EXPOSITION, "Harker travels to Transylvania and discovers Dracula's supernatural nature.", listOf("jonathan", "dracula"), ConflictType.PERSON_VS_PERSON, 0.4f, "The Count's hand was cold as ice—like a dead man's."),
+            PlotNode("drac_2", "Chapter 7", "The Demeter's Wreck at Whitby", PlotStage.INCITING_INCIDENT, "The ghost ship Demeter crashes at Whitby with the captain lashed dead to the helm.", listOf("dracula"), ConflictType.PERSON_VS_NATURE, 0.7f, "An immense dog sprang on deck and leapt ashore."),
+            PlotNode("drac_3", "Chapter 16", "The Holy Stake", PlotStage.RISING_ACTION, "Van Helsing and the men euthanize Lucy Westenra in her tomb.", listOf("van_helsing"), ConflictType.PERSON_VS_FATE, 0.85f, "Resting at last in peace."),
+            PlotNode("drac_4", "Chapter 21", "The Attack on Mina", PlotStage.CLIMAX, "Dracula forces Mina to drink his blood, establishing a psychic link.", listOf("dracula", "mina", "jonathan"), ConflictType.PERSON_VS_PERSON, 1.0f, "Flesh of my flesh, bone of my bone!"),
+            PlotNode("drac_5", "Chapter 27", "The Carpathian Pursuit", PlotStage.FALLING_ACTION, "The hunters intercept Dracula's box of earth as the sun sinks over the Borgo Pass.", listOf("jonathan", "mina", "dracula"), ConflictType.PERSON_VS_PERSON, 0.9f, "Before the sun dipped below the ridge."),
+            PlotNode("drac_6", "Chapter 27", "Ashes in the Snow", PlotStage.RESOLUTION, "Harker's kukri knife and Morris's bowie knife turn the Count to dust.", listOf("dracula", "jonathan", "mina"), ConflictType.PERSON_VS_FATE, 0.2f, "The whole body crumbled into dust and passed from our sight.")
+        )
+
+        return BookMindMap(
+            bookId = "cat-dracula",
+            bookTitle = "Dracula",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "The archetypal gothic battle between Victorian technological modernity and primordial eastern folklore."
+        )
+    }
+
+    private fun getPridePrejudiceMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "elizabeth",
+                name = "Elizabeth Bennet",
+                role = "Witty Second Daughter",
+                faction = "Longbourn Estate",
+                description = "Perceptive, quick-witted heroine whose prejudice blinds her to Darcy's genuine character.",
+                keyQuote = "I could easily forgive his pride, if he had not mortified mine.",
+                avatarEmoji = "📖",
+                xPercent = 0.35f,
+                yPercent = 0.35f,
+                significance = 1.35f,
+                mentionCount = 260,
+                sentimentScore = 0.8f
+            ),
+            CharacterNode(
+                id = "darcy",
+                name = "Fitzwilliam Darcy",
+                role = "Master of Pemberley",
+                faction = "Pemberley Estate",
+                description = "Proud, aristocratic landowner who learns humility through his love for Elizabeth.",
+                keyQuote = "You must allow me to tell you how ardently I admire and love you.",
+                avatarEmoji = "🎩",
+                xPercent = 0.65f,
+                yPercent = 0.35f,
+                significance = 1.35f,
+                mentionCount = 220,
+                sentimentScore = 0.7f
+            ),
+            CharacterNode(
+                id = "jane",
+                name = "Jane Bennet",
+                role = "Eldest Sister",
+                faction = "Longbourn Estate",
+                description = "Gentle and universally kind; sees only the best in every acquaintance.",
+                keyQuote = "She never sees a fault in anybody.",
+                avatarEmoji = "🌸",
+                xPercent = 0.20f,
+                yPercent = 0.75f,
+                significance = 1.1f,
+                mentionCount = 90,
+                sentimentScore = 0.95f
+            ),
+            CharacterNode(
+                id = "wickham",
+                name = "George Wickham",
+                role = "Charming Militia Officer",
+                faction = "Militia Regiment",
+                description = "Smooth-talking seducer whose agreeable manners mask financial greed and dishonesty.",
+                keyQuote = "One has got all the goodness, and the other all the appearance of it.",
+                avatarEmoji = "🎭",
+                xPercent = 0.80f,
+                yPercent = 0.75f,
+                significance = 1.15f,
+                mentionCount = 80,
+                sentimentScore = -0.7f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("darcy", "elizabeth", "Mutual Humility & Devoted Marriage", RelationType.ROMANTIC, 1.0f, 0.95f, listOf("Pride humbled, prejudice resolved into mutual respect.")),
+            RelationshipEdge("wickham", "darcy", "Slander & Old Resentment", RelationType.RIVAL, 0.9f, -0.9f, listOf("Wickham's attempts to seduce Georgiana Darcy and swindle the family.")),
+            RelationshipEdge("wickham", "elizabeth", "Early Deceptive Flirtation", RelationType.NEUTRAL, 0.75f, -0.2f, listOf("Elizabeth initially believing Wickham's false tale."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("pp_1", "Chapter 3", "The Meryton Assembly", PlotStage.EXPOSITION, "Darcy refuses to dance with Elizabeth, calling her 'tolerable, but not handsome enough to tempt me.'", listOf("elizabeth", "darcy"), ConflictType.PERSON_VS_PERSON, 0.3f, "She is tolerable; but not handsome enough to tempt me."),
+            PlotNode("pp_2", "Chapter 34", "The Disastrous First Proposal", PlotStage.INCITING_INCIDENT, "Darcy proposes at Hunsford Parsonage; Elizabeth vehemently rejects him.", listOf("darcy", "elizabeth"), ConflictType.PERSON_VS_PERSON, 0.8f, "You could not have made me the offer of your hand in any possible way that would have tempted me."),
+            PlotNode("pp_3", "Chapter 35", "Darcy's Vindication Letter", PlotStage.RISING_ACTION, "Darcy's letter reveals the true corrupt nature of Wickham and his motives regarding Bingley.", listOf("darcy", "elizabeth"), ConflictType.PERSON_VS_SELF, 0.6f, "Till this moment I never knew myself."),
+            PlotNode("pp_4", "Chapter 43", "The Visit to Pemberley", PlotStage.CLIMAX, "Elizabeth encounters the genuine benevolence of Darcy at his ancestral estate.", listOf("elizabeth", "darcy"), ConflictType.PERSON_VS_SELF, 0.75f, "To be mistress of Pemberley might be something!"),
+            PlotNode("pp_5", "Chapter 48", "Lydia's Elopement Salvaged", PlotStage.FALLING_ACTION, "Darcy secretly pays Wickham's debts to rescue the Bennet family from disgrace.", listOf("darcy", "wickham"), ConflictType.PERSON_VS_SOCIETY, 0.9f, "He did it all for her."),
+            PlotNode("pp_6", "Chapter 58", "The Second Proposal", PlotStage.RESOLUTION, "Elizabeth and Darcy confess their love on a walk through the Hertfordshire lanes.", listOf("elizabeth", "darcy"), ConflictType.PERSON_VS_PERSON, 0.1f, "My affections and wishes are unchanged.")
+        )
+
+        return BookMindMap(
+            bookId = "cat-pride-prejudice",
+            bookTitle = "Pride and Prejudice",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "A sparkling social satire of Regency manners, marriage as an economic transaction, and the necessity of self-knowledge."
+        )
+    }
+
+    private fun getBeyondGoodEvilMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "free_spirit",
+                name = "The Free Spirit",
+                role = "Philosopher of the Future",
+                faction = "Transvaluation of Values",
+                description = "Daring thinker who questions all moral dogma, truth claims, and herd conformism.",
+                keyQuote = "It is the business of the very few to be independent; it is a privilege of the strong.",
+                avatarEmoji = "🦅",
+                xPercent = 0.50f,
+                yPercent = 0.30f,
+                significance = 1.35f,
+                mentionCount = 140,
+                sentimentScore = 0.9f
+            ),
+            CharacterNode(
+                id = "will_to_power",
+                name = "The Will to Power",
+                role = "Foundational Life Force",
+                faction = "Cosmic Principle",
+                description = "The intrinsic driving energy of all organic life to grow, master, and overcome resistance.",
+                keyQuote = "Life itself is will to power; self-preservation is only one of the indirect results.",
+                avatarEmoji = "⚡",
+                xPercent = 0.50f,
+                yPercent = 0.75f,
+                significance = 1.3f,
+                mentionCount = 120,
+                sentimentScore = 0.85f
+            ),
+            CharacterNode(
+                id = "master_morality",
+                name = "Master Morality",
+                role = "Noble & Life-Affirming Value System",
+                faction = "Aristocratic Ethics",
+                description = "Values strength, excellence, beauty, and greatness; defines opposites as Good vs. Bad.",
+                keyQuote = "The noble type of man regards himself as a determiner of values.",
+                avatarEmoji = "👑",
+                xPercent = 0.20f,
+                yPercent = 0.55f,
+                significance = 1.15f,
+                mentionCount = 65,
+                sentimentScore = 0.7f
+            ),
+            CharacterNode(
+                id = "slave_morality",
+                name = "Slave Morality (Ressentiment)",
+                role = "Reactive Herd Morality",
+                faction = "The Herd",
+                description = "Born out of ressentiment against the strong; equates weakness with humility and power with evil.",
+                keyQuote = "The slave's eye is not favorable to the virtues of the powerful.",
+                avatarEmoji = "⛓️",
+                xPercent = 0.80f,
+                yPercent = 0.55f,
+                significance = 1.15f,
+                mentionCount = 70,
+                sentimentScore = -0.5f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("free_spirit", "will_to_power", "Harnesses for Intellectual Overcoming", RelationType.ALLY, 1.0f, 0.95f, listOf("A philosophy that embraces struggle and creative self-mastery.")),
+            RelationshipEdge("master_morality", "slave_morality", "Historical Cultural Dialectic", RelationType.RIVAL, 1.0f, -0.9f, listOf("The millennia-long struggle between Roman nobility and Judeo-Christian ressentiment.")),
+            RelationshipEdge("free_spirit", "slave_morality", "Critiques Unconscious Dogmatism", RelationType.RIVAL, 0.9f, -0.7f, listOf("Exposing the hidden will to power behind ascetic ideals."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("bge_1", "Chapter 1", "On the Prejudices of Philosophers", PlotStage.EXPOSITION, "Nietzsche interrogates why humanity has sought 'truth' rather than untruth and uncertainty.", listOf("free_spirit"), ConflictType.PERSON_VS_SOCIETY, 0.3f, "What really is this 'Will to Truth' in us?"),
+            PlotNode("bge_2", "Chapter 2", "The Free Spirit", PlotStage.INCITING_INCIDENT, "Distinguishing genuine trailblazing philosophers from mere academic scholars.", listOf("free_spirit"), ConflictType.PERSON_VS_SELF, 0.6f, "O sancta simplicitas! In what strange simplification man lives!"),
+            PlotNode("bge_3", "Chapter 5", "The Natural History of Morals", PlotStage.RISING_ACTION, "Unmasking ethical systems as physiological and psychological symptoms.", listOf("master_morality", "slave_morality"), ConflictType.PERSON_VS_SOCIETY, 0.8f, "Morality in Europe at present is herd-animal morality."),
+            PlotNode("bge_4", "Chapter 7", "Our Virtues", PlotStage.CLIMAX, "Elevating intellectual intellectual honesty and hardness over sentimental pity.", listOf("free_spirit", "will_to_power"), ConflictType.PERSON_VS_SELF, 0.9f, "To be severe against oneself; the discipline of great suffering."),
+            PlotNode("bge_5", "Chapter 9", "What is Noble?", PlotStage.FALLING_ACTION, "Delineating the characteristics of the elevated human being.", listOf("master_morality"), ConflictType.PERSON_VS_SOCIETY, 0.7f, "Every elevation of the type 'man' has hitherto been the work of an aristocratic society."),
+            PlotNode("bge_6", "From High Mountains", "Epode and Song", PlotStage.RESOLUTION, "A lyrical invocation of solitary mountain peaks and the arrival of new philosophical companions.", listOf("free_spirit"), ConflictType.PERSON_VS_FATE, 0.1f, "Noon of life! A second time of youth!")
+        )
+
+        return BookMindMap(
+            bookId = "cat-beyond-good-evil",
+            bookTitle = "Beyond Good and Evil",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "A radical polemic dissecting dogmatic metaphysics, the psychology of morals, and the dawn of free thinkers."
+        )
+    }
+
+    private fun getRepublicMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "socrates",
+                name = "Socrates",
+                role = "Philosophical Inquirer",
+                faction = "The Dialectic",
+                description = "Guides the conversation using the elenchus method to define justice and the ideal Kallipolis.",
+                keyQuote = "The unexamined life is not worth living.",
+                avatarEmoji = "🏛️",
+                xPercent = 0.50f,
+                yPercent = 0.35f,
+                significance = 1.35f,
+                mentionCount = 250,
+                sentimentScore = 0.9f
+            ),
+            CharacterNode(
+                id = "glaucon",
+                name = "Glaucon",
+                role = "Spirited Interlocutor",
+                faction = "The Youth of Athens",
+                description = "Plato's brother; presents the Ring of Gyges challenge to test if justice is valued for its own sake.",
+                keyQuote = "They say that to do injustice is good, but to suffer injustice is evil.",
+                avatarEmoji = "🛡️",
+                xPercent = 0.20f,
+                yPercent = 0.65f,
+                significance = 1.2f,
+                mentionCount = 130,
+                sentimentScore = 0.7f
+            ),
+            CharacterNode(
+                id = "thrasymachus",
+                name = "Thrasymachus",
+                role = "Sophist & Realist",
+                faction = "The Sophists",
+                description = "Asserts that justice is merely the advantage of the stronger.",
+                keyQuote = "Justice is nothing else than the interest of the stronger.",
+                avatarEmoji = "⚡",
+                xPercent = 0.80f,
+                yPercent = 0.65f,
+                significance = 1.15f,
+                mentionCount = 60,
+                sentimentScore = -0.6f
+            ),
+            CharacterNode(
+                id = "philosopher_king",
+                name = "The Philosopher-King",
+                role = "Ideal Ruler",
+                faction = "Kallipolis Guardians",
+                description = "Ruled by reason and knowledge of the Form of the Good; reluctantly governs without personal greed.",
+                keyQuote = "Until philosophers are kings, cities will never have rest from their evils.",
+                avatarEmoji = "👑",
+                xPercent = 0.50f,
+                yPercent = 0.80f,
+                significance = 1.25f,
+                mentionCount = 85,
+                sentimentScore = 0.95f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("socrates", "thrasymachus", "Refutes Might-Makes-Right Sophistry", RelationType.RIVAL, 0.95f, -0.5f, listOf("A fierce dialectical clash over the true ruler's benefit.")),
+            RelationshipEdge("socrates", "glaucon", "Constructs the Ideal City in Speech", RelationType.MENTOR, 1.0f, 0.9f, listOf("Examining the three parts of the soul: rational, spirited, appetitive.")),
+            RelationshipEdge("socrates", "philosopher_king", "Envisions Enlightened Governance", RelationType.ALLY, 0.9f, 1.0f, listOf("The rule of reason guided by the Form of the Good."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("rep_1", "Book I", "The Challenge of Thrasymachus", PlotStage.EXPOSITION, "Thrasymachus roars into the debate claiming justice is solely the advantage of the stronger.", listOf("socrates", "thrasymachus"), ConflictType.PERSON_VS_PERSON, 0.4f, "Justice is nothing else than the interest of the stronger."),
+            PlotNode("rep_2", "Book II", "The Ring of Gyges", PlotStage.INCITING_INCIDENT, "Glaucon asks whether any human would remain just if given invisibility and total impunity.", listOf("socrates", "glaucon"), ConflictType.PERSON_VS_SELF, 0.6f, "No man would keep his hands off what was not his own."),
+            PlotNode("rep_3", "Book IV", "The Tripartite Soul and City", PlotStage.RISING_ACTION, "Justice is defined as every part of the city and soul performing its own proper function.", listOf("socrates"), ConflictType.PERSON_VS_SELF, 0.75f, "Justice is minding one's own business."),
+            PlotNode("rep_4", "Book VII", "The Allegory of the Cave", PlotStage.CLIMAX, "The journey of the prisoner from chained darkness to the blinding sunlight of truth.", listOf("socrates", "glaucon"), ConflictType.PERSON_VS_SOCIETY, 1.0f, "And they see only their own shadows on the wall of the cave."),
+            PlotNode("rep_5", "Book VIII", "The Degeneration of Regimes", PlotStage.FALLING_ACTION, "The decay from Aristocracy to Timocracy, Oligarchy, Democracy, and finally Tyranny.", listOf("socrates"), ConflictType.PERSON_VS_SOCIETY, 0.8f, "Extreme freedom leads to nothing other than extreme slavery."),
+            PlotNode("rep_6", "Book X", "The Myth of Er", PlotStage.RESOLUTION, "The cosmic vision of reincarnation and the eternal responsibility for choosing one's destiny.", listOf("socrates"), ConflictType.PERSON_VS_FATE, 0.2f, "Let us hold fast to the upward path and pursue justice and wisdom.")
+        )
+
+        return BookMindMap(
+            bookId = "cat-republic",
+            bookTitle = "The Republic",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "The foundational Socratic dialogue examining individual justice, psychological harmony, censorship, and ideal statecraft."
+        )
+    }
+
+    private fun getLettersStoicMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "seneca",
+                name = "Lucius Annaeus Seneca",
+                role = "Stoic Statesman & Philosopher",
+                faction = "Rome / Campania",
+                description = "Imperial advisor offering seasoned pragmatic counsel on mastering time, wealth, and fear.",
+                keyQuote = "Hold every hour in your grasp. While we are postponing, life speeds by.",
+                avatarEmoji = "📜",
+                xPercent = 0.35f,
+                yPercent = 0.35f,
+                significance = 1.35f,
+                mentionCount = 180,
+                sentimentScore = 0.95f
+            ),
+            CharacterNode(
+                id = "lucilius",
+                name = "Lucilius Junior",
+                role = "Procurator of Sicily & Friend",
+                faction = "Sicily",
+                description = "Seneca's younger friend and philosophical correspondent seeking steadfast tranquility.",
+                keyQuote = "Judging by what you write me, I am full of good hope for your progress.",
+                avatarEmoji = "✉️",
+                xPercent = 0.65f,
+                yPercent = 0.35f,
+                significance = 1.2f,
+                mentionCount = 120,
+                sentimentScore = 0.8f
+            ),
+            CharacterNode(
+                id = "tranquility",
+                name = "Tranquility (Ataraxia)",
+                role = "Stoic Peace of Mind",
+                faction = "Inner State",
+                description = "Freedom from emotional disturbance achieved through rational judgment and moderation.",
+                keyQuote = "A well-ordered mind is a man's ability to remain in one place and linger in his own company.",
+                avatarEmoji = "🧘",
+                xPercent = 0.50f,
+                yPercent = 0.75f,
+                significance = 1.25f,
+                mentionCount = 90,
+                sentimentScore = 1.0f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("seneca", "lucilius", "Philosophical Mentorship & Friendship", RelationType.MENTOR, 1.0f, 0.95f, listOf("124 letters providing an intimate guide to virtuous living.")),
+            RelationshipEdge("seneca", "tranquility", "Cultivates Through Daily Practice", RelationType.ALLY, 0.95f, 0.9f, listOf("Practice poverty, face mortality, and detach from public fortune."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("sen_1", "Letter 1", "On Saving Time", PlotStage.EXPOSITION, "Seneca urges Lucilius to reclaim his hours from carelessness and postponement.", listOf("seneca", "lucilius"), ConflictType.PERSON_VS_SELF, 0.2f, "All things are another's, Lucilius; time alone is ours."),
+            PlotNode("sen_2", "Letter 2", "On Discursiveness in Reading", PlotStage.INCITING_INCIDENT, "Warning against flitting between hundreds of books without digesting the master thinkers.", listOf("seneca", "lucilius"), ConflictType.PERSON_VS_SELF, 0.4f, "To be everywhere is to be nowhere."),
+            PlotNode("sen_3", "Letter 18", "On Festivals and Fasting", PlotStage.RISING_ACTION, "Practicing periods of voluntary poverty to inoculate oneself against fear of ruin.", listOf("seneca"), ConflictType.PERSON_VS_SELF, 0.65f, "Is this the condition that I feared?"),
+            PlotNode("sen_4", "Letter 28", "On Travel as a Cure for Discontent", PlotStage.CLIMAX, "Explaining that changing skies does not cure internal turmoil; you take yourself wherever you go.", listOf("seneca", "lucilius"), ConflictType.PERSON_VS_SELF, 0.8f, "You must change the spirit, not the climate."),
+            PlotNode("sen_5", "Letter 70", "On the Proper Time to Slip the Cable", PlotStage.FALLING_ACTION, "Facing mortality and retaining sovereign autonomy over one's life and exit.", listOf("seneca"), ConflictType.PERSON_VS_FATE, 0.7f, "Life is not to be bought at any price."),
+            PlotNode("sen_6", "Letter 124", "On the True Good", PlotStage.RESOLUTION, "The true good is found only in the rational soul, independent of sensory pleasures.", listOf("seneca", "lucilius"), ConflictType.PERSON_VS_SELF, 0.1f, "Seek the good where reason alone discerns it.")
+        )
+
+        return BookMindMap(
+            bookId = "cat-letters-stoic",
+            bookTitle = "Letters from a Stoic",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "A masterclass in practical Stoicism emphasizing time stewardship, financial detachment, resilience, and serene companionship."
+        )
+    }
+
+    private fun getDorianGrayMap(): BookMindMap {
+        val nodes = listOf(
+            CharacterNode(
+                id = "dorian",
+                name = "Dorian Gray",
+                role = "Ageless Hedonist",
+                faction = "Mayfair Society",
+                description = "Corrupted by Lord Henry's aesthetic hedonism while his hidden portrait absorbs his sins.",
+                keyQuote = "If it were I who was to be always young, and the picture that was to grow old!",
+                avatarEmoji = "🖼️",
+                xPercent = 0.50f,
+                yPercent = 0.35f,
+                significance = 1.35f,
+                mentionCount = 240,
+                sentimentScore = -0.6f
+            ),
+            CharacterNode(
+                id = "lord_henry",
+                name = "Lord Henry Wotton",
+                role = "Cynical Hedonist & Mentor",
+                faction = "High Society",
+                description = "Brilliant, amoral aristocrat whose aphorisms seduce Dorian into absolute indulgence.",
+                keyQuote = "The only way to get rid of a temptation is to yield to it.",
+                avatarEmoji = "🚬",
+                xPercent = 0.20f,
+                yPercent = 0.65f,
+                significance = 1.3f,
+                mentionCount = 180,
+                sentimentScore = 0.2f
+            ),
+            CharacterNode(
+                id = "basil",
+                name = "Basil Hallward",
+                role = "Devoted Artist & Conscience",
+                faction = "The Studio",
+                description = "Painter whose idolization of Dorian created the masterpiece; urges Dorian to repent.",
+                keyQuote = "I have worshipped you with far more romance of feeling than a man usually gives to a friend.",
+                avatarEmoji = "🎨",
+                xPercent = 0.80f,
+                yPercent = 0.65f,
+                significance = 1.2f,
+                mentionCount = 110,
+                sentimentScore = 0.7f
+            ),
+            CharacterNode(
+                id = "sibyl",
+                name = "Sibyl Vane",
+                role = "Tragic Actress",
+                faction = "The Slum Theatre",
+                description = "Pure-hearted young actress whose genuine love destroys her acting ability, prompting Dorian's cruel rejection.",
+                keyQuote = "You have killed my love. You used to stir my imagination. Now you are simply shallow.",
+                avatarEmoji = "🎭",
+                xPercent = 0.50f,
+                yPercent = 0.80f,
+                significance = 1.1f,
+                mentionCount = 75,
+                sentimentScore = 0.5f
+            )
+        )
+
+        val edges = listOf(
+            RelationshipEdge("lord_henry", "dorian", "Corrupting Philosophical Influence", RelationType.MENTOR, 1.0f, -0.4f, listOf("Pouring poisoned aesthetic theories into Dorian's impressionable ears.")),
+            RelationshipEdge("basil", "dorian", "Artistic Worship & Tragic Conscience", RelationType.ALLY, 0.95f, 0.6f, listOf("Basil's adoration yields the supernatural canvas.")),
+            RelationshipEdge("dorian", "sibyl", "Cruel Abandonment Leading to Tragedy", RelationType.ROMANTIC, 0.85f, -0.8f, listOf("The catalyst that causes the portrait's first sneer of cruelty.")),
+            RelationshipEdge("dorian", "basil", "Murder in the Locked Schoolroom", RelationType.RIVAL, 1.0f, -1.0f, listOf("Dorian murders Basil after revealing the rotten portrait."))
+        )
+
+        val plotPoints = listOf(
+            PlotNode("dg_1", "Chapter 1", "The Studio and the Portrait", PlotStage.EXPOSITION, "Basil reveals his portrait of Dorian Gray and warns Lord Henry not to corrupt him.", listOf("basil", "lord_henry"), ConflictType.PERSON_VS_PERSON, 0.2f, "There is only one thing in the world worse than being talked about, and that is not being talked about."),
+            PlotNode("dg_2", "Chapter 2", "The Faustian Wish", PlotStage.INCITING_INCIDENT, "Under Lord Henry's influence, Dorian wishes to remain forever young while the painting bears his age.", listOf("dorian", "lord_henry"), ConflictType.PERSON_VS_SELF, 0.6f, "I would give my soul for that!"),
+            PlotNode("dg_3", "Chapter 7", "The Cruel Words to Sibyl", PlotStage.RISING_ACTION, "Dorian brutally abandons Sibyl; returning home, he notices the portrait's first sneer.", listOf("dorian", "sibyl"), ConflictType.PERSON_VS_PERSON, 0.75f, "A touch of cruelty in the mouth."),
+            PlotNode("dg_4", "Chapter 13", "The Murder of Basil Hallward", PlotStage.CLIMAX, "Dorian shows the rotting canvas to Basil and stabs him in a frenzied rage.", listOf("dorian", "basil"), ConflictType.PERSON_VS_PERSON, 1.0f, "A cry of terror broke from the painter's lips."),
+            PlotNode("dg_5", "Chapter 18", "The Fear of Death", PlotStage.FALLING_ACTION, "Paranoia consumes Dorian as he encounters James Vane in the opium dens.", listOf("dorian"), ConflictType.PERSON_VS_SELF, 0.85f, "Conscience had turned every shadow into an avenger."),
+            PlotNode("dg_6", "Chapter 20", "The Knife in the Heart", PlotStage.RESOLUTION, "Dorian slashes the painting to destroy his conscience, killing himself in the act.", listOf("dorian"), ConflictType.PERSON_VS_SELF, 0.1f, "Lying on the floor was a dead man, in evening dress, with a knife in his heart. He was withered, wrinkled, and loathsome of visage.")
+        )
+
+        return BookMindMap(
+            bookId = "cat-dorian-gray",
+            bookTitle = "The Picture of Dorian Gray",
+            nodes = nodes,
+            edges = edges,
+            plotPoints = plotPoints,
+            thematicSummary = "A cautionary masterpiece on aesthetic decadence, the duplicity of Victorian respectability, and the mortal cost of hedonism."
         )
     }
 }

@@ -108,7 +108,7 @@ fun VoiceNarratorStudioDialog(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "AI Voice Narration Profile Studio",
+                                text = "Voice Calibration & Acoustic Studio",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalPrimary
                             )

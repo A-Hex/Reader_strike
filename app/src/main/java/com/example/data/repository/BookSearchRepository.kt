@@ -26,12 +26,14 @@ class BookSearchRepository(
 
         val remoteResults = searchService.searchAllSources(query)
         val localBooks = bookDao.getAllBooks().first().map { it.toModel() }
-        val localTitles = localBooks.map { it.title.trim().lowercase() }.toSet()
+        val localTitles = localBooks.map { com.example.util.TextNormalizer.normalize(it.title) }.toSet()
         val localStableIds = localBooks.mapNotNull { it.tags.find { tag -> tag.startsWith("src_id:") }?.removePrefix("src_id:") }.toSet()
 
         return@withContext remoteResults.map { remote ->
+            val normRemoteTitle = com.example.util.TextNormalizer.normalize(remote.title)
             val isInLib = localStableIds.contains(remote.stableId) ||
-                    localTitles.contains(remote.title.trim().lowercase())
+                    localTitles.contains(normRemoteTitle) ||
+                    localBooks.any { com.example.util.TextNormalizer.matches(it.title, remote.title) }
             remote.copy(isAlreadyInLibrary = isInLib)
         }
     }
@@ -60,7 +62,17 @@ class BookSearchRepository(
             } else {
                 // If there's no direct download link (preview / metadata only), synthesize an initial e-book container
                 val sampleContent = "Title: ${result.title}\nAuthor: ${result.authorDisplay}\nSource: ${result.source}\n\n${result.description}\n\nThis book is available via ${result.source} preview.\nPreview URL: ${result.previewUrl ?: result.infoUrl ?: "N/A"}"
-                targetFile.writeText(sampleContent, Charsets.UTF_8)
+                if (result.format == BookFormat.PDF) {
+                    com.example.reader.PdfGeneratorHelper.generatePdfDocument(
+                        outputFile = targetFile,
+                        title = result.title,
+                        author = result.authorDisplay,
+                        content = sampleContent,
+                        languageCode = result.languageCode ?: "en"
+                    )
+                } else {
+                    targetFile.writeText(sampleContent, Charsets.UTF_8)
+                }
             }
 
             onProgress(0.85f)

@@ -388,7 +388,7 @@ object AiReadingAssistantEngine {
         val sb = StringBuilder()
         if (isAr) {
             val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
-            sb.append("🤖 **إجابة المساعد الذكي عن: \"$query\"**\n\n")
+            sb.append("📘 **تحليل واستكشاف النص: \"$query\"**\n\n")
             sb.append("في كتاب *${book.title}* ($cleanTitle):\n\n")
 
             if (matchingSentences.isNotEmpty()) {
@@ -405,7 +405,7 @@ object AiReadingAssistantEngine {
                 sb.append("💡 **الخلاصة**: يركز النص على أهمية التفكير النقدي، والمسؤولية الأخلاقية، والقدرة على مواجهة التحديات بوعي وثبات.")
             }
         } else {
-            sb.append("🤖 **AI Assistant Response for: \"$query\"**\n\n")
+            sb.append("📘 **Text Analysis & Findings: \"$query\"**\n\n")
             sb.append("In *${book.title}* (${chapterTitle}):\n\n")
 
             if (matchingSentences.isNotEmpty()) {

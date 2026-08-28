@@ -68,10 +68,6 @@ fun ReaderScreen(
         onClose()
     }
 
-    BackHandler {
-        handleClose()
-    }
-
     val facePresenceState by viewModel.facePresenceEngine.presenceState.collectAsState()
     val isFaceAssistedEnabled by viewModel.isFaceAssistedEnabled.collectAsState()
 
@@ -94,6 +90,27 @@ fun ReaderScreen(
     var showEpubExport by remember { mutableStateOf(false) }
     var showVoiceStudioDialog by remember { mutableStateOf(false) }
     var selectedTextForHighlight by remember { mutableStateOf("") }
+
+    BackHandler {
+        when {
+            showThemeSheet -> showThemeSheet = false
+            showTocSheet -> showTocSheet = false
+            showSearchSheet -> showSearchSheet = false
+            showHighlightSheet -> showHighlightSheet = false
+            showReviewsSheet -> showReviewsSheet = false
+            showShareModal -> showShareModal = false
+            showSpeedReader -> showSpeedReader = false
+            showAiAssistant -> showAiAssistant = false
+            showSoundscapes -> showSoundscapes = false
+            showWordInspector.isNotEmpty() -> showWordInspector = ""
+            showVocabVault -> showVocabVault = false
+            showMindMap -> showMindMap = false
+            showEpubExport -> showEpubExport = false
+            showVoiceStudioDialog -> showVoiceStudioDialog = false
+            showTtsBar -> showTtsBar = false
+            else -> handleClose()
+        }
+    }
 
     val ttsEngineState by viewModel.ttsManager.engineState.collectAsState()
     val ttsPlaying = ttsEngineState is com.example.reader.TtsEngineState.Playing
@@ -147,32 +164,26 @@ fun ReaderScreen(
     var pdfBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isPdfLoading by remember { mutableStateOf(false) }
     var pdfErrorMessage by remember { mutableStateOf<String?>(null) }
+    var preferPdfTextMode by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentBookObj.id, currentPage) {
+    LaunchedEffect(currentBookObj.id, currentPage, currentBookObj.localFilePath) {
         if (currentBookObj.format == BookFormat.PDF) {
             isPdfLoading = true
             pdfErrorMessage = null
-            if (currentBookObj.localFilePath != null) {
-                val file = File(currentBookObj.localFilePath)
-                if (file.exists()) {
-                    when (val openResult = viewModel.pdfManager.openPdfFile(file)) {
-                        is PdfLoadResult.Success -> {
-                            val rendered = viewModel.pdfManager.renderPage(currentPage - 1, 1080)
-                            if (rendered != null) {
-                                pdfBitmap = rendered
-                            } else {
-                                pdfErrorMessage = "Could not render PDF page $currentPage"
-                            }
-                        }
-                        is PdfLoadResult.Error -> {
-                            pdfErrorMessage = openResult.message
-                        }
+            when (val openResult = viewModel.pdfManager.openBookPdf(currentBookObj, chapters)) {
+                is PdfLoadResult.Success -> {
+                    val rendered = viewModel.pdfManager.renderPage(currentPage - 1, 1080)
+                    if (rendered != null) {
+                        pdfBitmap = rendered
+                        pdfErrorMessage = null
+                    } else {
+                        pdfBitmap = null
                     }
-                } else {
-                    pdfErrorMessage = "PDF file not found."
                 }
-            } else {
-                pdfErrorMessage = "No local file for PDF sample rendering."
+                is PdfLoadResult.Error -> {
+                    pdfBitmap = null
+                    pdfErrorMessage = openResult.message
+                }
             }
             isPdfLoading = false
         }
@@ -214,8 +225,8 @@ fun ReaderScreen(
                 // Spacer for Top Bar
                 Spacer(modifier = Modifier.height(if (showControls) 70.dp else 24.dp))
 
-                if (currentBookObj.format == BookFormat.PDF) {
-                    // PDF Viewer
+                if (currentBookObj.format == BookFormat.PDF && !preferPdfTextMode && pdfBitmap != null) {
+                    // PDF Page Visual Viewer Mode
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -225,37 +236,54 @@ fun ReaderScreen(
                     ) {
                         if (isPdfLoading) {
                             CircularProgressIndicator(color = activeTheme.accentColor)
-                        } else if (pdfBitmap != null) {
-                            Image(
-                                bitmap = pdfBitmap!!.asImageBitmap(),
-                                contentDescription = "PDF Page $currentPage",
-                                colorFilter = com.example.util.ThemeManager.getPdfColorFilter(activeTheme),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(8.dp))
-                            )
-                        } else if (pdfErrorMessage != null) {
+                        } else {
                             Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(24.dp)
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = activeTheme.accentColor, modifier = Modifier.size(36.dp))
-                                Text(
-                                    text = "PDF Viewer Notice",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = activeTheme.textColor)
-                                )
-                                Text(
-                                    text = pdfErrorMessage ?: "Failed to display PDF",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = activeTheme.textColor.copy(alpha = 0.8f),
-                                    textAlign = TextAlign.Center
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        bitmap = pdfBitmap!!.asImageBitmap(),
+                                        contentDescription = "PDF Page $currentPage",
+                                        colorFilter = com.example.util.ThemeManager.getPdfColorFilter(activeTheme),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                }
+
+                                // Quick mode switch banner at bottom of page view
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${AppStrings.get("toc_page", currentLanguage)} $currentPage / ${currentBookObj.totalPages}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = activeTheme.textColor.copy(alpha = 0.7f)
+                                    )
+                                    TextButton(
+                                        onClick = { preferPdfTextMode = true },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(Icons.Default.Subject, contentDescription = null, modifier = Modifier.size(16.dp), tint = activeTheme.accentColor)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(AppStrings.get("pdf_fluid_switch", currentLanguage), style = MaterialTheme.typography.labelSmall, color = activeTheme.accentColor)
+                                    }
+                                }
                             }
                         }
                     }
                 } else {
-                    // EPUB & TXT Fluid Typography Viewer
+                    // Fluid Typography Viewer (for EPUB, TXT, and PDF Text Mode)
                     val activeChapter = chapters.getOrNull(currentChapterIndex) ?: BookChapter(0, "Chapter", "No text content found.")
                     val paragraphs = remember(activeChapter.content) {
                         val doubleSplit = activeChapter.content.split("\n\n").map { it.trim() }.filter { it.isNotBlank() }
@@ -276,8 +304,59 @@ fun ReaderScreen(
                                 .padding(horizontal = readerPreferences.horizontalMarginDp.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            // PDF mode toggle banner if PDF book
+                            if (currentBookObj.format == BookFormat.PDF) {
+                                item {
+                                    Surface(
+                                        color = activeTheme.surfaceColor.copy(alpha = 0.8f),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(Icons.Default.AutoStories, contentDescription = null, tint = activeTheme.accentColor, modifier = Modifier.size(18.dp))
+                                                Text(
+                                                    text = AppStrings.get("pdf_fluid_reader_title", currentLanguage),
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                    color = activeTheme.textColor
+                                                )
+                                            }
+                                            if (pdfBitmap != null) {
+                                                FilledTonalButton(
+                                                    onClick = { preferPdfTextMode = false },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                                ) {
+                                                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(AppStrings.get("pdf_page_view_switch", currentLanguage), fontSize = 12.sp)
+                                                }
+                                            } else {
+                                                OutlinedButton(
+                                                    onClick = { viewModel.repairBookPdf(currentBookObj) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Render PDF", fontSize = 12.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             item {
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = activeChapter.title,
                                     style = MaterialTheme.typography.headlineSmall.copy(
@@ -288,7 +367,7 @@ fun ReaderScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
 
                             itemsIndexed(paragraphs) { pIdx, paragraph ->
@@ -428,12 +507,22 @@ fun ReaderScreen(
 
                         // Action Icons
                         Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                            if (currentBookObj.format == BookFormat.PDF) {
+                                IconButton(onClick = { preferPdfTextMode = !preferPdfTextMode }) {
+                                    Icon(
+                                        if (preferPdfTextMode) Icons.Default.PictureAsPdf else Icons.Default.Subject,
+                                        contentDescription = "Switch PDF View Mode",
+                                        tint = activeTheme.accentColor
+                                    )
+                                }
+                            }
+
                             IconButton(onClick = { showSoundscapes = true }) {
                                 Icon(Icons.Default.Headphones, contentDescription = "Ambient Soundscapes", tint = NaturalForestAccent)
                             }
 
                             IconButton(onClick = { showAiAssistant = true }) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = "AI Reading Assistant", tint = NaturalOchreAccent)
+                                Icon(Icons.Default.AutoAwesome, contentDescription = "Reading Companion & Guide", tint = NaturalOchreAccent)
                             }
 
                             IconButton(onClick = { showMindMap = true }) {
@@ -604,6 +693,7 @@ fun ReaderScreen(
         if (showThemeSheet) {
             ReaderThemeSheet(
                 preferences = readerPreferences,
+                currentLanguage = currentLanguage,
                 onUpdateTheme = { viewModel.updateReaderTheme(it) },
                 onSelectReadingMode = { viewModel.selectReadingMode(it) },
                 onUpdateFontSize = { viewModel.updateFontSize(it) },
@@ -624,6 +714,7 @@ fun ReaderScreen(
                 currentChapterIndex = currentChapterIndex,
                 bookmarks = bookmarks,
                 highlights = highlights,
+                currentLanguage = currentLanguage,
                 onSelectChapter = { index -> viewModel.selectChapter(index) },
                 onSelectBookmark = { bm -> viewModel.setPage(bm.page) },
                 onDismiss = { showTocSheet = false }
@@ -634,8 +725,10 @@ fun ReaderScreen(
             InBookSearchDialog(
                 searchQuery = inBookSearchQuery,
                 results = inBookSearchResults,
+                currentLanguage = currentLanguage,
                 onQueryChange = { viewModel.searchInCurrentBook(it) },
-                onSelectResult = { _ ->
+                onSelectResult = { match ->
+                    viewModel.selectChapter(match.chapterIndex)
                     showSearchSheet = false
                 },
                 onDismiss = { showSearchSheet = false }
@@ -696,7 +789,7 @@ fun ReaderScreen(
                 onDismiss = { showAiAssistant = false },
                 onSaveToNotes = { noteText ->
                     viewModel.addHighlight(
-                        text = "${activeChapter.title} - AI Insight",
+                        text = "${activeChapter.title} - Study Notes",
                         note = noteText,
                         color = HighlightColor.AMBER
                     )

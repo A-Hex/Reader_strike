@@ -99,6 +99,7 @@ fun LibraryScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(
                 modifier = Modifier
@@ -242,7 +243,7 @@ fun LibraryScreen(
                         FilterChip(
                             selected = isSelected,
                             onClick = { viewModel.setSelectedStatus(status) },
-                            label = { Text(status.displayName, fontSize = 12.sp) },
+                            label = { Text(status.getLocalizedTitle(currentLanguage), fontSize = 12.sp) },
                             leadingIcon = if (isSelected) {
                                 { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             } else null,
@@ -273,7 +274,7 @@ fun LibraryScreen(
                         FilterChip(
                             selected = selectedFormat == null,
                             onClick = { viewModel.setSelectedFormat(null) },
-                            label = { Text("All", fontSize = 11.sp) },
+                            label = { Text(AppStrings.get("filter_all", currentLanguage), fontSize = 11.sp) },
                             shape = RoundedCornerShape(10.dp),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = NaturalDarkSurfaceElevated,
@@ -322,7 +323,7 @@ fun LibraryScreen(
                                                 if (selectedSort == option) {
                                                     Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = NaturalPrimary)
                                                 }
-                                                Text(option.displayName)
+                                                Text(option.getLocalizedTitle(currentLanguage))
                                             }
                                         },
                                         onClick = {
@@ -637,25 +638,41 @@ fun LibraryScreen(
                         )
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "No matching books found" else "No books in this shelf",
+                            text = if (searchQuery.isNotEmpty()) "No local books found for \"$searchQuery\"" else "No books in this shelf",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "Try searching for a different title or keyword" else "Import local EPUB/PDF/TXT files or browse the free classics store.",
+                            text = if (searchQuery.isNotEmpty()) "You can search online libraries (Noor Book & Project Gutenberg) for free editions." else "Import local EPUB/PDF/TXT files or browse the free classics store.",
                             style = MaterialTheme.typography.bodySmall,
                             color = NaturalDarkTextMuted,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = onNavigateToDiscover,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary, contentColor = NaturalOnPrimary)
-                        ) {
-                            Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Browse Free Classics", fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (searchQuery.isNotEmpty()) {
+                                Button(
+                                    onClick = { showTrustedSearchDialog = true },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary, contentColor = NaturalOnPrimary)
+                                ) {
+                                    Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Search Online", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Button(
+                                onClick = onNavigateToDiscover,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (searchQuery.isNotEmpty()) MaterialTheme.colorScheme.surfaceVariant else NaturalPrimary,
+                                    contentColor = if (searchQuery.isNotEmpty()) MaterialTheme.colorScheme.onSurface else NaturalOnPrimary
+                                )
+                            ) {
+                                Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Browse Classics", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

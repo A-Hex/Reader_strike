@@ -25,6 +25,8 @@ import com.example.model.FontFamilyPreference
 import com.example.model.ReaderPreferences
 import com.example.model.ReaderTheme
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.util.ReadingMode
 import com.example.util.ThemeManager
 
@@ -32,6 +34,7 @@ import com.example.util.ThemeManager
 @Composable
 fun ReaderThemeSheet(
     preferences: ReaderPreferences,
+    currentLanguage: AppLanguage = AppLanguage.ENGLISH,
     onUpdateTheme: (String) -> Unit,
     onSelectReadingMode: (ReadingMode) -> Unit,
     onUpdateFontSize: (Float) -> Unit,
@@ -67,12 +70,12 @@ fun ReaderThemeSheet(
             ) {
                 Column {
                     Text(
-                        text = "Reader Customization",
+                        text = AppStrings.get("customizer_title", currentLanguage),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     if (!bookTitle.isNullOrBlank()) {
                         Text(
-                            text = "Settings saved for $bookTitle",
+                            text = AppStrings.get("customizer_saved_for", currentLanguage, bookTitle),
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalPrimary
                         )
@@ -83,7 +86,7 @@ fun ReaderThemeSheet(
             // Quick 3-Segment Reading Mode Switcher (Light / Sepia / Dark)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Reading Mode",
+                    text = AppStrings.get("mode_reading", currentLanguage),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, color = NaturalDarkTextMuted)
                 )
 
@@ -118,7 +121,7 @@ fun ReaderThemeSheet(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = mode.displayName,
+                                    text = mode.getLocalizedTitle(currentLanguage),
                                     fontSize = 13.sp,
                                     fontWeight = if (isModeSelected) FontWeight.Bold else FontWeight.Medium
                                 )
@@ -128,10 +131,10 @@ fun ReaderThemeSheet(
                 }
             }
 
-            // Theme Color Palettes (With Light / Sepia / Dark grouping badges)
+            // Theme Color Palettes
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Theme Palette (${currentTheme.name})",
+                    text = "${AppStrings.get("theme_options", currentLanguage)} (${currentTheme.name})",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, color = NaturalDarkTextMuted)
                 )
                 LazyRow(
@@ -189,7 +192,7 @@ fun ReaderThemeSheet(
             // Font Family
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Typography Font",
+                    text = AppStrings.get("font_family_title", currentLanguage),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, color = NaturalDarkTextMuted)
                 )
                 Row(
@@ -203,7 +206,7 @@ fun ReaderThemeSheet(
                             onClick = { onUpdateFontFamily(font) },
                             label = {
                                 Text(
-                                    text = font.displayName.substringBefore(" ("),
+                                    text = font.getLocalizedTitle(currentLanguage).substringBefore(" ("),
                                     fontSize = 12.sp
                                 )
                             },
@@ -237,7 +240,7 @@ fun ReaderThemeSheet(
                     ) {
                         Icon(Icons.Default.FormatSize, contentDescription = null, tint = NaturalPrimary, modifier = Modifier.size(18.dp))
                         Text(
-                            text = "Font Size (${preferences.fontSizeSp.toInt()} sp)",
+                            text = "${AppStrings.get("font_size", currentLanguage)} (${preferences.fontSizeSp.toInt()} sp)",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                     }
@@ -282,7 +285,7 @@ fun ReaderThemeSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Line Height Spacing",
+                        text = AppStrings.get("line_spacing_title", currentLanguage),
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, color = NaturalDarkTextMuted)
                     )
                     Text(
@@ -327,12 +330,12 @@ fun ReaderThemeSheet(
                     ) {
                         Column {
                             Text(
-                                text = "Navigation",
+                                text = AppStrings.get("nav_mode_title", currentLanguage),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalDarkTextMuted
                             )
                             Text(
-                                text = if (preferences.isPagedMode) "Page Turn" else "Continuous",
+                                text = if (preferences.isPagedMode) AppStrings.get("nav_page_turn", currentLanguage) else AppStrings.get("nav_continuous", currentLanguage),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                 color = NaturalDarkText
                             )
@@ -366,12 +369,12 @@ fun ReaderThemeSheet(
                     ) {
                         Column {
                             Text(
-                                text = "Warm Filter",
+                                text = AppStrings.get("warm_filter_title", currentLanguage),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalDarkTextMuted
                             )
                             Text(
-                                text = if (preferences.isNightLightFilter) "Amber On" else "Off",
+                                text = if (preferences.isNightLightFilter) AppStrings.get("filter_amber_on", currentLanguage) else AppStrings.get("filter_amber_off", currentLanguage),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                 color = NaturalDarkText
                             )

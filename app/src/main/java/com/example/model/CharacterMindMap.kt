@@ -82,5 +82,5 @@ data class BookMindMap(
     val plotPoints: List<PlotNode> = emptyList(),
     val thematicSummary: String,
     val analyzedAt: Long = System.currentTimeMillis(),
-    val detectionEngine: String = "100% On-Device Local AI NLP Detector"
+    val detectionEngine: String = "On-Device Natural Language Entity Parser"
 )

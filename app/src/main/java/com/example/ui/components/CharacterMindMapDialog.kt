@@ -105,7 +105,7 @@ fun CharacterMindMapDialog(
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = "Local AI Character & Plot Codex",
+                                    text = "Character & Plot Mind Map",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -114,7 +114,7 @@ fun CharacterMindMapDialog(
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
-                                        text = "100% Offline AI",
+                                        text = "Text Parser",
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
                                         color = NaturalPrimary,
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -149,7 +149,7 @@ fun CharacterMindMapDialog(
                             if (isRunningLocalAi) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = NaturalPrimary)
                             } else {
-                                Icon(Icons.Default.AutoFixHigh, contentDescription = "Run Local AI Detection", tint = NaturalPrimary)
+                                Icon(Icons.Default.AutoFixHigh, contentDescription = "Re-analyze Text Structure", tint = NaturalPrimary)
                             }
                         }
 
@@ -637,7 +637,7 @@ private fun RelationsEvidenceTab(
 ) {
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "AI Detected Relationship Evidence",
+            text = "Extracted Relationship Evidence & Quotes",
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurface
         )

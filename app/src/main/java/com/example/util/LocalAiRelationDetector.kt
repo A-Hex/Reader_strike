@@ -45,7 +45,7 @@ object LocalAiRelationDetector {
     )
 
     /**
-     * Runs 100% On-Device AI Relationship & Plot Extraction
+     * Extracts character entities, dialogue relations, and narrative milestones directly from text.
      */
     fun analyzeBook(
         book: Book,
@@ -88,7 +88,7 @@ object LocalAiRelationDetector {
             plotPoints = plotPoints,
             thematicSummary = thematicSummary,
             analyzedAt = System.currentTimeMillis(),
-            detectionEngine = "On-Device Neuro-Symbolic Local AI Engine"
+            detectionEngine = "On-Device Natural Language Text Parser"
         )
 
         return Pair(mindMap, stats)

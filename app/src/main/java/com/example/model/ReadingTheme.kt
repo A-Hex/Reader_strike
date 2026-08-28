@@ -2,13 +2,17 @@ package com.example.model
 
 import androidx.compose.ui.graphics.Color
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 import com.example.util.ReadingMode
 
-enum class FontFamilyPreference(val displayName: String) {
-    SERIF("Serif (Classic Book)"),
-    SANS_SERIF("Sans-Serif (Modern Clean)"),
-    MONOSPACE("Monospace (Code / Focus)"),
-    CURSIVE("Literary Cursive")
+enum class FontFamilyPreference(val displayName: String, val stringKey: String) {
+    SERIF("Serif (Classic Book)", "font_serif"),
+    SANS_SERIF("Sans-Serif (Modern Clean)", "font_sans_serif"),
+    MONOSPACE("Monospace (Code / Focus)", "font_monospace"),
+    CURSIVE("Literary Cursive", "font_cursive");
+
+    fun getLocalizedTitle(language: AppLanguage): String = AppStrings.get(stringKey, language)
 }
 
 data class ReaderTheme(

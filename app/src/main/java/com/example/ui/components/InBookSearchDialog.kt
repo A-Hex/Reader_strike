@@ -13,18 +13,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.InBookSearchMatch
 import com.example.ui.theme.*
+import com.example.util.AppLanguage
+import com.example.util.AppStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InBookSearchDialog(
     searchQuery: String,
-    results: List<String>,
+    results: List<InBookSearchMatch>,
+    currentLanguage: AppLanguage = AppLanguage.ENGLISH,
     onQueryChange: (String) -> Unit,
-    onSelectResult: (String) -> Unit,
+    onSelectResult: (InBookSearchMatch) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -45,18 +52,18 @@ fun InBookSearchDialog(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Search Inside Book",
+                    text = AppStrings.get("search_in_book_title", currentLanguage),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = NaturalDarkTextMuted)
+                    Icon(Icons.Default.Close, contentDescription = AppStrings.get("cancel", currentLanguage), tint = NaturalDarkTextMuted)
                 }
             }
 
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onQueryChange,
-                placeholder = { Text("Type word or phrase to locate...", color = NaturalDarkTextMuted) },
+                placeholder = { Text(AppStrings.get("search_in_book_placeholder", currentLanguage), color = NaturalDarkTextMuted) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = NaturalPrimary) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -84,44 +91,96 @@ fun InBookSearchDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No matches found for '$searchQuery'",
+                        text = AppStrings.get("search_in_book_no_matches", currentLanguage),
                         style = MaterialTheme.typography.bodyMedium,
                         color = NaturalDarkTextMuted
                     )
                 }
-            } else {
+            } else if (results.isNotEmpty()) {
                 Text(
-                    text = "${results.size} matches found",
+                    text = AppStrings.get("search_in_book_matches", currentLanguage, results.size),
                     style = MaterialTheme.typography.labelSmall,
-                    color = NaturalPrimary
+                    color = NaturalPrimary,
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 350.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .heightIn(max = 380.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(results) { resultSnippet ->
+                    items(results) { match ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable {
-                                    onSelectResult(resultSnippet)
+                                    onSelectResult(match)
                                     onDismiss()
                                 },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder.copy(alpha = 0.5f))
                         ) {
-                            Text(
-                                text = resultSnippet,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = NaturalDarkText,
-                                modifier = Modifier.padding(12.dp),
-                                lineHeight = 18.sp
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        color = NaturalPrimary.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = match.chapterTitle,
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = NaturalPrimary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                val annotatedSnippet = remember(match.snippet, searchQuery) {
+                                    buildAnnotatedString {
+                                        val snippet = match.snippet
+                                        val q = searchQuery.trim()
+                                        if (q.isBlank()) {
+                                            append(snippet)
+                                        } else {
+                                            val index = snippet.indexOf(q, ignoreCase = true)
+                                            if (index >= 0) {
+                                                append(snippet.substring(0, index))
+                                                withStyle(
+                                                    SpanStyle(
+                                                        color = NaturalPrimary,
+                                                        fontWeight = FontWeight.Bold,
+                                                        background = NaturalPrimary.copy(alpha = 0.2f)
+                                                    )
+                                                ) {
+                                                    append(snippet.substring(index, index + q.length))
+                                                }
+                                                append(snippet.substring(index + q.length))
+                                            } else {
+                                                append(snippet)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = annotatedSnippet,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = NaturalDarkText,
+                                    lineHeight = 18.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -129,4 +188,5 @@ fun InBookSearchDialog(
         }
     }
 }
+
 

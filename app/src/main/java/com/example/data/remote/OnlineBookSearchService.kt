@@ -43,11 +43,11 @@ class OnlineBookSearchService(private val context: Context) {
 
     /**
      * Primary multi-source search:
-     * - Arabic queries / Noor Book source: searches www.noor-book.com
-     * - English / Latin queries / Gutenberg source: searches https://www.gutenberg.org/
+     * - Arabic queries / Noor Book source: searches www.noor-book.com & curated Arabic index
+     * - English / Latin queries / Gutenberg source: searches https://www.gutenberg.org/ & curated classics
      */
     suspend fun searchAllSources(query: String): List<SearchBookResult> = withContext(Dispatchers.IO) {
-        if (query.isBlank() || !isOnline()) {
+        if (query.isBlank()) {
             return@withContext emptyList()
         }
 
@@ -96,32 +96,34 @@ class OnlineBookSearchService(private val context: Context) {
      */
     suspend fun searchNoorBook(query: String): List<SearchBookResult> = withContext(Dispatchers.IO) {
         val results = mutableListOf<SearchBookResult>()
-        val lowerQuery = query.lowercase().trim()
+        val trimmedQuery = query.trim()
 
-        // 1. Match against extensive Noor Book catalog index
+        // 1. Match against extensive Noor Book catalog index using normalized fuzzy matching
         val indexedMatches = NOOR_BOOK_CATALOG.filter { book ->
-            book.title.contains(query, ignoreCase = true) ||
-            book.authorDisplay.contains(query, ignoreCase = true) ||
-            book.description.contains(query, ignoreCase = true) ||
-            book.genreKeywords.any { it.contains(lowerQuery, ignoreCase = true) }
+            com.example.util.TextNormalizer.matches(book.title, trimmedQuery) ||
+            com.example.util.TextNormalizer.matches(book.authorDisplay, trimmedQuery) ||
+            com.example.util.TextNormalizer.matches(book.description, trimmedQuery) ||
+            book.genreKeywords.any { kw -> com.example.util.TextNormalizer.matches(kw, trimmedQuery) }
         }.map { it.toSearchResult() }
 
         results.addAll(indexedMatches)
 
-        // 2. Dynamic live query to Noor Book search API / HTML
-        try {
-            val liveResults = fetchLiveNoorBookResults(query)
-            for (live in liveResults) {
-                if (results.none { it.title.equals(live.title, ignoreCase = true) }) {
-                    results.add(live)
+        // 2. Dynamic live query to Noor Book search API / HTML if online
+        if (isOnline()) {
+            try {
+                val liveResults = fetchLiveNoorBookResults(trimmedQuery)
+                for (live in liveResults) {
+                    if (results.none { com.example.util.TextNormalizer.matches(it.title, live.title) }) {
+                        results.add(live)
+                    }
                 }
+            } catch (e: Exception) {
+                Log.d("NoorBookSearch", "Live fetch fallback: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.d("NoorBookSearch", "Live fetch fallback: ${e.message}")
         }
 
         // If query was generic like "عربي", "رواية", "كتب", "فلسفة", "تاريخ", provide top suggestions
-        if (results.isEmpty() && query.any { it in '\u0600'..'\u06FF' }) {
+        if (results.isEmpty() && trimmedQuery.any { it in '\u0600'..'\u06FF' }) {
             val suggestions = NOOR_BOOK_CATALOG.take(8).map { it.toSearchResult() }
             results.addAll(suggestions)
         }
@@ -134,122 +136,135 @@ class OnlineBookSearchService(private val context: Context) {
      * using the official Gutendex API endpoint with fallback to curated catalog.
      */
     suspend fun searchProjectGutenberg(query: String): List<SearchBookResult> = withContext(Dispatchers.IO) {
-        val encodedQuery = try {
-            URLEncoder.encode(query.trim(), StandardCharsets.UTF_8.toString())
-        } catch (_: Exception) {
-            query.trim()
-        }
-
-        val url = "https://gutendex.com/books/?search=$encodedQuery"
-        val request = Request.Builder()
-            .url(url)
-            .header("User-Agent", "A-Hex-Reader/1.0 (https://www.gutenberg.org)")
-            .build()
-
         val list = mutableListOf<SearchBookResult>()
+        val trimmedQuery = query.trim()
 
-        try {
-            val response = httpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string()
-                if (!body.isNullOrBlank()) {
-                    val json = JSONObject(body)
-                    val jsonResults = json.optJSONArray("results")
-                    if (jsonResults != null) {
-                        for (i in 0 until jsonResults.length()) {
-                            val res = jsonResults.optJSONObject(i) ?: continue
-                            val id = res.optInt("id", 0)
-                            if (id == 0) continue
+        if (isOnline()) {
+            val encodedQuery = try {
+                URLEncoder.encode(trimmedQuery, StandardCharsets.UTF_8.toString())
+            } catch (_: Exception) {
+                trimmedQuery
+            }
 
-                            val title = res.optString("title", "Untitled")
+            val url = "https://gutendex.com/books/?search=$encodedQuery"
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "A-Hex-Reader/1.0 (https://www.gutenberg.org)")
+                .build()
 
-                            val authorsArray = res.optJSONArray("authors")
-                            val authors = mutableListOf<String>()
-                            if (authorsArray != null) {
-                                for (a in 0 until authorsArray.length()) {
-                                    val aObj = authorsArray.optJSONObject(a) ?: continue
-                                    val rawName = aObj.optString("name", "")
-                                    if (rawName.isNotBlank()) {
-                                        val parts = rawName.split(",").map { it.trim() }
-                                        if (parts.size >= 2) {
-                                            authors.add("${parts[1]} ${parts[0]}")
-                                        } else {
-                                            authors.add(rawName)
+            try {
+                val response = httpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string()
+                    if (!body.isNullOrBlank()) {
+                        val json = JSONObject(body)
+                        val jsonResults = json.optJSONArray("results")
+                        if (jsonResults != null) {
+                            for (i in 0 until jsonResults.length()) {
+                                val res = jsonResults.optJSONObject(i) ?: continue
+                                val id = res.optInt("id", 0)
+                                if (id == 0) continue
+
+                                val title = res.optString("title", "Untitled")
+
+                                val authorsArray = res.optJSONArray("authors")
+                                val authors = mutableListOf<String>()
+                                if (authorsArray != null) {
+                                    for (a in 0 until authorsArray.length()) {
+                                        val aObj = authorsArray.optJSONObject(a) ?: continue
+                                        val rawName = aObj.optString("name", "")
+                                        if (rawName.isNotBlank()) {
+                                            val parts = rawName.split(",").map { it.trim() }
+                                            if (parts.size >= 2) {
+                                                authors.add("${parts[1]} ${parts[0]}")
+                                            } else {
+                                                authors.add(rawName)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            if (authors.isEmpty()) authors.add("Project Gutenberg Author")
+                                if (authors.isEmpty()) authors.add("Project Gutenberg Author")
 
-                            val langArray = res.optJSONArray("languages")
-                            val lang = if (langArray != null && langArray.length() > 0) langArray.optString(0) else "en"
+                                val langArray = res.optJSONArray("languages")
+                                val lang = if (langArray != null && langArray.length() > 0) langArray.optString(0) else "en"
 
-                            val formats = res.optJSONObject("formats")
-                            var coverUrl: String? = null
-                            var downloadUrl: String? = null
-                            var downloadMime: String? = null
-                            var format = BookFormat.EPUB
+                                val formats = res.optJSONObject("formats")
+                                var coverUrl: String? = null
+                                var downloadUrl: String? = null
+                                var downloadMime: String? = null
+                                var format = BookFormat.EPUB
 
-                            if (formats != null) {
-                                coverUrl = formats.optString("image/jpeg").ifBlank { null }
+                                if (formats != null) {
+                                    coverUrl = formats.optString("image/jpeg").ifBlank { null }
+                                        ?: formats.optString("image/png").ifBlank { null }
 
-                                val epubUrl = formats.optString("application/epub+zip").ifBlank { null }
-                                val txtUrl = formats.optString("text/plain; charset=utf-8").ifBlank { null }
-                                    ?: formats.optString("text/plain; charset=us-ascii").ifBlank { null }
-                                    ?: formats.optString("text/plain").ifBlank { null }
+                                    val epubUrl = formats.optString("application/epub+zip").ifBlank { null }
+                                        ?: formats.optString("application/epub3+zip").ifBlank { null }
+                                    val txtUrl = formats.optString("text/plain; charset=utf-8").ifBlank { null }
+                                        ?: formats.optString("text/plain; charset=us-ascii").ifBlank { null }
+                                        ?: formats.optString("text/plain").ifBlank { null }
+                                    val mobiUrl = formats.optString("application/x-mobipocket-ebook").ifBlank { null }
 
-                                if (!epubUrl.isNullOrBlank()) {
-                                    downloadUrl = epubUrl
-                                    downloadMime = "application/epub+zip"
-                                    format = BookFormat.EPUB
-                                } else if (!txtUrl.isNullOrBlank()) {
-                                    downloadUrl = txtUrl
-                                    downloadMime = "text/plain"
-                                    format = BookFormat.TXT
+                                    if (!epubUrl.isNullOrBlank()) {
+                                        downloadUrl = epubUrl
+                                        downloadMime = "application/epub+zip"
+                                        format = BookFormat.EPUB
+                                    } else if (!txtUrl.isNullOrBlank()) {
+                                        downloadUrl = txtUrl
+                                        downloadMime = "text/plain"
+                                        format = BookFormat.TXT
+                                    } else if (!mobiUrl.isNullOrBlank()) {
+                                        downloadUrl = mobiUrl
+                                        downloadMime = "application/x-mobipocket-ebook"
+                                        format = BookFormat.EPUB
+                                    }
                                 }
-                            }
 
-                            val downloads = res.optInt("download_count", 0)
-                            val gutenbergUrl = "https://www.gutenberg.org/ebooks/$id"
+                                val downloads = res.optInt("download_count", 0)
+                                val gutenbergUrl = "https://www.gutenberg.org/ebooks/$id"
 
-                            list.add(
-                                SearchBookResult(
-                                    stableId = "gutenberg-$id",
-                                    source = "Project Gutenberg",
-                                    sourceBookId = id.toString(),
-                                    title = title,
-                                    authors = authors,
-                                    description = "Official edition from Project Gutenberg (www.gutenberg.org). Over $downloads readers have downloaded this classic.",
-                                    coverUrl = coverUrl ?: "https://www.gutenberg.org/files/$id/$id-cover.png",
-                                    publishedYear = null,
-                                    languageCode = lang,
-                                    identifiers = mapOf("Gutenberg-ID" to id.toString(), "Source-URL" to gutenbergUrl),
-                                    previewUrl = "https://www.gutenberg.org/ebooks/$id.html.images",
-                                    infoUrl = gutenbergUrl,
-                                    downloadUrl = downloadUrl,
-                                    downloadMimeType = downloadMime,
-                                    availability = BookAvailability.AVAILABLE_DOWNLOAD,
-                                    publicDomain = true,
-                                    isPreviewable = true,
-                                    format = format
+                                list.add(
+                                    SearchBookResult(
+                                        stableId = "gutenberg-$id",
+                                        source = "Project Gutenberg",
+                                        sourceBookId = id.toString(),
+                                        title = title,
+                                        authors = authors,
+                                        description = "Official edition from Project Gutenberg (www.gutenberg.org). Over $downloads readers have downloaded this classic.",
+                                        coverUrl = coverUrl ?: "https://www.gutenberg.org/cache/epub/$id/pg$id.cover.medium.jpg",
+                                        publishedYear = null,
+                                        languageCode = lang,
+                                        identifiers = mapOf("Gutenberg-ID" to id.toString(), "Source-URL" to gutenbergUrl),
+                                        previewUrl = "https://www.gutenberg.org/ebooks/$id.html.images",
+                                        infoUrl = gutenbergUrl,
+                                        downloadUrl = downloadUrl,
+                                        downloadMimeType = downloadMime,
+                                        availability = BookAvailability.AVAILABLE_DOWNLOAD,
+                                        publicDomain = true,
+                                        isPreviewable = true,
+                                        format = format
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("ProjectGutenberg", "API error: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e("ProjectGutenberg", "API error: ${e.message}")
         }
 
-        // Fallback: If network issue or no results, match against Gutenberg offline curated classics
-        if (list.isEmpty()) {
-            val fallbackMatches = GUTENBERG_FALLBACK_CATALOG.filter { book ->
-                book.title.contains(query, ignoreCase = true) ||
-                book.authorDisplay.contains(query, ignoreCase = true) ||
-                book.description.contains(query, ignoreCase = true)
-            }.map { it.toSearchResult() }
-            list.addAll(fallbackMatches)
+        // Match against Gutenberg offline curated classics using normalized matching
+        val fallbackMatches = GUTENBERG_FALLBACK_CATALOG.filter { book ->
+            com.example.util.TextNormalizer.matches(book.title, trimmedQuery) ||
+            com.example.util.TextNormalizer.matches(book.authorDisplay, trimmedQuery) ||
+            com.example.util.TextNormalizer.matches(book.description, trimmedQuery)
+        }.map { it.toSearchResult() }
+
+        for (fallback in fallbackMatches) {
+            if (list.none { it.title.equals(fallback.title, ignoreCase = true) }) {
+                list.add(fallback)
+            }
         }
 
         return@withContext list
@@ -548,6 +563,33 @@ class OnlineBookSearchService(private val context: Context) {
                 coverUrl = "https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&q=80&w=400",
                 noorUrl = "https://www.noor-book.com/كتاب-وحي-القلم-pdf",
                 genreKeywords = listOf("الرافعي", "أدب", "وحي القلم", "مقالات", "بيان", "فكر")
+            ),
+            NoorBookItem(
+                id = "al-ajniha-al-mutakassira",
+                title = "الأجنحة المتكسرة",
+                authorDisplay = "جبران خليل جبران",
+                description = "رواية شاعرية خالدة عن الحب العذري النقي والتقاليد الاجتماعية والصراع الإنساني في الشرق.",
+                coverUrl = "https://images.unsplash.com/photo-1476275466078-4007374efbbe?auto=format&fit=crop&q=80&w=400",
+                noorUrl = "https://www.noor-book.com/كتاب-الاجنحة-المتكسرة-pdf",
+                genreKeywords = listOf("جبران", "رواية", "حب", "أدب مهجري", "فلسفة", "الأجنحة المتكسرة")
+            ),
+            NoorBookItem(
+                id = "khan-al-khalili",
+                title = "خان الخليلي",
+                authorDisplay = "نجيب محفوظ",
+                description = "رواية واقعية بارعة تسجل تفاصيل الحياة المصرية القديمة وأثر الحرب العالمية على حارة خان الخليلي.",
+                coverUrl = "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&q=80&w=400",
+                noorUrl = "https://www.noor-book.com/كتاب-خان-الخليلي-نجيب-محفوظ-pdf",
+                genreKeywords = listOf("نجيب محفوظ", "رواية", "مصر", "خان الخليلي", "نوبل", "واقعية")
+            ),
+            NoorBookItem(
+                id = "al-isharat-wa-al-tanbihat",
+                title = "الإشارات والتنبيهات",
+                authorDisplay = "ابن سينا",
+                description = "آخر وأعمق كتب الشيخ الرئيس ابن سينا في المنطق والطبيعيات والإلهيات وفلسفة العرفان.",
+                coverUrl = "https://images.unsplash.com/photo-1532012164546-f432f2e3edd8?auto=format&fit=crop&q=80&w=400",
+                noorUrl = "https://www.noor-book.com/كتاب-الاشارات-والتنبيهات-ابن-سينا-pdf",
+                genreKeywords = listOf("ابن سينا", "فلسفة", "منطق", "حكمة", "طب", "علم")
             )
         )
 
@@ -615,6 +657,30 @@ class OnlineBookSearchService(private val context: Context) {
                 description = "Oscar Wilde's philosophical novel about youth, hedonism, art, and the price of one's soul.",
                 coverUrl = "https://www.gutenberg.org/cache/epub/174/pg174.cover.medium.jpg",
                 downloadUrl = "https://www.gutenberg.org/ebooks/174.epub3.images"
+            ),
+            GutenbergItem(
+                id = 2680,
+                title = "Meditations",
+                authorDisplay = "Marcus Aurelius",
+                description = "Personal writings and Stoic philosophy reflections by Roman Emperor Marcus Aurelius on virtue, duty, and life.",
+                coverUrl = "https://www.gutenberg.org/cache/epub/2680/pg2680.cover.medium.jpg",
+                downloadUrl = "https://www.gutenberg.org/ebooks/2680.epub3.images"
+            ),
+            GutenbergItem(
+                id = 2600,
+                title = "War and Peace",
+                authorDisplay = "Leo Tolstoy",
+                description = "Epic chronicle of Russian society during the Napoleonic Wars exploring destiny, history, and human resilience.",
+                coverUrl = "https://www.gutenberg.org/cache/epub/2600/pg2600.cover.medium.jpg",
+                downloadUrl = "https://www.gutenberg.org/ebooks/2600.epub3.images"
+            ),
+            GutenbergItem(
+                id = 1513,
+                title = "Romeo and Juliet",
+                authorDisplay = "William Shakespeare",
+                description = "The world's most renowned tragic love story of star-crossed lovers from warring Verona houses.",
+                coverUrl = "https://www.gutenberg.org/cache/epub/1513/pg1513.cover.medium.jpg",
+                downloadUrl = "https://www.gutenberg.org/ebooks/1513.epub3.images"
             )
         )
     }

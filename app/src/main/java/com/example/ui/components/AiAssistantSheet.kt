@@ -139,7 +139,7 @@ fun AiAssistantSheet(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Smart Reading Assistant",
+                                text = "Reading Companion & Guide",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -148,7 +148,7 @@ fun AiAssistantSheet(
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
-                                    text = "LIVE NLP",
+                                    text = "Text Guide",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Black),
                                     color = NaturalPrimary,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -286,7 +286,7 @@ fun AiAssistantSheet(
                                 strokeWidth = 3.dp
                             )
                             Text(
-                                text = "Analyzing passage with natural language intelligence...",
+                                text = "Analyzing passage structure and vocabulary...",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalDarkTextMuted
                             )
@@ -323,7 +323,7 @@ fun AiAssistantSheet(
                                 TextButton(
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("AI Reading Insight", generatedResponse))
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Chapter Study Notes", generatedResponse))
                                         Toast.makeText(context, "Copied insight to clipboard!", Toast.LENGTH_SHORT).show()
                                     },
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
