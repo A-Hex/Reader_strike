@@ -50,13 +50,13 @@ class TtsManager(private val context: Context) {
     var currentSegmentIndex = 0
         private set
     private var currentSessionToken = UUID.randomUUID().toString()
-    private var currentConfiguredLocale: Locale = Locale.US
+    private var currentConfiguredLocale: Locale = Locale("ar")
 
     init {
-        initTts(Locale.getDefault())
+        initTts(Locale("ar"))
     }
 
-    fun initTts(preferredLocale: Locale) {
+    fun initTts(preferredLocale: Locale = Locale("ar")) {
         currentConfiguredLocale = preferredLocale
         _engineState.value = TtsEngineState.Initializing
 

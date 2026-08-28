@@ -363,7 +363,13 @@ object PdfTextExtractor {
         }
 
         // Fallback to sample chapters or book metadata if text is non-extractable / scanned
-        val sampleChapters = SampleBooksData.getSampleChaptersForBook(book.id)
+        val sampleChapters = SampleBooksData.getSampleChaptersForBook(
+            bookId = book.id,
+            title = book.title,
+            author = book.author,
+            description = book.description,
+            languageCode = book.languageCode
+        )
         if (sampleChapters.isNotEmpty()) {
             val chapterIdx = ((pageNumber - 1).toFloat() / book.totalPages.coerceAtLeast(1) * sampleChapters.size).toInt().coerceIn(0, sampleChapters.size - 1)
             return sampleChapters.getOrNull(chapterIdx)?.content ?: book.description

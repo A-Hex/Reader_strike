@@ -64,19 +64,24 @@ fun CharacterMindMapDialog(
 
     val coroutineScope = rememberCoroutineScope()
 
+    val isArabic = book.languageCode == "ar" || book.title.any { it in '\u0600'..'\u06FF' }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Card(
-            modifier = modifier
-                .fillMaxWidth(0.96f)
-                .fillMaxHeight(0.92f)
-                .clip(RoundedCornerShape(26.dp)),
-            shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
-            border = BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.6f))
+        CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides (if (isArabic) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr)
         ) {
+            Card(
+                modifier = modifier
+                    .fillMaxWidth(0.96f)
+                    .fillMaxHeight(0.92f)
+                    .clip(RoundedCornerShape(26.dp)),
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
+                border = BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.6f))
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -218,6 +223,7 @@ fun CharacterMindMapDialog(
             }
         }
     }
+}
 
     // Dialog for adding custom character
     if (showAddCharacterDialog) {

@@ -219,7 +219,13 @@ object EpubExporter {
                 }
             }
         }
-        return SampleBooksData.getSampleChaptersForBook(book.id)
+        return SampleBooksData.getSampleChaptersForBook(
+            bookId = book.id,
+            title = book.title,
+            author = book.author,
+            description = book.description,
+            languageCode = book.languageCode
+        )
     }
 
     private fun writeMimetypeEntry(zos: ZipOutputStream) {

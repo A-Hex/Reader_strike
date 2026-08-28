@@ -237,7 +237,12 @@ object AppStrings {
         "line_spacing_title" to "Line Height Spacing",
         "pdf_fluid_switch" to "Switch to Fluid Text Flow",
         "pdf_page_view_switch" to "Switch to PDF Page Layout",
-        "pdf_fluid_reader_title" to "Fluid Typography Reader"
+        "pdf_fluid_reader_title" to "Fluid Typography Reader",
+        "search_no_matching_books" to "No matching books found",
+        "search_try_different_keywords" to "Try different keywords, author name, or explore suggestions below",
+        "search_online_fallback_btn" to "Search Online (Noor Book & Gutenberg)",
+        "search_all_sources_btn" to "Show All Sources (%1\$d books)",
+        "search_popular_suggestions_title" to "Recommended Masterpieces & Topics"
     )
 
     private val arabicStrings = mapOf(
@@ -447,7 +452,12 @@ object AppStrings {
         "line_spacing_title" to "تباعد الأسطر",
         "pdf_fluid_switch" to "التحويل إلى وضع القراءة الانسيابية",
         "pdf_page_view_switch" to "التحويل إلى تخطيط صفحات PDF",
-        "pdf_fluid_reader_title" to "قارئ النصوص الانسيابي"
+        "pdf_fluid_reader_title" to "قارئ النصوص الانسيابي",
+        "search_no_matching_books" to "لم يتم العثور على كتب مطابقة",
+        "search_try_different_keywords" to "جرب كلمات بحث أخرى، اسم المؤلف، أو تصفح الاقتراحات أدناه",
+        "search_online_fallback_btn" to "البحث عبر الإنترنت (مكتبة نور وغوتنبرغ)",
+        "search_all_sources_btn" to "عرض جميع المصادر (%1\$d كتب)",
+        "search_popular_suggestions_title" to "روائع مقترحة ومواضيع شائعة"
     )
 
     private val frenchStrings = mapOf(
@@ -657,6 +667,11 @@ object AppStrings {
         "line_spacing_title" to "Espacement des lignes",
         "pdf_fluid_switch" to "Passer au flux de texte fluide",
         "pdf_page_view_switch" to "Passer à la mise en page PDF",
-        "pdf_fluid_reader_title" to "Lecteur typographique fluide"
+        "pdf_fluid_reader_title" to "Lecteur typographique fluide",
+        "search_no_matching_books" to "Aucun livre correspondant trouvé",
+        "search_try_different_keywords" to "Essayez d'autres mots-clés, nom d'auteur ou explorez les suggestions ci-dessous",
+        "search_online_fallback_btn" to "Rechercher en ligne (Noor Book & Gutenberg)",
+        "search_all_sources_btn" to "Afficher toutes les sources (%1\$d livres)",
+        "search_popular_suggestions_title" to "Chefs-d'œuvre et thèmes suggérés"
     )
 }

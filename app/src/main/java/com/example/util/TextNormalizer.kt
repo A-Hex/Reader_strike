@@ -66,12 +66,64 @@ object TextNormalizer {
         if (normQuery.isEmpty()) return true
         if (normTarget.contains(normQuery)) return true
 
-        // Check if all tokens in query exist in target
         val tokens = normQuery.split(" ").filter { it.isNotBlank() }
-        if (tokens.size > 1) {
-            return tokens.all { normTarget.contains(it) }
+        if (tokens.isEmpty()) return true
+
+        // 1. All tokens exist in target
+        if (tokens.all { normTarget.contains(it) }) return true
+
+        // 2. Multi-word query with >= 60% token overlap
+        if (tokens.size >= 2) {
+            val matchedCount = tokens.count { normTarget.contains(it) }
+            if (matchedCount.toFloat() / tokens.size >= 0.6f) return true
+        }
+
+        // 3. For single words with length >= 4, check prefix / fuzzy edit distance <= 1
+        if (tokens.size == 1) {
+            val q = tokens.first()
+            val targetWords = normTarget.split(" ").filter { it.isNotBlank() }
+            for (w in targetWords) {
+                if (w.startsWith(q) || q.startsWith(w)) return true
+                if (q.length >= 4 && w.length >= 4 && kotlin.math.abs(q.length - w.length) <= 1) {
+                    if (isOneEditDistance(q, w)) return true
+                }
+            }
         }
 
         return false
+    }
+
+    /**
+     * Matches query against multiple fields combined into a single unified search document.
+     */
+    fun matchesAny(query: String?, vararg targets: String?): Boolean {
+        if (query.isNullOrBlank()) return true
+        val combined = targets.filterNotNull().joinToString(" ")
+        return matches(combined, query)
+    }
+
+    private fun isOneEditDistance(s1: String, s2: String): Boolean {
+        val len1 = s1.length
+        val len2 = s2.length
+        if (kotlin.math.abs(len1 - len2) > 1) return false
+
+        var i = 0
+        var j = 0
+        var diffCount = 0
+
+        while (i < len1 && j < len2) {
+            if (s1[i] != s2[j]) {
+                diffCount++
+                if (diffCount > 1) return false
+                if (len1 > len2) i++
+                else if (len2 > len1) j++
+                else { i++; j++ }
+            } else {
+                i++
+                j++
+            }
+        }
+        if (i < len1 || j < len2) diffCount++
+        return diffCount <= 1
     }
 }

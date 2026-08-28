@@ -66,7 +66,7 @@ fun SmartBookSearchSheet(
         }
     }
 
-    val sourceOptions = listOf("All Sources", "Noor Book (مكتبة نور)", "Project Gutenberg")
+    val sourceOptions = listOf("All Sources", "Noor Book (مكتبة نور)", "Project Gutenberg", "Open Library & Archive")
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -280,14 +280,49 @@ fun SmartBookSearchSheet(
                         }
                         is SearchUiState.Empty -> {
                             Column(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Icon(Icons.Default.SearchOff, contentDescription = null, tint = NaturalDarkTextMuted, modifier = Modifier.size(48.dp))
                                 Spacer(modifier = Modifier.height(10.dp))
-                                Text("No matching books found", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                                Text("Try different keywords or author name", style = MaterialTheme.typography.bodySmall, color = NaturalDarkTextMuted)
+                                Text(
+                                    text = AppStrings.get("search_no_matching_books", currentLanguage),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = AppStrings.get("search_try_different_keywords", currentLanguage),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = NaturalDarkTextMuted,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = AppStrings.get("search_popular_suggestions_title", currentLanguage),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = NaturalPrimary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    val quickSuggestions = listOf("Pride and Prejudice", "مقدمة ابن خلدون", "Sherlock Holmes", "كليلة ودمنة", "Frankenstein", "الأيام لطه حسين", "The Time Machine")
+                                    items(quickSuggestions) { s ->
+                                        FilledTonalButton(
+                                            onClick = { query = s },
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(s, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
                             }
                         }
                         is SearchUiState.Error -> {
@@ -311,18 +346,53 @@ fun SmartBookSearchSheet(
                                 }
                             }
 
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(filtered, key = { it.stableId }) { item ->
-                                    SearchResultCard(
-                                        result = item,
-                                        onSelect = { selectedResultForDetails = item },
-                                        onDownloadClick = {
-                                            viewModel.downloadSearchResult(item)
-                                        }
+                            if (filtered.isEmpty()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterAltOff,
+                                        contentDescription = null,
+                                        tint = NaturalDarkTextMuted,
+                                        modifier = Modifier.size(44.dp)
                                     )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "No books found in $selectedSourceFilter",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Found ${state.results.size} books across other sources.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = NaturalDarkTextMuted
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    FilledTonalButton(
+                                        onClick = { selectedSourceFilter = "All Sources" },
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(AppStrings.get("search_all_sources_btn", currentLanguage, state.results.size))
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(filtered, key = { it.stableId }) { item ->
+                                        SearchResultCard(
+                                            result = item,
+                                            onSelect = { selectedResultForDetails = item },
+                                            onDownloadClick = {
+                                                viewModel.downloadSearchResult(item)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

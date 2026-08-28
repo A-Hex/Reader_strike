@@ -296,77 +296,251 @@ object AiReadingAssistantEngine {
         return sb.toString().trim()
     }
 
-    fun generateAnalysis(book: Book, chapterTitle: String, text: String): String {
+    fun generateDeepAnalysis(book: Book, chapterTitle: String, text: String): String {
         val cleanText = sanitizeText(text, book)
         val isAr = isArabic(book, cleanText)
         val sentences = extractSentences(cleanText)
         val wordCount = cleanText.split("\\s+".toRegex()).filter { it.isNotBlank() }.size
-        val avgSentenceLength = if (sentences.isNotEmpty()) wordCount / sentences.size else 15
+        val avgSentenceLength = if (sentences.isNotEmpty()) wordCount / sentences.size else 16
 
+        val firstSentence = sentences.firstOrNull() ?: cleanText.take(120)
+        val middleSentences = if (sentences.size > 2) sentences.subList(1, (sentences.size - 1).coerceAtMost(4)) else sentences
+        val closingSentence = sentences.lastOrNull() ?: ""
+
+        val sb = StringBuilder()
         if (isAr) {
-            val readingLevel = when {
-                avgSentenceLength > 22 -> "متقدم / أدبي رفيع (مستوى فكري ونقدي عالي)"
-                avgSentenceLength > 14 -> "متوسط / سردي سلس (مناسب للقارئ العام والباحث)"
-                else -> "مبسط / حواري مباشر"
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("📑 **الخلاصة والتحليل العميق: \"$cleanTitle\"**\n\n")
+            sb.append("• **الكتاب**: *${book.title}* | **المؤلف**: ${book.author}\n")
+            sb.append("• **التصنيف**: ${book.genre} | **حجم النص**: ~$wordCount كلمة\n\n")
+
+            sb.append("🎯 **1. الفكرة الرئيسية والمحور الجوهري**:\n")
+            sb.append("ينطلق النص من معالجة قضية محورية تتجلى في: *\"${firstSentence.trim()}\"*، حيث يسلط الضوء على البعد الإنساني والفكري المتجذر في تفاصيل المشهد.\n\n")
+
+            sb.append("🔍 **2. الأبعاد الضمنية والرسائل الفكرية والرمزية**:\n")
+            if (middleSentences.isNotEmpty()) {
+                middleSentences.take(3).forEachIndexed { index, sentence ->
+                    val num = index + 1
+                    sb.append("• **البعد $num**: \"${sentence.trim().take(150)}\" - يعكس هذا التعبير صراع الإرادة والمفاهيم الفلسفية التي يسعى الكاتب لترسيخها.\n")
+                }
+            } else {
+                sb.append("• **البعد الفلسفي والأخلاقي**: استكشاف التوازن بين حرية الفرد والمحددات المجتمعية المحيطة.\n")
+                sb.append("• **البعد النقدي**: نقد الأنماط السلوكية السائدة والدعوة إلى التفكير التأملي المستقل.\n")
             }
-            val tone = when {
-                cleanText.contains("عقل") || cleanText.contains("فكر") || cleanText.contains("حكمة") -> "تأملي وفلسفي رصين"
-                cleanText.contains("خوف") || cleanText.contains("ألم") || cleanText.contains("صراع") -> "درامي متصاعد ومحتدم"
-                cleanText.contains("حرب") || cleanText.contains("عدو") || cleanText.contains("نصر") -> "استراتيجي وتقريري حازم"
-                else -> "رمزي ونقدي استشرافي"
+
+            sb.append("\n💡 **3. الرؤية النقدية والختام**:\n")
+            if (closingSentence.isNotBlank() && closingSentence != firstSentence) {
+                sb.append("يصل التحليل إلى نتيجته الحتمية في خاتمة المقطع: *\"${closingSentence.trim()}\"*، مؤكداً على أن النضج المعرفي ينبع من مساءلة الواقع واستيعاب مآلات الاختيارات.")
+            } else {
+                sb.append("يؤكد النص على محورية الإدراك والوعي بالذات كوسيلة أساسية لتجاوز العقبات وبناء فهم متوازن للحياة.")
             }
-
-            val sb = StringBuilder()
-            sb.append("🧠 **التحليل الأدبي والبلاغي والنقدي العميق**\n\n")
-            sb.append("📊 **المؤشرات اللغوية والأسلوبية**:\n")
-            sb.append("• **مستوى الصياغة**: $readingLevel\n")
-            sb.append("• **النبرة المهيمنة**: $tone\n")
-            sb.append("• **الكثافة التركيبية**: متوسط $avgSentenceLength كلمة لكل جملة\n\n")
-
-            sb.append("🎭 **الأساليب البلاغية والجمالية المرصودة**:\n")
-            sb.append("1. **الرمزية والإسقاط السياسي**: استخدام الحبكة الرمزية لتجسيد صراعات إنسانية كبرى.\n")
-            sb.append("2. **الطباق والمفارقة التصويرية**: إبراز التناقض بين الشعارات المعلنة والممارسات الواقعية.\n")
-            sb.append("3. **البناء التصاعدي**: تصعيد الإيقاع الدرامي لتعميق الأثر العاطفي والفكري لدى القارئ.\n\n")
-
-            sb.append("🏛️ **السياق التاريخي والفلسفي**:\n")
-            sb.append("يندرج العمل تحت تصنيف *${book.genre}*، حيث يقدم الكاتب ${book.author} دراسة خالدة لطبيعة القوة، ونزعة الحرية، وحدود السيطرة في النفس البشرية.")
             return sb.toString()
         }
 
-        val readingLevel = when {
-            avgSentenceLength > 24 -> "Advanced / Scholarly (Flesch-Kincaid Grade 12+)"
-            avgSentenceLength > 16 -> "Intermediate / Literary (Flesch-Kincaid Grade 9-11)"
-            else -> "Accessible / Conversational (Flesch-Kincaid Grade 6-8)"
+        sb.append("📑 **Deep Analysis: \"$chapterTitle\"**\n\n")
+        sb.append("• **Work**: *${book.title}* | **Author**: ${book.author}\n")
+        sb.append("• **Genre**: ${book.genre} | **Scope**: ~$wordCount words\n\n")
+
+        sb.append("🎯 **1. Central Premise & Core Theme**:\n")
+        sb.append("The passage focuses on the core dilemma: *\"${firstSentence.trim()}\"*.\n\n")
+
+        sb.append("🔍 **2. Implicit Dimensions & Thematic Layers**:\n")
+        middleSentences.take(3).forEachIndexed { index, s ->
+            sb.append("• **Layer ${index + 1}**: \"${s.trim().take(150)}\" — Demonstrates the internal tension between rational agency and external pressures.\n")
         }
 
-        val tone = when {
-            cleanText.contains("reason", ignoreCase = true) || cleanText.contains("mind", ignoreCase = true) -> "Introspective & Stoic"
-            cleanText.contains("fear", ignoreCase = true) || cleanText.contains("pain", ignoreCase = true) || cleanText.contains("injury", ignoreCase = true) -> "Visceral & Dramatic"
-            cleanText.contains("enemy", ignoreCase = true) || cleanText.contains("war", ignoreCase = true) || cleanText.contains("forces", ignoreCase = true) -> "Strategic & Prescriptive"
-            else -> "Reflective & Analytic"
-        }
-
-        val sb = StringBuilder()
-        sb.append("🧠 **Deep Literary & Rhetorical Analysis**\n\n")
-        sb.append("📊 **Linguistic Metrics**:\n")
-        sb.append("• **Readability Grade**: $readingLevel\n")
-        sb.append("• **Dominant Tone**: $tone\n")
-        sb.append("• **Syntactic Density**: Avg. $avgSentenceLength words per sentence\n\n")
-
-        sb.append("🎭 **Rhetorical & Literary Devices Identified**:\n")
-        if (cleanText.contains("like ", ignoreCase = true) || cleanText.contains("as ", ignoreCase = true)) {
-            sb.append("1. **Simile & Figurative Imagery**: Draws vivid parallels to enhance physical and emotional resonance.\n")
-        }
-        if (cleanText.contains("not ", ignoreCase = true) && cleanText.contains("but ", ignoreCase = true)) {
-            sb.append("2. **Antithesis & Contrast**: Juxtaposes contrasting states to clarify moral and intellectual distinctions.\n")
-        }
-        sb.append("3. **Didactic & Existential Exposition**: Uses structured progression to convey universal principles of the human condition.\n\n")
-
-        sb.append("🏛️ **Historical & Thematic Context**:\n")
-        sb.append("Written in the distinctive tradition of *${book.genre}*, the author ${book.author} crafts an enduring exploration of personal agency versus external constraint.")
-
+        sb.append("\n💡 **3. Critical Synthesis**:\n")
+        sb.append(if (closingSentence.isNotBlank()) "Culminates in: *\"${closingSentence.trim()}\"*, anchoring the enduring philosophical takeaway." else "Emphasizes the supremacy of mindful discipline over ambient friction.")
         return sb.toString()
     }
+
+    fun generateCharacterMapText(book: Book, chapterTitle: String, text: String): String {
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText)
+        val (mindMap, _) = LocalAiRelationDetector.analyzeBook(book, cleanText)
+        val sb = StringBuilder()
+
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("🗺️ **خريطة الشخصيات وشبكة العلاقات: \"$cleanTitle\"**\n\n")
+            
+            sb.append("👥 **أولاً: الشخصيات المذكورة وأدوارها**:\n")
+            if (mindMap.nodes.isNotEmpty()) {
+                mindMap.nodes.take(6).forEach { node ->
+                    sb.append("• **${node.name}** ${node.avatarEmoji}\n")
+                    sb.append("   - **الدور**: ${node.role}\n")
+                    sb.append("   - **الوصف**: ${node.description}\n")
+                    if (node.keyQuote.isNotBlank() && !node.keyQuote.contains("A central presence")) {
+                        sb.append("   - **شاهد من النص**: *\"${node.keyQuote.take(120)}\"*\n")
+                    }
+                    sb.append("\n")
+                }
+            } else {
+                sb.append("• **بطل الرواية / السارد**: المحرك الأساسي للأحداث وصاحب الصوت التأملي.\n")
+                sb.append("• **الشخصيات المساعدة والمعارضة**: تجسد قوى التغيير والتحديات المحيطة.\n\n")
+            }
+
+            sb.append("🔗 **ثانياً: طبيعة العلاقات والتفاعل بين الشخصيات**:\n")
+            if (mindMap.edges.isNotEmpty()) {
+                mindMap.edges.take(6).forEach { edge ->
+                    val fromName = mindMap.nodes.find { it.id == edge.fromNodeId }?.name ?: edge.fromNodeId
+                    val toName = mindMap.nodes.find { it.id == edge.toNodeId }?.name ?: edge.toNodeId
+                    val relationDesc = when (edge.relationType) {
+                        com.example.model.RelationType.ALLY -> "تحالف ورفقة وثيقة"
+                        com.example.model.RelationType.RIVAL -> "تنافس وندية فكرية"
+                        com.example.model.RelationType.ANTAGONISTIC -> "صراع ومواجهة مباشرة"
+                        com.example.model.RelationType.MENTOR -> "إرشاد وتوجيه معرفي"
+                        com.example.model.RelationType.KINSHIP -> "رابطة أسرية وقرابة"
+                        com.example.model.RelationType.INVESTIGATION -> "تحرٍ واستكشاف دوافع"
+                        com.example.model.RelationType.ROMANTIC -> "رابطة وجدانية وعاطفية"
+                        com.example.model.RelationType.CREATION -> "علاقة إبداع وتكوين"
+                        com.example.model.RelationType.SUBORDINATE -> "تبعية وتكليف"
+                        com.example.model.RelationType.BETRAYAL -> "خلاف وخيانة عهد"
+                        com.example.model.RelationType.NEUTRAL -> "تواصل عابر ومحايد"
+                    }
+                    sb.append("• [$fromName] -> [$relationDesc] -> [$toName]\n")
+                    if (edge.evidenceQuotes.isNotEmpty() && edge.evidenceQuotes.first().isNotBlank()) {
+                        sb.append("   *الدليل السياقي*: \"${edge.evidenceQuotes.first().take(110)}\"\n")
+                    }
+                }
+            } else if (mindMap.nodes.size >= 2) {
+                val n1 = mindMap.nodes[0].name
+                val n2 = mindMap.nodes[1].name
+                sb.append("• [$n1] -> [تفاعل محوري وحوار متبادل] -> [$n2]\n")
+            } else {
+                sb.append("• [السارد] -> [تأمل فكري ونقد استبطاني] -> [المجتمع والواقع المحيط]\n")
+            }
+
+            return sb.toString()
+        }
+
+        sb.append("🗺️ **Character Map & Relational Network: \"$chapterTitle\"**\n\n")
+        sb.append("👥 **1. Key Characters Identified**:\n")
+        mindMap.nodes.take(6).forEach { node ->
+            sb.append("• **${node.name}** ${node.avatarEmoji}: ${node.role} — ${node.description}\n")
+        }
+        sb.append("\n🔗 **2. Character Relational Dynamic**:\n")
+        mindMap.edges.take(6).forEach { edge ->
+            val fromName = mindMap.nodes.find { it.id == edge.fromNodeId }?.name ?: edge.fromNodeId
+            val toName = mindMap.nodes.find { it.id == edge.toNodeId }?.name ?: edge.toNodeId
+            sb.append("• [$fromName] -> [${edge.label}] -> [$toName]\n")
+        }
+        return sb.toString()
+    }
+
+    fun generatePlotBreakdown(book: Book, chapterTitle: String, text: String): String {
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText)
+        val sentences = extractSentences(cleanText)
+        val (mindMap, _) = LocalAiRelationDetector.analyzeBook(book, cleanText)
+        val sb = StringBuilder()
+
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("📈 **تحليل الحبكة وتتابع الأحداث زمنياً: \"$cleanTitle\"**\n\n")
+
+            sb.append("⏳ **الخط الزمني والنقاط المفصلية للأحداث**:\n\n")
+
+            if (mindMap.plotPoints.isNotEmpty()) {
+                mindMap.plotPoints.forEachIndexed { idx, point ->
+                    val stageLabel = when (point.stage) {
+                        com.example.model.PlotStage.EXPOSITION -> "المقدمة والتمهيد"
+                        com.example.model.PlotStage.INCITING_INCIDENT -> "الحدث المحفز ونقطة الانطلاق"
+                        com.example.model.PlotStage.RISING_ACTION -> "تصاعد الصراع والتوتر الدرامي"
+                        com.example.model.PlotStage.CLIMAX -> "ذروة الأحداث والتأزم"
+                        com.example.model.PlotStage.FALLING_ACTION -> "الانفراج وتكشف الحقائق"
+                        com.example.model.PlotStage.RESOLUTION -> "الخاتمة والقرار النهائي"
+                        com.example.model.PlotStage.SUBPLOT -> "مسار فرعي وتطور جانبي"
+                    }
+                    val chRef = point.chapter.ifBlank { point.title }
+                    sb.append("${idx + 1}. **$stageLabel** ($chRef):\n")
+                    sb.append("   • **الحدث**: ${point.summary}\n")
+                    if (point.keyEventQuote.isNotBlank()) {
+                        sb.append("   • **الشاهد**: *\"${point.keyEventQuote.take(130)}\"*\n")
+                    }
+                    sb.append("\n")
+                }
+            } else {
+                val p1 = sentences.firstOrNull() ?: cleanText.take(100)
+                val p2 = if (sentences.size > 2) sentences[sentences.size / 2] else "تطور الموقف وتأزم التحديات."
+                val p3 = sentences.lastOrNull() ?: "استقرار مجريات المقطع."
+
+                sb.append("1. **المقدمة والانطلاق**: \"${p1.take(130)}\"\n")
+                sb.append("2. **الذروة وتصاعد التوتر**: \"${p2.take(130)}\"\n")
+                sb.append("3. **الانفراج والخاتمة**: \"${p3.take(130)}\"\n")
+            }
+
+            sb.append("⚡ **طبيعة الصراع المهيمن**: ")
+            val conflict = when {
+                cleanText.contains("صراع") || cleanText.contains("عدو") || cleanText.contains("خصم") -> "صراع خارجي مباشر بين الشخصيات والإرادات المتقابلة."
+                cleanText.contains("نفس") || cleanText.contains("تردد") || cleanText.contains("ضمير") -> "صراع نفسي داخلي واستبطان أخلاقي عميق."
+                else -> "صراع فكري وقيمي بين الفرد وتحديات الواقع."
+            }
+            sb.append(conflict)
+
+            return sb.toString()
+        }
+
+        sb.append("📈 **Plot Breakdown & Chronological Milestones: \"$chapterTitle\"**\n\n")
+        mindMap.plotPoints.forEachIndexed { idx, point ->
+            val chRef = point.chapter.ifBlank { point.title }
+            sb.append("${idx + 1}. **${point.stage.name.replace("_", " ")}** ($chRef):\n")
+            sb.append("   • ${point.summary}\n")
+            if (point.keyEventQuote.isNotBlank()) {
+                sb.append("   • Evidence: *\"${point.keyEventQuote.take(120)}\"*\n")
+            }
+            sb.append("\n")
+        }
+        return sb.toString()
+    }
+
+    fun generateRsvpAndVoicePrep(book: Book, chapterTitle: String, text: String): String {
+        val cleanText = sanitizeText(text, book)
+        val isAr = isArabic(book, cleanText)
+        val sentences = extractSentences(cleanText)
+        val sb = StringBuilder()
+
+        // Select the most central, profound sentence for RSVP
+        val centralSentence = sentences.maxByOrNull { s ->
+            var score = 0
+            if (s.length in 40..120) score += 5
+            if (s.contains("هو") || s.contains("إن") || s.contains("أن") || s.contains("الحقيقة") || s.contains("is") || s.contains("must")) score += 3
+            score
+        } ?: sentences.firstOrNull() ?: cleanText.take(90)
+
+        // Sanitize for TTS (strip odd punctuation, non-readable marks, excessive asterisks)
+        val ttsCleanText = cleanText
+            .replace(Regex("[#*_~`\\[\\]{}()<>]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+        if (isAr) {
+            val cleanTitle = if (chapterTitle.startsWith("Page ")) "الصفحة ${chapterTitle.substringAfter("Page ")}" else chapterTitle
+            sb.append("⚡ **إعداد القراءة السريعة والنطق الصوتي: \"$cleanTitle\"**\n\n")
+
+            sb.append("🎯 **1. الجملة المركزية للقراءة السريعة (العرض البصري المتسلسل RSVP)**:\n")
+            sb.append("> **\"${centralSentence.trim()}\"**\n\n")
+            sb.append("ℹ️ *هذه العبارة هي النواة الدلالية للمقطع، ومجهزة للعرض كلمة بكلمة في وضع القراءة السريعة.*\n\n")
+
+            sb.append("🎙️ **2. النص المنقح الجاهز للنطق الصوتي الآلي (تحويل النص إلى كلام)**:\n")
+            sb.append("تمت تصفية النص من كافة الرموز غير المقروءة وضبط علامات الوقف لضمان مخارج صوتية واضحة وطبيعية:\n\n")
+            sb.append("\"${ttsCleanText.take(450)}${if (ttsCleanText.length > 450) "..." else ""}\"\n\n")
+
+            sb.append("⚡ **مؤشرات القراءة الموصى بها**:\n")
+            sb.append("• سرعة القراءة السريعة المقترحة: 300 إلى 400 كلمة في الدقيقة.\n")
+            sb.append("• معدل النطق الصوتي الموصى به: 1.0x لنبرة متزنة ومستوعبة.")
+
+            return sb.toString()
+        }
+
+        sb.append("⚡ **RSVP & Voice Narration Prep: \"$chapterTitle\"**\n\n")
+        sb.append("🎯 **1. Central Focal Sentence (RSVP Target)**:\n")
+        sb.append("> **\"${centralSentence.trim()}\"**\n\n")
+        sb.append("🎙️ **2. Sanitized Script for Text-to-Speech Engine**:\n")
+        sb.append("\"${ttsCleanText.take(450)}${if (ttsCleanText.length > 450) "..." else ""}\"")
+        return sb.toString()
+    }
+
 
     fun answerQuery(book: Book, chapterTitle: String, text: String, query: String): String {
         val cleanText = sanitizeText(text, book)

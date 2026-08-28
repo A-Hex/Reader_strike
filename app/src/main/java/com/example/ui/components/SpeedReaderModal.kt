@@ -128,6 +128,8 @@ fun SpeedReaderModal(
         }
     }
 
+    val isRtlDirection = currentLanguage.isRtl || isRtlWord
+
     Dialog(
         onDismissRequest = {
             onTokensRead?.invoke(readTokensCountSincePlay % 25)
@@ -135,15 +137,18 @@ fun SpeedReaderModal(
         },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Card(
-            modifier = modifier
-                .fillMaxWidth(0.94f)
-                .wrapContentHeight()
-                .clip(RoundedCornerShape(28.dp)),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.6f))
+        CompositionLocalProvider(
+            LocalLayoutDirection provides (if (isRtlDirection) LayoutDirection.Rtl else LayoutDirection.Ltr)
         ) {
+            Card(
+                modifier = modifier
+                    .fillMaxWidth(0.94f)
+                    .wrapContentHeight()
+                    .clip(RoundedCornerShape(28.dp)),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, NaturalPrimary.copy(alpha = 0.6f))
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -401,4 +406,5 @@ fun SpeedReaderModal(
             }
         }
     }
+}
 }

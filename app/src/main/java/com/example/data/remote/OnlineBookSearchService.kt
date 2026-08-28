@@ -9,7 +9,7 @@ import com.example.model.BookFormat
 import com.example.model.SearchBookResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,10 +22,19 @@ import java.util.concurrent.TimeUnit
 
 class OnlineBookSearchService(private val context: Context) {
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+    private val searchHttpClient = OkHttpClient.Builder()
+        .connectTimeout(4, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .writeTimeout(4, TimeUnit.SECONDS)
+        .callTimeout(6, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
+    private val downloadHttpClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
@@ -43,8 +52,8 @@ class OnlineBookSearchService(private val context: Context) {
 
     /**
      * Primary multi-source search:
-     * - Arabic queries / Noor Book source: searches www.noor-book.com & curated Arabic index
-     * - English / Latin queries / Gutenberg source: searches https://www.gutenberg.org/ & curated classics
+     * - Arabic queries: searches Noor Book (www.noor-book.com) & curated Arabic index
+     * - English / Latin queries: searches Project Gutenberg, Open Library (openlibrary.org), and curated classics
      */
     suspend fun searchAllSources(query: String): List<SearchBookResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) {
@@ -54,12 +63,12 @@ class OnlineBookSearchService(private val context: Context) {
         val trimmed = query.trim()
         val isArabicQuery = trimmed.any { it in '\u0600'..'\u06FF' }
 
-        return@withContext coroutineScope {
+        return@withContext supervisorScope {
             val gutenbergDeferred = async { 
                 try {
                     searchProjectGutenberg(trimmed)
-                } catch (e: Exception) {
-                    Log.e("OnlineBookSearch", "Gutenberg error: ${e.message}")
+                } catch (t: Throwable) {
+                    Log.e("OnlineBookSearch", "Gutenberg error: ${t.message}")
                     emptyList()
                 }
             }
@@ -67,27 +76,64 @@ class OnlineBookSearchService(private val context: Context) {
             val noorBookDeferred = async {
                 try {
                     searchNoorBook(trimmed)
-                } catch (e: Exception) {
-                    Log.e("OnlineBookSearch", "Noor Book error: ${e.message}")
+                } catch (t: Throwable) {
+                    Log.e("OnlineBookSearch", "Noor Book error: ${t.message}")
                     emptyList()
                 }
             }
 
-            val gutenbergResults = gutenbergDeferred.await()
-            val noorBookResults = noorBookDeferred.await()
+            val openLibraryDeferred = async {
+                try {
+                    searchOpenLibrary(trimmed)
+                } catch (t: Throwable) {
+                    Log.e("OnlineBookSearch", "OpenLibrary error: ${t.message}")
+                    emptyList()
+                }
+            }
+
+            val gutenbergResults = try { gutenbergDeferred.await() } catch (t: Throwable) { emptyList() }
+            val noorBookResults = try { noorBookDeferred.await() } catch (t: Throwable) { emptyList() }
+            val openLibraryResults = try { openLibraryDeferred.await() } catch (t: Throwable) { emptyList() }
 
             val combined = mutableListOf<SearchBookResult>()
             if (isArabicQuery) {
-                // Prioritize Arabic books from Noor Book
+                // Prioritize Arabic books from Noor Book, then others
                 combined.addAll(noorBookResults)
+                combined.addAll(openLibraryResults)
                 combined.addAll(gutenbergResults)
             } else {
-                // Prioritize English books from Project Gutenberg
+                // Prioritize Project Gutenberg and Open Library
                 combined.addAll(gutenbergResults)
+                combined.addAll(openLibraryResults)
                 combined.addAll(noorBookResults)
             }
 
-            combined.distinctBy { it.stableId }
+            val distinct = combined.distinctBy { it.stableId }.toMutableList()
+
+            // If still empty (e.g. offline / rare query), provide best-effort matches from all curated catalogs
+            if (distinct.isEmpty()) {
+                val curatedArabic = NOOR_BOOK_CATALOG.filter { book ->
+                    com.example.util.TextNormalizer.matchesAny(trimmed, book.title, book.authorDisplay, book.description, book.genreKeywords.joinToString(" "))
+                }.map { it.toSearchResult() }
+                
+                val curatedGutenberg = GUTENBERG_FALLBACK_CATALOG.filter { book ->
+                    com.example.util.TextNormalizer.matchesAny(trimmed, book.title, book.authorDisplay, book.description)
+                }.map { it.toSearchResult() }
+
+                distinct.addAll(if (isArabicQuery) curatedArabic + curatedGutenberg else curatedGutenberg + curatedArabic)
+            }
+
+            // Final safety net: if completely empty, suggest top curated books
+            if (distinct.isEmpty()) {
+                val topCurated = if (isArabicQuery) {
+                    NOOR_BOOK_CATALOG.take(8).map { it.toSearchResult() }
+                } else {
+                    GUTENBERG_FALLBACK_CATALOG.take(8).map { it.toSearchResult() }
+                }
+                distinct.addAll(topCurated)
+            }
+
+            distinct.distinctBy { it.stableId }
         }
     }
 
@@ -98,12 +144,15 @@ class OnlineBookSearchService(private val context: Context) {
         val results = mutableListOf<SearchBookResult>()
         val trimmedQuery = query.trim()
 
-        // 1. Match against extensive Noor Book catalog index using normalized fuzzy matching
+        // 1. Match against extensive Noor Book catalog index using normalized multi-field matching
         val indexedMatches = NOOR_BOOK_CATALOG.filter { book ->
-            com.example.util.TextNormalizer.matches(book.title, trimmedQuery) ||
-            com.example.util.TextNormalizer.matches(book.authorDisplay, trimmedQuery) ||
-            com.example.util.TextNormalizer.matches(book.description, trimmedQuery) ||
-            book.genreKeywords.any { kw -> com.example.util.TextNormalizer.matches(kw, trimmedQuery) }
+            com.example.util.TextNormalizer.matchesAny(
+                trimmedQuery,
+                book.title,
+                book.authorDisplay,
+                book.description,
+                book.genreKeywords.joinToString(" ")
+            )
         }.map { it.toSearchResult() }
 
         results.addAll(indexedMatches)
@@ -153,7 +202,7 @@ class OnlineBookSearchService(private val context: Context) {
                 .build()
 
             try {
-                val response = httpClient.newCall(request).execute()
+                val response = searchHttpClient.newCall(request).execute()
                 if (response.isSuccessful) {
                     val body = response.body?.string()
                     if (!body.isNullOrBlank()) {
@@ -250,15 +299,18 @@ class OnlineBookSearchService(private val context: Context) {
                     }
                 }
             } catch (e: Exception) {
-                Log.e("ProjectGutenberg", "API error: ${e.message}")
+                Log.d("ProjectGutenberg", "API notice (will use cached index): ${e.message}")
             }
         }
 
-        // Match against Gutenberg offline curated classics using normalized matching
+        // Match against Gutenberg offline curated classics using normalized multi-field matching
         val fallbackMatches = GUTENBERG_FALLBACK_CATALOG.filter { book ->
-            com.example.util.TextNormalizer.matches(book.title, trimmedQuery) ||
-            com.example.util.TextNormalizer.matches(book.authorDisplay, trimmedQuery) ||
-            com.example.util.TextNormalizer.matches(book.description, trimmedQuery)
+            com.example.util.TextNormalizer.matchesAny(
+                trimmedQuery,
+                book.title,
+                book.authorDisplay,
+                book.description
+            )
         }.map { it.toSearchResult() }
 
         for (fallback in fallbackMatches) {
@@ -271,77 +323,191 @@ class OnlineBookSearchService(private val context: Context) {
     }
 
     /**
-     * Live search scraper for Noor Book (www.noor-book.com)
+     * Searches Open Library & Internet Archive (https://openlibrary.org/)
+     * Provides comprehensive world catalog coverage for millions of titles in all languages.
      */
-    private fun fetchLiveNoorBookResults(query: String): List<SearchBookResult> {
+    suspend fun searchOpenLibrary(query: String): List<SearchBookResult> = withContext(Dispatchers.IO) {
+        if (!isOnline()) return@withContext emptyList()
+        val results = mutableListOf<SearchBookResult>()
+        val trimmedQuery = query.trim()
         val encodedQuery = try {
-            URLEncoder.encode(query.trim(), StandardCharsets.UTF_8.toString())
+            URLEncoder.encode(trimmedQuery, StandardCharsets.UTF_8.toString())
         } catch (_: Exception) {
-            query.trim()
+            trimmedQuery
         }
 
-        val url = "https://www.noor-book.com/en/search?search_for=$encodedQuery"
+        val url = "https://openlibrary.org/search.json?q=$encodedQuery&limit=12"
         val request = Request.Builder()
             .url(url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-            .header("Accept-Language", "ar,en;q=0.9")
-            .header("Referer", "https://www.noor-book.com/")
+            .header("User-Agent", "A-Hex-Reader/1.0 (Android; openlibrary.org)")
             .build()
 
-        val results = mutableListOf<SearchBookResult>()
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) return emptyList()
+        try {
+            val response = searchHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val body = response.body?.string()
+                if (!body.isNullOrBlank()) {
+                    val json = JSONObject(body)
+                    val docs = json.optJSONArray("docs")
+                    if (docs != null) {
+                        for (i in 0 until docs.length()) {
+                            val doc = docs.optJSONObject(i) ?: continue
+                            val key = doc.optString("key", "").replace("/works/", "")
+                            if (key.isBlank()) continue
 
-        val html = response.body?.string() ?: return emptyList()
+                            val title = doc.optString("title", "Untitled Book")
+                            val authorsArray = doc.optJSONArray("author_name")
+                            val authors = mutableListOf<String>()
+                            if (authorsArray != null) {
+                                for (a in 0 until authorsArray.length()) {
+                                    val aName = authorsArray.optString(a, "")
+                                    if (aName.isNotBlank()) authors.add(aName)
+                                }
+                            }
+                            if (authors.isEmpty()) authors.add("Open Library Author")
 
-        // Extract book cards from Noor Book search page
-        // Noor Book book links match: /en/book/review/... or /كتاب-...-pdf
-        val cardRegex = Regex("<div[^>]*class=[\"'][^\"']*book-item[^\"']*[\"'][\\s\\S]*?</div>\\s*</div>", RegexOption.IGNORE_CASE)
-        val linkRegex = Regex("href=[\"'](https?://www\\.noor-book\\.com/[^\"']+|/[^\"']+)[\"'][^>]*>([\\s\\S]*?)</a>", RegexOption.IGNORE_CASE)
-        val imgRegex = Regex("src=[\"'](https?://[^\"']+\\.(?:jpg|png|jpeg|webp))[\"']", RegexOption.IGNORE_CASE)
+                            val coverId = doc.optInt("cover_i", 0)
+                            val coverUrl = if (coverId > 0) "https://covers.openlibrary.org/b/id/$coverId-M.jpg" else null
 
-        val linkMatches = linkRegex.findAll(html)
-        var count = 0
+                            val iaArray = doc.optJSONArray("ia")
+                            val iaId = if (iaArray != null && iaArray.length() > 0) iaArray.optString(0) else null
 
-        for (match in linkMatches) {
-            val href = match.groupValues[1]
-            if (href.contains("/book/") || href.contains("كتاب") || href.contains("/pub_book_project/")) {
-                val fullUrl = if (href.startsWith("http")) href else "https://www.noor-book.com$href"
-                val rawTitle = match.groupValues[2].replace(Regex("<[^>]+>"), "").trim()
-                if (rawTitle.isNotBlank() && rawTitle.length in 3..120 && !rawTitle.contains("تحميل") && !rawTitle.contains("المزيد")) {
-                    val bookId = href.substringAfterLast("/").substringBefore("?").replace(".html", "").take(30)
-                    val stableId = "noor-$bookId"
-                    
-                    results.add(
-                        SearchBookResult(
-                            stableId = stableId,
-                            source = "Noor Book (مكتبة نور)",
-                            sourceBookId = bookId,
-                            title = rawTitle,
-                            authors = listOf("مؤلف مكتبة نور"),
-                            description = "كتاب متاح للقراءة والتحميل عبر مكتبة نور (www.noor-book.com). المصدر الرائد للكتب العربية والإسلامية والروايات المترجمة.",
-                            coverUrl = "https://www.noor-book.com/pub_book_project/site_logo.png",
-                            publishedYear = null,
-                            languageCode = "ar",
-                            identifiers = mapOf("Source" to "www.noor-book.com", "NoorBook-URL" to fullUrl),
-                            previewUrl = fullUrl,
-                            infoUrl = fullUrl,
-                            downloadUrl = null,
-                            downloadMimeType = "application/pdf",
-                            availability = BookAvailability.PREVIEW_ONLY,
-                            publicDomain = true,
-                            isPreviewable = true,
-                            format = BookFormat.PDF
-                        )
-                    )
-                    count++
-                    if (count >= 10) break
+                            val firstYear = doc.optInt("first_publish_year", 0).takeIf { it > 0 }
+                            val openLibUrl = "https://openlibrary.org/works/$key"
+
+                            var downloadUrl: String? = null
+                            var downloadMime: String? = null
+                            var format = BookFormat.EPUB
+
+                            if (!iaId.isNullOrBlank()) {
+                                downloadUrl = "https://archive.org/download/$iaId/$iaId.epub"
+                                downloadMime = "application/epub+zip"
+                                format = BookFormat.EPUB
+                            }
+
+                            val isArabic = title.any { it in '\u0600'..'\u06FF' }
+
+                            results.add(
+                                SearchBookResult(
+                                    stableId = "ol-$key",
+                                    source = "Open Library & Archive",
+                                    sourceBookId = key,
+                                    title = title,
+                                    authors = authors,
+                                    description = "Indexed from Open Library (openlibrary.org) & Internet Archive. Published ${firstYear ?: "Classic Era"}.",
+                                    coverUrl = coverUrl ?: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=400",
+                                    publishedYear = firstYear?.toString(),
+                                    languageCode = if (isArabic) "ar" else "en",
+                                    identifiers = mapOf("OpenLibrary-Key" to key, "Source-URL" to openLibUrl),
+                                    previewUrl = openLibUrl,
+                                    infoUrl = openLibUrl,
+                                    downloadUrl = downloadUrl,
+                                    downloadMimeType = downloadMime,
+                                    availability = if (!downloadUrl.isNullOrBlank()) BookAvailability.AVAILABLE_DOWNLOAD else BookAvailability.PREVIEW_ONLY,
+                                    publicDomain = true,
+                                    isPreviewable = true,
+                                    format = format
+                                )
+                            )
+                        }
+                    }
                 }
             }
+        } catch (e: Exception) {
+            Log.d("OpenLibrary", "API notice: ${e.message}")
         }
 
-        return results
+        return@withContext results
+    }
+
+    /**
+     * Live search scraper for Noor Book (www.noor-book.com)
+     */
+     private fun fetchLiveNoorBookResults(query: String): List<SearchBookResult> {
+         return try {
+             val encodedQuery = try {
+                 URLEncoder.encode(query.trim(), StandardCharsets.UTF_8.toString())
+             } catch (_: Exception) {
+                 query.trim()
+             }
+
+             val url = "https://www.noor-book.com/en/search?search_for=$encodedQuery"
+             val request = Request.Builder()
+                 .url(url)
+                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                 .header("Accept-Language", "ar,en;q=0.9")
+                 .header("Referer", "https://www.noor-book.com/")
+                 .build()
+
+             val results = mutableListOf<SearchBookResult>()
+             val response = searchHttpClient.newCall(request).execute()
+             if (!response.isSuccessful) return emptyList()
+
+             val html = response.body?.string() ?: return emptyList()
+             if (html.isBlank()) return emptyList()
+
+             // Safe non-recursive token scan
+             val searchAnchor = "href=\"/book/"
+             var cursor = 0
+             var count = 0
+
+             while (cursor < html.length && count < 10) {
+                 val linkStart = html.indexOf(searchAnchor, cursor)
+                 if (linkStart == -1) break
+
+                 val hrefStart = linkStart + 6
+                 val hrefEnd = html.indexOf("\"", hrefStart)
+                 if (hrefEnd == -1) break
+
+                 val href = html.substring(hrefStart, hrefEnd)
+                 val tagClose = html.indexOf(">", hrefEnd)
+                 if (tagClose == -1) break
+
+                 val closeAnchor = html.indexOf("</a>", tagClose)
+                 if (closeAnchor == -1) break
+
+                 val innerText = html.substring(tagClose + 1, closeAnchor)
+                     .replace(Regex("<[^>]+>"), "")
+                     .trim()
+
+                 if (innerText.isNotBlank() && innerText.length in 3..120 && !innerText.contains("تحميل") && !innerText.contains("المزيد")) {
+                     val bookId = href.substringAfterLast("/").substringBefore("?").replace(".html", "").take(30)
+                     val stableId = "noor-$bookId"
+                     val fullUrl = if (href.startsWith("http")) href else "https://www.noor-book.com$href"
+
+                     results.add(
+                         SearchBookResult(
+                             stableId = stableId,
+                             source = "Noor Book (مكتبة نور)",
+                             sourceBookId = bookId,
+                             title = innerText,
+                             authors = listOf("مؤلف مكتبة نور"),
+                             description = "كتاب متاح للقراءة والتحميل عبر مكتبة نور (www.noor-book.com). المصدر الرائد للكتب العربية والإسلامية والروايات المترجمة.",
+                             coverUrl = "https://www.noor-book.com/pub_book_project/site_logo.png",
+                             publishedYear = null,
+                             languageCode = "ar",
+                             identifiers = mapOf("Source" to "www.noor-book.com", "NoorBook-URL" to fullUrl),
+                             previewUrl = fullUrl,
+                             infoUrl = fullUrl,
+                             downloadUrl = null,
+                             downloadMimeType = "application/pdf",
+                             availability = BookAvailability.PREVIEW_ONLY,
+                             publicDomain = true,
+                             isPreviewable = true,
+                             format = BookFormat.PDF
+                         )
+                     )
+                     count++
+                 }
+                 cursor = closeAnchor + 4
+             }
+
+             results
+        } catch (t: Throwable) {
+            Log.d("NoorBookSearch", "fetchLive notice: ${t.message}")
+            emptyList()
+        }
     }
 
     suspend fun downloadBookFile(
@@ -355,7 +521,7 @@ class OnlineBookSearchService(private val context: Context) {
                 .header("User-Agent", "A-Hex-Reader/1.0 (Android; EPUB/PDF Reader)")
                 .build()
 
-            val response = httpClient.newCall(request).execute()
+            val response = downloadHttpClient.newCall(request).execute()
             if (!response.isSuccessful) return@withContext false
 
             val body = response.body ?: return@withContext false

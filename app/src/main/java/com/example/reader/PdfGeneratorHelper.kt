@@ -57,7 +57,13 @@ object PdfGeneratorHelper {
         val chapters = if (!customChapters.isNullOrEmpty()) {
             customChapters
         } else {
-            val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+            val sampleCh = SampleBooksData.getSampleChaptersForBook(
+                bookId = book.id,
+                title = book.title,
+                author = book.author,
+                description = book.description,
+                languageCode = book.languageCode
+            )
             if (sampleCh.isNotEmpty()) sampleCh else listOf(
                 BookChapter(
                     index = 0,

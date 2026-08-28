@@ -21,33 +21,40 @@ data class RsvpPlaybackState(
 
 object RsvpSpeedReaderEngine {
 
+    // Regex for all Unicode whitespace, non-breaking spaces, and layout delimiters
+    private val UNICODE_WHITESPACE_REGEX = Regex("[\\p{Z}\\s\\u00A0\\u2000-\\u200B\\u202F\\u205F\\u3000\\r\\n\\t]+")
+
     private fun isArabicDiacritic(c: Char): Boolean {
         return (c in '\u064B'..'\u065F') || c == '\u0670' || (c in '\u06D6'..'\u06ED')
     }
 
+    private fun isArabicScript(c: Char): Boolean {
+        return (c in '\u0600'..'\u06FF') || (c in '\u0750'..'\u077F') || (c in '\u08A0'..'\u08FF') || (c in '\uFB50'..'\uFDFF') || (c in '\uFE70'..'\uFEFF')
+    }
+
     /**
      * Tokenizes text for RSVP speed reading.
-     * Preserves Arabic script ligatures, Tashkeel/diacritics, and handles French contractions/punctuation.
+     * Preserves Arabic script ligatures, Tashkeel/diacritics, Tatweel, and handles Unicode whitespace boundaries cleanly.
      */
     fun tokenize(content: String): List<RsvpToken> {
         if (content.isBlank()) return emptyList()
 
-        // Match words along with attached punctuation
-        val rawTokens = content.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        // Match words along with attached punctuation using Unicode-aware boundary split
+        val rawTokens = content.split(UNICODE_WHITESPACE_REGEX).filter { it.isNotBlank() }
         val tokens = mutableListOf<RsvpToken>()
 
         rawTokens.forEachIndexed { index, raw ->
-            val isRtl = raw.any { it in '\u0600'..'\u06FF' || it in '\u0750'..'\u077F' }
-            
-            // Calculate delay multiplier based on punctuation
+            val isRtl = raw.any { isArabicScript(it) }
+
+            // Calculate delay multiplier based on ending punctuation & Arabic delimiters
             val delayMultiplier = when {
-                raw.endsWith(".") || raw.endsWith("!") || raw.endsWith("?") || raw.endsWith("؟") || raw.endsWith("»") -> 1.6f
-                raw.endsWith(",") || raw.endsWith(";") || raw.endsWith(":") || raw.endsWith("؛") || raw.endsWith("،") -> 1.3f
+                raw.endsWith(".") || raw.endsWith("!") || raw.endsWith("?") || raw.endsWith("؟") || raw.endsWith("»") || raw.endsWith("…") -> 1.6f
+                raw.endsWith(",") || raw.endsWith(";") || raw.endsWith(":") || raw.endsWith("؛") || raw.endsWith("،") || raw.endsWith("—") -> 1.3f
                 raw.length > 12 -> 1.2f
                 else -> 1.0f
             }
 
-            // ORP calculation (For LTR: index ~30%; For RTL: natural center of base graphemes)
+            // ORP calculation (For LTR: index ~30%; For RTL: natural center of base graphemes without splitting diacritics)
             val focalIndex = if (isRtl) {
                 // Count base characters excluding combining diacritics
                 val baseIndices = raw.indices.filter { !isArabicDiacritic(raw[it]) }

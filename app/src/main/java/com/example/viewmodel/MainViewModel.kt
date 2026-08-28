@@ -217,10 +217,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val _currentLanguage = MutableStateFlow(
-        when (prefs.getString("app_language", "en")) {
-            "ar" -> AppLanguage.ARABIC
+        when (prefs.getString("app_language", "ar")) {
+            "en" -> AppLanguage.ENGLISH
             "fr" -> AppLanguage.FRENCH
-            else -> AppLanguage.ENGLISH
+            else -> AppLanguage.ARABIC
         }
     )
     val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
@@ -257,11 +257,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (query.isNotBlank()) {
             val q = query.trim()
             list = list.filter { book ->
-                com.example.util.TextNormalizer.matches(book.title, q) ||
-                com.example.util.TextNormalizer.matches(book.author, q) ||
-                com.example.util.TextNormalizer.matches(book.genre, q) ||
-                book.tags.any { tag -> com.example.util.TextNormalizer.matches(tag, q) } ||
-                com.example.util.TextNormalizer.matches(book.description, q)
+                com.example.util.TextNormalizer.matchesAny(
+                    q,
+                    book.title,
+                    book.author,
+                    book.genre,
+                    book.tags.joinToString(" "),
+                    book.description
+                )
             }
         }
 
@@ -477,20 +480,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (extracted.isNotEmpty()) {
                         _currentChapters.value = extracted
                     } else {
-                        val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+                        val sampleCh = SampleBooksData.getSampleChaptersForBook(
+                            bookId = book.id,
+                            title = book.title,
+                            author = book.author,
+                            description = book.description,
+                            languageCode = book.languageCode
+                        )
                         _currentChapters.value = if (sampleCh.isNotEmpty()) sampleCh else listOf(
                             BookChapter(0, book.title, book.description)
                         )
                     }
                 }
             } else {
-                val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+                val sampleCh = SampleBooksData.getSampleChaptersForBook(
+                    bookId = book.id,
+                    title = book.title,
+                    author = book.author,
+                    description = book.description,
+                    languageCode = book.languageCode
+                )
                 _currentChapters.value = if (sampleCh.isNotEmpty()) sampleCh else listOf(
                     BookChapter(0, book.title, book.description)
                 )
             }
         } else {
-            val sampleCh = SampleBooksData.getSampleChaptersForBook(book.id)
+            val sampleCh = SampleBooksData.getSampleChaptersForBook(
+                bookId = book.id,
+                title = book.title,
+                author = book.author,
+                description = book.description,
+                languageCode = book.languageCode
+            )
             _currentChapters.value = if (sampleCh.isNotEmpty()) sampleCh else listOf(
                 BookChapter(0, book.title, book.description)
             )
@@ -945,12 +966,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Direct Online Book Search Methods
+    private var searchJob: kotlinx.coroutines.Job? = null
+
     fun searchOnlineBooks(query: String) {
+        searchJob?.cancel()
         if (query.isBlank()) {
             _onlineSearchUiState.value = SearchUiState.Idle
             return
         }
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
             _onlineSearchUiState.value = SearchUiState.Loading
             try {
                 val results = bookSearchRepository.searchOnlineAndMatchLibrary(query)
@@ -959,13 +983,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     _onlineSearchUiState.value = SearchUiState.Success(results, query)
                 }
-            } catch (e: Exception) {
-                _onlineSearchUiState.value = SearchUiState.Error(e.message ?: "Failed to query book indexes")
+            } catch (t: Throwable) {
+                if (t !is kotlinx.coroutines.CancellationException) {
+                    _onlineSearchUiState.value = SearchUiState.Error(t.message ?: "Failed to query book indexes")
+                }
             }
         }
     }
 
     fun clearOnlineSearch() {
+        searchJob?.cancel()
         _onlineSearchUiState.value = SearchUiState.Idle
     }
 
