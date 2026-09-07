@@ -1,19 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and higher backup rules. Do not migrate transient or share artifacts. -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="cache" path="." />
+        <exclude domain="no_backup" path="." />
+        <exclude domain="file" path="share/" />
+        <exclude domain="file" path="tmp/" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="cache" path="." />
+        <exclude domain="no_backup" path="." />
+        <exclude domain="file" path="share/" />
+        <exclude domain="file" path="tmp/" />
     </device-transfer>
-    -->
 </data-extraction-rules>

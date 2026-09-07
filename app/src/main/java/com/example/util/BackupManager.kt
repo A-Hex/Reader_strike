@@ -12,8 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.OutputStreamWriter
 
 sealed class BackupResult {
@@ -25,6 +25,9 @@ object BackupManager {
 
     const val BACKUP_SCHEMA_VERSION = 1
     const val APP_IDENTIFIER = "A-Hex streak"
+    private const val MAX_BACKUP_BYTES = 25 * 1024 * 1024
+    private const val MAX_RECORDS_PER_COLLECTION = 10_000
+    private const val MAX_TEXT_FIELD_CHARS = 100_000
 
     suspend fun createBackupJson(database: AppDatabase): String = withContext(Dispatchers.IO) {
         val books = database.bookDao().getAllBooksSnapshot()
@@ -162,6 +165,10 @@ object BackupManager {
                 return Result.failure(IllegalArgumentException("Backup file is empty."))
             }
 
+            if (jsonString.length > MAX_BACKUP_BYTES) {
+                return Result.failure(IllegalArgumentException("Backup file exceeds the 25 MB safety limit."))
+            }
+
             val root = JSONObject(jsonString)
             if (!root.has("version")) {
                 return Result.failure(IllegalArgumentException("Invalid backup format: missing schema version."))
@@ -180,11 +187,15 @@ object BackupManager {
 
             // Parse Books
             val booksArray = root.optJSONArray("books") ?: JSONArray()
+            if (booksArray.length() > MAX_RECORDS_PER_COLLECTION) {
+                return Result.failure(IllegalArgumentException("Backup contains too many books."))
+            }
             for (i in 0 until booksArray.length()) {
                 val obj = booksArray.optJSONObject(i) ?: continue
                 val id = obj.optString("id")
                 val title = obj.optString("title")
                 if (id.isBlank() || title.isBlank()) continue
+                if (id.length > 256 || title.length > MAX_TEXT_FIELD_CHARS) continue
 
                 booksList.add(
                     BookEntity(
@@ -201,8 +212,9 @@ object BackupManager {
                         currentPage = obj.optInt("currentPage", 1),
                         readingProgress = obj.optDouble("readingProgress", 0.0).toFloat().coerceIn(0f, 1f),
                         isFavorite = obj.optBoolean("isFavorite", false),
-                        isDownloaded = obj.optBoolean("isDownloaded", true),
-                        localFilePath = if (obj.isNull("localFilePath")) null else obj.optString("localFilePath"),
+                        // A backup must never restore an arbitrary filesystem path.
+                        isDownloaded = false,
+                        localFilePath = null,
                         fileSize = obj.optString("fileSize", "1.2 MB"),
                         genre = obj.optString("genre", "General"),
                         tagsRaw = obj.optString("tagsRaw", ""),
@@ -217,12 +229,16 @@ object BackupManager {
 
             // Parse Highlights
             val highlightsArray = root.optJSONArray("highlights") ?: JSONArray()
+            if (highlightsArray.length() > MAX_RECORDS_PER_COLLECTION) {
+                return Result.failure(IllegalArgumentException("Backup contains too many highlights."))
+            }
             for (i in 0 until highlightsArray.length()) {
                 val obj = highlightsArray.optJSONObject(i) ?: continue
                 val id = obj.optString("id")
                 val bookId = obj.optString("bookId")
                 val text = obj.optString("text")
                 if (id.isBlank() || bookId.isBlank() || text.isBlank()) continue
+                if (id.length > 256 || bookId.length > 256 || text.length > MAX_TEXT_FIELD_CHARS) continue
 
                 highlightsList.add(
                     HighlightEntity(
@@ -242,6 +258,9 @@ object BackupManager {
 
             // Parse Bookmarks
             val bookmarksArray = root.optJSONArray("bookmarks") ?: JSONArray()
+            if (bookmarksArray.length() > MAX_RECORDS_PER_COLLECTION) {
+                return Result.failure(IllegalArgumentException("Backup contains too many bookmarks."))
+            }
             for (i in 0 until bookmarksArray.length()) {
                 val obj = bookmarksArray.optJSONObject(i) ?: continue
                 val id = obj.optString("id")
@@ -265,6 +284,9 @@ object BackupManager {
 
             // Parse Reading Sessions
             val sessionsArray = root.optJSONArray("readingSessions") ?: JSONArray()
+            if (sessionsArray.length() > MAX_RECORDS_PER_COLLECTION) {
+                return Result.failure(IllegalArgumentException("Backup contains too many reading sessions."))
+            }
             for (i in 0 until sessionsArray.length()) {
                 val obj = sessionsArray.optJSONObject(i) ?: continue
                 val bookId = obj.optString("bookId")
@@ -284,6 +306,9 @@ object BackupManager {
 
             // Parse Book Reviews
             val reviewsArray = root.optJSONArray("bookReviews") ?: JSONArray()
+            if (reviewsArray.length() > MAX_RECORDS_PER_COLLECTION) {
+                return Result.failure(IllegalArgumentException("Backup contains too many reviews."))
+            }
             for (i in 0 until reviewsArray.length()) {
                 val obj = reviewsArray.optJSONObject(i) ?: continue
                 val id = obj.optString("id")
@@ -325,7 +350,7 @@ object BackupManager {
     suspend fun restoreBackupFromUri(context: Context, uri: Uri, database: AppDatabase): BackupResult = withContext(Dispatchers.IO) {
         try {
             val jsonContent = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { it.readText() }
+                readLimitedUtf8(inputStream, MAX_BACKUP_BYTES)
             } ?: return@withContext BackupResult.Error("Unable to open backup file for reading.")
 
             val validationResult = parseAndValidateBackup(jsonContent)
@@ -363,6 +388,22 @@ object BackupManager {
         } catch (e: Exception) {
             BackupResult.Error("Restore failed: ${e.localizedMessage ?: "Unknown error"}")
         }
+    }
+
+    private fun readLimitedUtf8(input: InputStream, maxBytes: Int): String {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var total = 0
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > maxBytes) {
+                throw IllegalArgumentException("Backup file exceeds the safety limit.")
+            }
+            output.write(buffer, 0, read)
+        }
+        return output.toString(Charsets.UTF_8.name())
     }
 }
 

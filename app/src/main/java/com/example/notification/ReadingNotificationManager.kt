@@ -305,22 +305,15 @@ object ReadingNotificationManager {
             }
         }
 
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.set(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    pendingIntent
-                )
-            }
-        } catch (e: SecurityException) {
-            // In case exact alarm permission is restricted on Android 12+, fallback to inexact
+        // A reading reminder is not time-critical enough to justify exact-alarm access.
+        // Inexact scheduling reduces permission friction and battery impact.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                pendingIntent
+            )
+        } else {
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 calendar.timeInMillis,
@@ -345,21 +338,13 @@ object ReadingNotificationManager {
 
         val triggerTime = System.currentTimeMillis() + (minutesLater * 60 * 1000L)
 
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.set(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
-            }
-        } catch (e: Exception) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        } else {
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime,

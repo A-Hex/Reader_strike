@@ -78,7 +78,8 @@ object EpubExporter {
 
             // 2. Prepare export directory and filename
             val sanitizedTitle = effectiveTitle.replace("[^a-zA-Z0-9.-]".toRegex(), "_").take(35)
-            val exportDir = File(context.filesDir, "exported_epubs").apply { mkdirs() }
+            // Keep user-shareable artifacts in the directory explicitly exposed by FileProvider.
+            val exportDir = File(context.filesDir, "share/exported_epubs").apply { mkdirs() }
             val outputFile = File(exportDir, "${sanitizedTitle}_${System.currentTimeMillis()}.epub")
 
             val bookUuid = "urn:uuid:" + UUID.randomUUID().toString()
@@ -172,7 +173,10 @@ object EpubExporter {
                     outputFile
                 )
             } catch (e: Exception) {
-                Uri.fromFile(outputFile)
+                return@withContext EpubConversionResult(
+                    success = false,
+                    errorMessage = "The exported EPUB could not be prepared for secure sharing."
+                )
             }
 
             val fileSizeFormatted = formatFileSize(outputFile.length())

@@ -19,40 +19,44 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  val releaseKeystorePath = providers.environmentVariable("KEYSTORE_PATH").orNull
+  val releaseStorePassword = providers.environmentVariable("STORE_PASSWORD").orNull
+  val releaseKeyAlias = providers.environmentVariable("KEY_ALIAS").orNull
+  val releaseKeyPassword = providers.environmentVariable("KEY_PASSWORD").orNull
+  val releaseSigningConfigured = !releaseKeystorePath.isNullOrBlank() &&
+    file(releaseKeystorePath!!).exists() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH")
-      if (keystorePath != null && file(keystorePath).exists()) {
-        storeFile = file(keystorePath)
-        storePassword = System.getenv("STORE_PASSWORD") ?: ""
-        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-        keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-      } else {
-        val debugKeystore = file("${rootDir}/debug.keystore")
-        if (debugKeystore.exists()) {
-          storeFile = debugKeystore
-          storePassword = "android"
-          keyAlias = "androiddebugkey"
-          keyPassword = "android"
-        }
+      if (releaseSigningConfigured) {
+        storeFile = file(releaseKeystorePath!!)
+        storePassword = releaseStorePassword
+        keyAlias = releaseKeyAlias
+        keyPassword = releaseKeyPassword
       }
-    }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
     }
   }
 
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      if (releaseSigningConfigured) {
+        signingConfig = signingConfigs.getByName("release")
+      }
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+  }
+
+  // Never allow a release artifact to be produced without an explicitly configured
+  // production keystore. In particular, do not fall back to the public debug key.
+  gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name.contains("Release", ignoreCase = true) } && !releaseSigningConfigured) {
+      throw GradleException("Release signing is not configured. Set KEYSTORE_PATH, STORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD.")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -69,8 +73,7 @@ android {
   }
 }
 
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
+// Keep the dependency surface minimal. Add a dependency only with a tested feature need.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.accompanist.permissions)

@@ -1177,6 +1177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         stopReadingSession()
         ttsManager.shutdown()
+        audioRecorder.stop()
         ambientEngine.release()
         pdfManager.close()
         facePresenceEngine.stopAnalyzing()
