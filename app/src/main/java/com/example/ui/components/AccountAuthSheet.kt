@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.repository.AccountManager
+import com.example.data.repository.BackupOperationState
 import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
