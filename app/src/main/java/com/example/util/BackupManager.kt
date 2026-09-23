@@ -353,7 +353,19 @@ object BackupManager {
                 readLimitedUtf8(inputStream, MAX_BACKUP_BYTES)
             } ?: return@withContext BackupResult.Error("Unable to open backup file for reading.")
 
-            val validationResult = parseAndValidateBackup(jsonContent)
+            restoreBackupFromJson(context, jsonContent, database)
+        } catch (e: Exception) {
+            BackupResult.Error("Restore failed: ${e.localizedMessage ?: "Unknown error"}")
+        }
+    }
+
+    /**
+     * Validates and merges a backup JSON payload into the database.
+     * Shared by file restores and cloud-account sync, which must behave identically.
+     */
+    suspend fun restoreBackupFromJson(@Suppress("UNUSED_PARAMETER") context: Context, jsonString: String, database: AppDatabase): BackupResult = withContext(Dispatchers.IO) {
+        try {
+            val validationResult = parseAndValidateBackup(jsonString)
             if (validationResult.isFailure) {
                 return@withContext BackupResult.Error(
                     "Invalid or corrupt backup: ${validationResult.exceptionOrNull()?.localizedMessage ?: "Parsing error"}"

@@ -4,15 +4,13 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -22,33 +20,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ai.AiCredentials
+import com.example.data.repository.AiAssistantRepository
+import com.example.data.repository.AssistantEngine
+import com.example.data.repository.AssistantResult
+import com.example.data.repository.AssistantTask
 import com.example.model.Book
 import com.example.model.BookChapter
 import com.example.ui.theme.*
-import com.example.util.AiReadingAssistantEngine
 import com.example.util.AppLanguage
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class AiTaskType(
     val titleEn: String,
     val titleAr: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val task: AssistantTask
 ) {
-    ANALYSIS("Deep Analysis", "التحليل والعمق", Icons.Default.Psychology),
-    CHARACTER_MAP("Character Map", "خريطة الشخصيات", Icons.Default.AccountTree),
-    PLOT_BREAKDOWN("Plot Breakdown", "الحبكة والأحداث", Icons.Default.Timeline),
-    RSVP_VOICE("RSVP & Voice Prep", "القراءة السريعة والنطق", Icons.Default.Bolt),
-    SUMMARY("Summary & Key Points", "الملخص والفوائد", Icons.Default.Summarize),
-    VOCABULARY("Vocabulary", "المفردات والسياق", Icons.Default.Spellcheck),
-    ASK("Ask & Quiz", "حوار واختبار", Icons.Default.Chat)
+    ANALYSIS("Deep Analysis", "التحليل والعمق", Icons.Default.Psychology, AssistantTask.DEEP_ANALYSIS),
+    CHARACTER_MAP("Character Map", "خريطة الشخصيات", Icons.Default.AccountTree, AssistantTask.CHARACTER_MAP),
+    PLOT_BREAKDOWN("Plot Breakdown", "الحبكة والأحداث", Icons.Default.Timeline, AssistantTask.PLOT_BREAKDOWN),
+    RSVP_VOICE("RSVP & Voice Prep", "القراءة السريعة والنطق", Icons.Default.Bolt, AssistantTask.RSVP_VOICE_PREP),
+    SUMMARY("Summary & Key Points", "الملخص والفوائد", Icons.Default.Summarize, AssistantTask.SUMMARY_AND_KEY_POINTS),
+    VOCABULARY("Vocabulary", "المفردات والسياق", Icons.Default.Spellcheck, AssistantTask.VOCABULARY),
+    ASK("Ask & Quiz", "حوار واختبار", Icons.Default.Chat, AssistantTask.ASK)
+}
+
+private sealed interface AssistantUiState {
+    object Idle : AssistantUiState
+    data class Loading(val message: String) : AssistantUiState
+    data class Ready(val markdown: String, val engine: AssistantEngine) : AssistantUiState
+    data class Failed(val message: String, val offline: String?) : AssistantUiState
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,51 +72,44 @@ fun AiAssistantSheet(
 ) {
     var selectedTask by remember { mutableStateOf(AiTaskType.ANALYSIS) }
     var userQuery by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var generatedResponse by remember { mutableStateOf("") }
+    var uiState by remember { mutableStateOf<AssistantUiState>(AssistantUiState.Idle) }
+    var engineInUse by remember { mutableStateOf<AssistantEngine?>(null) }
+
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val repository = remember(context) { AiAssistantRepository(context) }
+    val cloudConfigured = remember(context) { AiCredentials.hasApiKey(context) }
+
     val isArabicBook = book.languageCode == "ar" || book.title.any { it in '\u0600'..'\u06FF' }
     val isRtl = isArabicBook || currentLanguage.isRtl
 
-    // Dynamically generate deep, realistic reading assistant responses from actual content
-    fun generateAiContent(task: AiTaskType, customPrompt: String = "") {
+    fun runTask(task: AiTaskType, prompt: String = "") {
         coroutineScope.launch {
-            isLoading = true
-            delay(300) // Smooth conversational processing feel
-            generatedResponse = when (task) {
-                AiTaskType.ANALYSIS -> {
-                    AiReadingAssistantEngine.generateDeepAnalysis(book, chapter.title, chapter.content)
+            uiState = AssistantUiState.Loading(
+                if (isArabicBook) "جارٍ تحليل المقطع..." else "Analysing the passage..."
+            )
+            val result = repository.run(
+                task = task.task,
+                book = book,
+                chapter = chapter,
+                query = prompt
+            )
+            uiState = when (result) {
+                is AssistantResult.Success -> {
+                    engineInUse = result.engine
+                    AssistantUiState.Ready(result.markdown, result.engine)
                 }
-                AiTaskType.CHARACTER_MAP -> {
-                    AiReadingAssistantEngine.generateCharacterMapText(book, chapter.title, chapter.content)
-                }
-                AiTaskType.PLOT_BREAKDOWN -> {
-                    AiReadingAssistantEngine.generatePlotBreakdown(book, chapter.title, chapter.content)
-                }
-                AiTaskType.RSVP_VOICE -> {
-                    AiReadingAssistantEngine.generateRsvpAndVoicePrep(book, chapter.title, chapter.content)
-                }
-                AiTaskType.SUMMARY -> {
-                    AiReadingAssistantEngine.generateSummary(book, chapter.title, chapter.content)
-                }
-                AiTaskType.VOCABULARY -> {
-                    AiReadingAssistantEngine.extractVocabulary(chapter.content)
-                }
-                AiTaskType.ASK -> {
-                    val promptToUse = customPrompt.ifBlank { if (isArabicBook) "ما هي الفكرة الجوهرية لهذا المقطع؟" else "What is the main premise of this passage?" }
-                    AiReadingAssistantEngine.answerQuery(book, chapter.title, chapter.content, promptToUse)
+                is AssistantResult.Failure -> {
+                    engineInUse = null
+                    AssistantUiState.Failed(result.message, result.offlineMarkdown)
                 }
             }
-            isLoading = false
         }
     }
 
-    LaunchedEffect(selectedTask, chapter.title, chapter.content) {
+    LaunchedEffect(selectedTask, chapter) {
         if (selectedTask != AiTaskType.ASK) {
-            generateAiContent(selectedTask)
-        } else if (generatedResponse.isBlank()) {
-            generateAiContent(AiTaskType.ASK, if (isArabicBook) "ما هي الفكرة الجوهرية لهذا المقطع؟" else "What is the main premise of this passage?")
+            runTask(selectedTask)
         }
     }
 
@@ -143,9 +144,7 @@ fun AiAssistantSheet(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    Brush.linearGradient(listOf(NaturalPrimary, NaturalSecondary))
-                                ),
+                                .background(Brush.linearGradient(listOf(NaturalPrimary, NaturalSecondary))),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -161,17 +160,26 @@ fun AiAssistantSheet(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = if (isRtl) "المساعد والرفيق الذكي للقراءة" else "Reading Companion & Guide",
+                                    text = if (isRtl) "المساعد والرفيق الذكي للقراءة" else "Reading Companion",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+                                val badgeLabel = when {
+                                    engineInUse == AssistantEngine.GEMINI -> if (isRtl) "Gemini" else "Gemini"
+                                    engineInUse == AssistantEngine.ON_DEVICE -> if (isRtl) "على الجهاز" else "On-device"
+                                    cloudConfigured -> "Gemini"
+                                    else -> if (isRtl) "على الجهاز" else "On-device"
+                                }
                                 Surface(
                                     color = NaturalPrimary.copy(alpha = 0.15f),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
-                                        text = if (isRtl) "تحليل ذكي" else "Text Guide",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Black),
+                                        text = badgeLabel,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black
+                                        ),
                                         color = NaturalPrimary,
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                     )
@@ -191,198 +199,327 @@ fun AiAssistantSheet(
                     }
                 }
 
-            // Task Selector Chips
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(AiTaskType.entries) { task ->
-                    val isSelected = selectedTask == task
-                    val chipTitle = if (isArabicBook) task.titleAr else task.titleEn
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedTask = task },
-                        label = { Text(chipTitle, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = task.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = if (isSelected) NaturalPrimary else NaturalDarkTextMuted
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = NaturalPrimary.copy(alpha = 0.2f),
-                            selectedLabelColor = NaturalPrimary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = isSelected,
-                            borderColor = if (isSelected) NaturalPrimary else NaturalDarkBorder
-                        )
-                    )
-                }
-            }
-
-            // Custom Question Input when ASK is selected
-            if (selectedTask == AiTaskType.ASK) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = userQuery,
-                        onValueChange = { userQuery = it },
-                        placeholder = {
+                if (!cloudConfigured) {
+                    Surface(
+                        color = NaturalOchreBg,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, NaturalOchreBorder)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
                             Text(
-                                if (isArabicBook) "اطرح أي سؤال حول المقطع أو اختر من المقترحات..." else "Ask any question or tap Quiz below...",
-                                fontSize = 13.sp,
-                                color = NaturalDarkTextMuted
+                                text = if (isRtl) "وضع التحليل المحلي مُفعّل" else "On-device mode",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = NaturalOchreAccent
                             )
-                        },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = {
-                                    if (userQuery.isNotBlank()) {
-                                        generateAiContent(AiTaskType.ASK, userQuery)
-                                    }
-                                }
-                            ) {
-                                Icon(Icons.Default.Send, contentDescription = "Send", tint = NaturalPrimary)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedBorderColor = NaturalPrimary,
-                            unfocusedBorderColor = NaturalDarkBorder
-                        )
-                    )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isRtl) {
+                                    "لا يوجد مفتاح Gemini. النتائج الحالية مستخرجة من النص على جهازك (اقتباسات وإحصاءات حقيقية). لتفعيل التحليل السحابي، أضف GEMINI_API_KEY في ملف .env أو لوحة المفاتيح."
+                                } else {
+                                    "No Gemini API key found. Results come from real on-device extraction (verbatim quotes and statistics). To enable grounded cloud analysis, add GEMINI_API_KEY to .env or the Keys panel."
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NaturalOchreMuted
+                            )
+                        }
+                    }
+                }
 
-                    // Suggested Prompts
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Task selector chips
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(AiTaskType.entries) { task ->
+                        val isSelected = selectedTask == task
+                        val chipTitle = if (isArabicBook) task.titleAr else task.titleEn
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedTask = task },
+                            label = {
+                                Text(
+                                    chipTitle,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = task.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (isSelected) NaturalPrimary else NaturalDarkTextMuted
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NaturalPrimary.copy(alpha = 0.2f),
+                                selectedLabelColor = NaturalPrimary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) NaturalPrimary else NaturalDarkBorder
+                            )
+                        )
+                    }
+                }
+
+                // Question input for ASK
+                if (selectedTask == AiTaskType.ASK) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = userQuery,
+                            onValueChange = { userQuery = it },
+                            placeholder = {
+                                Text(
+                                    if (isArabicBook) "اطرح سؤالاً حول هذا المقطع..." else "Ask a question about this passage...",
+                                    fontSize = 13.sp,
+                                    color = NaturalDarkTextMuted
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    enabled = userQuery.isNotBlank(),
+                                    onClick = { if (userQuery.isNotBlank()) runTask(AiTaskType.ASK, userQuery) }
+                                ) {
+                                    Icon(Icons.Default.Send, contentDescription = "Send", tint = NaturalPrimary)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedBorderColor = NaturalPrimary,
+                                unfocusedBorderColor = NaturalDarkBorder
+                            )
+                        )
+
                         val suggestions = if (isArabicBook) {
                             listOf(
-                                "📝 اختبار الفهم السريع (3 أسئلة)",
-                                "🎯 ما هو الصراع المحوري في هذا المشهد؟",
-                                "🏛️ السياق الأدبي والرمزي",
-                                "💡 كيف نطبق هذه الحكمة في واقعنا؟",
-                                "🔍 اشرح الجملة الختامية ومغزاها"
+                                "ما الفكرة المركزية في هذا المقطع؟",
+                                "اشرح الجملة الختامية ومغزاها",
+                                "ما الصراع الظاهر في هذا المشهد؟",
+                                "اختبار فهم من النص"
                             )
                         } else {
                             listOf(
-                                "📝 3-Question Quiz",
-                                "🎯 What is the core dilemma?",
-                                "🏛️ Historical & Literary Context",
-                                "💡 Practical Life Application",
-                                "🔍 Explain the concluding thought"
+                                "What is the central idea of this passage?",
+                                "Explain the concluding sentence",
+                                "What conflict is visible here?",
+                                "Quiz me on this passage"
                             )
                         }
-                        items(suggestions) { prompt ->
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.clickable {
-                                    userQuery = prompt
-                                    generateAiContent(AiTaskType.ASK, prompt)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(suggestions) { prompt ->
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.clickable {
+                                        userQuery = prompt
+                                        runTask(AiTaskType.ASK, prompt)
+                                    }
+                                ) {
+                                    Text(
+                                        text = prompt,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalDarkText,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
                                 }
-                            ) {
-                                Text(
-                                    text = prompt,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = NaturalDarkText,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
                             }
                         }
                     }
                 }
-            }
 
-            // Response Box with Copy & Note Saving actions
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 180.dp, max = 360.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
-                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder)
-            ) {
-                Box(
+                // Result area
+                Card(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
+                        .fillMaxWidth()
+                        .heightIn(min = 180.dp, max = 360.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = NaturalDarkBackground),
+                    border = BorderStroke(1.dp, NaturalDarkBorder)
                 ) {
-                    if (isLoading) {
-                        Column(
-                            modifier = Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                color = NaturalPrimary,
-                                strokeWidth = 3.dp
-                            )
-                            Text(
-                                text = "Analyzing passage structure and vocabulary...",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = NaturalDarkTextMuted
-                            )
-                        }
-                    } else {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                            ) {
-                                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        when (val state = uiState) {
+                            is AssistantUiState.Loading -> {
+                                Column(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        color = NaturalPrimary,
+                                        strokeWidth = 3.dp
+                                    )
                                     Text(
-                                        text = generatedResponse,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            lineHeight = 22.sp,
-                                            letterSpacing = 0.2.sp
-                                        ),
-                                        color = NaturalDarkText
+                                        text = state.message,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalDarkTextMuted
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Divider(color = NaturalDarkBorder.copy(alpha = 0.5f))
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Bottom actions: Copy and Save Note
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("Chapter Study Notes", generatedResponse))
-                                        Toast.makeText(context, if (isRtl) "تم نسخ التحليل إلى الحافظة!" else "Copied insight to clipboard!", Toast.LENGTH_SHORT).show()
+                            is AssistantUiState.Idle -> {
+                                Text(
+                                    text = if (isArabicBook) {
+                                        "اختر نوع التحليل أو اطرح سؤالاً."
+                                    } else {
+                                        "Pick an analysis type or ask a question."
                                     },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalPrimary)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(if (isRtl) "نسخ" else "Copy", fontSize = 12.sp, color = NaturalPrimary)
-                                }
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = NaturalDarkTextMuted,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
 
-                                if (onSaveToNotes != null) {
-                                    TextButton(
-                                        onClick = {
-                                            onSaveToNotes(generatedResponse)
-                                            Toast.makeText(context, if (isRtl) "تم الحفظ في ملاحظات الكتاب!" else "Saved to library notes!", Toast.LENGTH_SHORT).show()
-                                        },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            is AssistantUiState.Failed -> {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalOchreAccent)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(if (isRtl) "حفظ في الملاحظات" else "Save Note", fontSize = 12.sp, color = NaturalOchreAccent)
+                                        Icon(
+                                            Icons.Default.ErrorOutline,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = if (isRtl) "تعذّر إكمال الطلب" else "Request could not be completed",
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    Text(
+                                        text = state.message,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = NaturalDarkText
+                                    )
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilledTonalButton(onClick = { runTask(selectedTask, userQuery) }) {
+                                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(if (isRtl) "إعادة المحاولة" else "Retry", fontSize = 12.sp)
+                                        }
+                                        if (!state.offline.isNullOrBlank()) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    engineInUse = AssistantEngine.ON_DEVICE
+                                                    uiState = AssistantUiState.Ready(state.offline, AssistantEngine.ON_DEVICE)
+                                                }
+                                            ) {
+                                                Icon(Icons.Default.Memory, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(if (isRtl) "نتيجة محلية" else "Use on-device", fontSize = 12.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            is AssistantUiState.Ready -> {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = if (state.engine == AssistantEngine.GEMINI) {
+                                                if (isRtl) "مُولّد بواسطة Gemini — راجع الاقتباسات" else "Generated with Gemini — verify quotations"
+                                            } else {
+                                                if (isRtl) "استخلاص محلي — اقتباسات حرفية وإحصاءات" else "On-device extraction — verbatim quotes and statistics"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = NaturalDarkTextMuted,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                    ) {
+                                        item {
+                                            Text(
+                                                text = state.markdown,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    lineHeight = 22.sp,
+                                                    letterSpacing = 0.2.sp
+                                                ),
+                                                color = NaturalDarkText
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Divider(color = NaturalDarkBorder.copy(alpha = 0.5f))
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                clipboard.setPrimaryClip(ClipData.newPlainText("Chapter Study Notes", state.markdown))
+                                                Toast.makeText(
+                                                    context,
+                                                    if (isRtl) "تم نسخ التحليل!" else "Copied insight to clipboard!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalPrimary)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(if (isRtl) "نسخ" else "Copy", fontSize = 12.sp, color = NaturalPrimary)
+                                        }
+
+                                        if (onSaveToNotes != null) {
+                                            TextButton(
+                                                onClick = {
+                                                    onSaveToNotes(state.markdown)
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (isRtl) "تم الحفظ في ملاحظات الكتاب!" else "Saved to library notes!",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalOchreAccent)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(if (isRtl) "حفظ" else "Save Note", fontSize = 12.sp, color = NaturalOchreAccent)
+                                            }
+                                        }
+
+                                        if (onStartSpeedReading != null) {
+                                            TextButton(
+                                                onClick = { onStartSpeedReading(state.markdown) },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalSageAccent)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(if (isRtl) "قراءة سريعة" else "Speed Read", fontSize = 12.sp, color = NaturalSageAccent)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -392,5 +529,4 @@ fun AiAssistantSheet(
             }
         }
     }
-}
 }

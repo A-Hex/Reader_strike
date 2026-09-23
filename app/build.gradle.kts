@@ -3,6 +3,35 @@ plugins {
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
+  // Reads google-services.json at build time (Cloud Account setup).
+  alias(libs.plugins.google.services)
+}
+
+// Cloud Account setup: the google-services plugin fails the build by default when
+// app/google-services.json is absent. WARN lets the app build before that one-time setup,
+// and AccountManager reports "not configured" at runtime instead of crashing.
+googleServices {
+  missingGoogleServicesStrategy =
+    com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy.WARN
+}
+
+// The Gemini API key must reach the app as BuildConfig.GEMINI_API_KEY, otherwise the
+// declared MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API is never actually used.
+// Resolution order: Gradle property -> environment variable -> .env file (AI Studio).
+val geminiApiKey: String = run {
+  fun sanitize(raw: String?): String? = raw?.trim()?.trim('"', '\'')?.takeIf { it.isNotBlank() }
+
+  val fromDotEnv = rootProject.file(".env").takeIf { it.exists() }?.let { envFile ->
+    envFile.readLines()
+      .map { it.trim() }
+      .firstOrNull { it.startsWith("GEMINI_API_KEY") }
+      ?.substringAfter("=", "")
+  }
+
+  sanitize(providers.gradleProperty("GEMINI_API_KEY").orNull)
+    ?: sanitize(providers.environmentVariable("GEMINI_API_KEY").orNull)
+    ?: sanitize(fromDotEnv)
+    ?: ""
 }
 
 android {
@@ -17,6 +46,12 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    buildConfigField(
+      "String",
+      "GEMINI_API_KEY",
+      "\"${geminiApiKey.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+    )
   }
 
   val releaseKeystorePath = providers.environmentVariable("KEYSTORE_PATH").orNull
@@ -97,10 +132,16 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
+  // Cloud accounts & library sync (Firebase Auth + Firestore)
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.auth)
+  implementation(libs.firebase.firestore)
+
   implementation(libs.converter.moshi)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
+  implementation(libs.mlkit.face.detection)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)

@@ -10,13 +10,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.SampleBooksData
+import com.example.data.repository.AccountManager
 import com.example.data.repository.BookRepository
 import com.example.data.repository.BookSearchRepository
 import com.example.data.repository.LocalBackupRepository
 import com.example.data.repository.QuestsAndShieldsManager
 import com.example.data.repository.VocabVaultManager
 import com.example.data.repository.VoiceProfileRepository
-import com.example.data.sync.GoogleDriveSyncManager
+import com.example.data.sync.LibrarySyncManager
 import com.example.model.*
 import com.example.reader.*
 import com.example.notification.ReadingNotificationManager
@@ -38,9 +39,77 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val bookRepository = BookRepository(context, database)
     val localBackupRepository = LocalBackupRepository(database)
     val bookSearchRepository = BookSearchRepository(context, database)
-    val googleDriveSyncManager = GoogleDriveSyncManager(context, database)
+    val syncManager = LibrarySyncManager(context, database)
 
-    val cloudSyncInfo = googleDriveSyncManager.syncInfo
+    // Cloud account (Firebase Auth) + cloud library sync (Firestore)
+    val accountManager = AccountManager(context, database)
+    val accountState = accountManager.accountState
+    val syncState = accountManager.syncState
+    val syncMessage = accountManager.syncMessage
+
+    /** False until google-services.json is added; the Account screen shows a setup hint meanwhile. */
+    val cloudAccountsAvailable: Boolean get() = accountManager.isConfigured
+
+    // ------------------------------------------------------------------
+    // Cloud account actions
+    // ------------------------------------------------------------------
+
+    fun signUp(email: String, password: String, displayName: String?, onResult: (AccountManager.AuthResult) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = accountManager.signUp(email, password, displayName)
+            if (result is AccountManager.AuthResult.Success) {
+                Toast.makeText(context, "Account created — welcome to A-Hex streak!", Toast.LENGTH_LONG).show()
+            }
+            onResult(result)
+        }
+    }
+
+    fun signIn(email: String, password: String, onResult: (AccountManager.AuthResult) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = accountManager.signIn(email, password)
+            if (result is AccountManager.AuthResult.Success) {
+                Toast.makeText(context, "Signed in. Your library can now sync to the cloud.", Toast.LENGTH_SHORT).show()
+            }
+            onResult(result)
+        }
+    }
+
+    fun sendPasswordReset(email: String, onResult: (AccountManager.AuthResult) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = accountManager.sendPasswordReset(email)
+            if (result is AccountManager.AuthResult.Success) {
+                Toast.makeText(context, "Password reset email sent to $email", Toast.LENGTH_LONG).show()
+            }
+            onResult(result)
+        }
+    }
+
+    fun signOutAccount() {
+        accountManager.signOut()
+        Toast.makeText(context, "Signed out — library stays on this device", Toast.LENGTH_SHORT).show()
+    }
+
+    fun resendVerificationEmail(onResult: (AccountManager.AuthResult) -> Unit = {}) {
+        viewModelScope.launch { onResult(accountManager.resendVerificationEmail()) }
+    }
+
+    fun uploadLibraryToCloud() {
+        viewModelScope.launch {
+            accountManager.uploadLibrary().onSuccess { counts ->
+                Toast.makeText(context, "☁️ ${counts.total} items backed up to your account", Toast.LENGTH_SHORT).show()
+                refreshStreakData()
+            }
+        }
+    }
+
+    fun downloadLibraryFromCloud() {
+        viewModelScope.launch {
+            accountManager.downloadLibrary().onSuccess { counts ->
+                Toast.makeText(context, "☁️ ${counts.total} items restored from your account", Toast.LENGTH_LONG).show()
+                refreshStreakData()
+            }
+        }
+    }
 
     // Online Search State
     private val _onlineSearchUiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
@@ -379,20 +448,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         voiceProfileRepository.setVoiceMode(mode)
         val profile = voiceProfileRepository.voiceProfile.value
         ttsManager.setVoiceProfileConfig(mode, profile)
-        val msg = if (mode == VoiceMode.USER_CLONED_VOICE) "Custom Voice Narrator activated!" else "Default System Voice activated"
+        val msg = if (mode == VoiceMode.PITCH_MATCHED) "Pitch-matched narration activated!" else "Default system voice activated"
         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
     }
 
     fun setTtsSpeed(rate: Float) {
         ttsManager.setSpeed(rate)
-        if (voiceProfileRepository.voiceMode.value == VoiceMode.USER_CLONED_VOICE) {
+        if (voiceProfileRepository.voiceMode.value == VoiceMode.PITCH_MATCHED) {
             voiceProfileRepository.updateSpeed(rate)
         }
     }
 
     fun setTtsPitch(pitch: Float) {
         ttsManager.setPitch(pitch)
-        if (voiceProfileRepository.voiceMode.value == VoiceMode.USER_CLONED_VOICE) {
+        if (voiceProfileRepository.voiceMode.value == VoiceMode.PITCH_MATCHED) {
             voiceProfileRepository.updatePitch(pitch)
         }
     }
@@ -1028,48 +1097,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Real Google Drive Cloud Sync Controls
+    // Device-to-device sync controls (real payload export/import, no fabricated cloud)
     fun performGoogleDriveSync() {
         viewModelScope.launch {
-            val res = googleDriveSyncManager.performSync()
+            val res = syncManager.performSync()
             res.onSuccess { count ->
-                Toast.makeText(context, "Google Drive Sync complete ($count items)", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Exported $count items to sync file", Toast.LENGTH_SHORT).show()
                 refreshStreakData()
             }.onFailure { e ->
-                Toast.makeText(context, "Sync issue: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    fun signInGoogleDrive(email: String) {
-        googleDriveSyncManager.signInWithAccount(email)
-        Toast.makeText(context, "Signed in as $email", Toast.LENGTH_SHORT).show()
-        performGoogleDriveSync()
+    /** Reads a sync payload produced on another device and merges it into the local library. */
+    fun importSyncPayload(uri: Uri, onComplete: (Result<Int>) -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.use { it.readText() }
+                    ?: throw IllegalStateException("Could not read the selected file.")
+                val result = syncManager.importSyncPayload(json)
+                result.onSuccess { count ->
+                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Imported $count items from other device", Toast.LENGTH_LONG).show()
+                        refreshStreakData()
+                    }
+                }.onFailure { e ->
+                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+                onComplete(result)
+            } catch (t: Throwable) {
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Import failed: ${t.message}", Toast.LENGTH_LONG).show()
+                }
+                onComplete(Result.failure(t))
+            }
+        }
     }
 
     fun signOutGoogleDrive() {
-        googleDriveSyncManager.signOut()
-        Toast.makeText(context, "Signed out of Google Drive sync", Toast.LENGTH_SHORT).show()
+        syncManager.signOut()
+        Toast.makeText(context, "Sync state cleared", Toast.LENGTH_SHORT).show()
     }
 
     fun setDriveAutoSync(enabled: Boolean) {
-        googleDriveSyncManager.setAutoSync(enabled)
+        syncManager.setAutoSync(enabled)
     }
 
     fun setDriveSyncWifiOnly(enabled: Boolean) {
-        googleDriveSyncManager.setSyncOnWifiOnly(enabled)
+        syncManager.setSyncOnWifiOnly(enabled)
     }
 
     fun setDriveSyncLibrary(enabled: Boolean) {
-        googleDriveSyncManager.setSyncLibrary(enabled)
+        syncManager.setSyncLibrary(enabled)
     }
 
     fun setDriveSyncHighlights(enabled: Boolean) {
-        googleDriveSyncManager.setSyncHighlights(enabled)
+        syncManager.setSyncHighlights(enabled)
     }
 
     fun setDriveSyncStreak(enabled: Boolean) {
-        googleDriveSyncManager.setSyncStreak(enabled)
+        syncManager.setSyncStreak(enabled)
     }
 
     private fun startReadingSession(book: Book) {

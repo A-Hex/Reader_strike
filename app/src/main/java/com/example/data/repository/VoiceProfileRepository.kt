@@ -28,7 +28,7 @@ class VoiceProfileRepository(context: Context) {
     private fun loadSavedProfile() {
         val hasProfile = prefs.getBoolean("has_voice_profile", false)
         if (hasProfile) {
-            val name = prefs.getString("voice_profile_name", "My Voice Narrator") ?: "My Voice Narrator"
+            val name = prefs.getString("voice_profile_name", "My Narration Profile") ?: "My Narration Profile"
             val timestamp = prefs.getLong("voice_profile_timestamp", System.currentTimeMillis())
             val pitch = prefs.getFloat("voice_profile_pitch", 1.0f)
             val speed = prefs.getFloat("voice_profile_speed", 1.0f)
@@ -57,17 +57,17 @@ class VoiceProfileRepository(context: Context) {
                 timbreDescriptor = timbre,
                 preferredSpeed = speed,
                 acousticEmbedding = embedding,
-                isClonedVoiceActive = isActive
+                isPitchMatchedNarrationActive = isActive
             )
             _voiceProfile.value = profile
-            _voiceMode.value = if (isActive) VoiceMode.USER_CLONED_VOICE else VoiceMode.SYSTEM_DEFAULT
+            _voiceMode.value = if (isActive) VoiceMode.PITCH_MATCHED else VoiceMode.SYSTEM_DEFAULT
         } else {
             _voiceProfile.value = null
             _voiceMode.value = VoiceMode.SYSTEM_DEFAULT
         }
     }
 
-    fun trainAndSaveProfile(audioSamples: FloatArray, name: String = "My Voice Narrator"): CustomVoiceProfile? {
+    fun trainAndSaveProfile(audioSamples: FloatArray, name: String = "My Narration Profile"): CustomVoiceProfile? {
         if (audioSamples.isEmpty()) return null
         val profile = engine.analyzeAndCreateProfile(audioSamples, voiceName = name)
 
@@ -90,7 +90,7 @@ class VoiceProfileRepository(context: Context) {
             .apply()
 
         _voiceProfile.value = profile
-        _voiceMode.value = VoiceMode.USER_CLONED_VOICE
+        _voiceMode.value = VoiceMode.PITCH_MATCHED
         return profile
     }
 
@@ -98,9 +98,9 @@ class VoiceProfileRepository(context: Context) {
         _voiceMode.value = mode
         val current = _voiceProfile.value
         if (current != null) {
-            val updated = current.copy(isClonedVoiceActive = (mode == VoiceMode.USER_CLONED_VOICE))
+            val updated = current.copy(isPitchMatchedNarrationActive = (mode == VoiceMode.PITCH_MATCHED))
             _voiceProfile.value = updated
-            prefs.edit().putBoolean("voice_profile_active", updated.isClonedVoiceActive).apply()
+            prefs.edit().putBoolean("voice_profile_active", updated.isPitchMatchedNarrationActive).apply()
         }
     }
 

@@ -6,10 +6,13 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetector
+import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -18,12 +21,22 @@ sealed class FacePresenceState {
     object PermissionRequired : FacePresenceState()
     object CameraUnavailable : FacePresenceState()
     object Detecting : FacePresenceState()
-    object Attentive : FacePresenceState() // Single stable face oriented towards screen
+    object Attentive : FacePresenceState() // A real face is detected and roughly facing the screen
     object NoFace : FacePresenceState()
     object MultipleFaces : FacePresenceState()
     data class Error(val message: String) : FacePresenceState()
 }
 
+/**
+ * On-device face presence detection for the "face-assisted reading timer".
+ *
+ * Detection runs entirely on-device with ML Kit's Face Detection API:
+ *  - The model ships inside the app (bundled), so no network and no Google account is needed.
+ *  - Frames are analysed and immediately closed. No image is ever stored, cached, or
+ *    transmitted; the engine only exposes a presence state.
+ *  - "Attentive" means a real face was detected whose Euler Y/X rotation keeps it roughly
+ *    pointed at the screen for two consecutive analyses.
+ */
 class FacePresenceEngine(private val context: Context) {
 
     private val _presenceState = MutableStateFlow<FacePresenceState>(FacePresenceState.Disabled)
@@ -31,12 +44,15 @@ class FacePresenceEngine(private val context: Context) {
 
     private var cameraExecutor: ExecutorService? = null
     private var cameraProvider: ProcessCameraProvider? = null
+    private var faceDetector: FaceDetector? = null
+    private var isStopped = false
 
     private var consecutiveFaceFrames = 0
     private var consecutiveNoFaceFrames = 0
 
     fun startAnalyzing(lifecycleOwner: LifecycleOwner) {
         stopAnalyzing()
+        isStopped = false
         _presenceState.value = FacePresenceState.Detecting
         consecutiveFaceFrames = 0
         consecutiveNoFaceFrames = 0
@@ -44,18 +60,20 @@ class FacePresenceEngine(private val context: Context) {
         val executor = Executors.newSingleThreadExecutor()
         cameraExecutor = executor
 
+        faceDetector = buildDetector()
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
-                if (cameraExecutor !== executor) {
-                    // Canceled or restarted before future completed
+                if (cameraExecutor !== executor || isStopped) {
+                    // Cancelled or restarted before the future completed.
                     return@addListener
                 }
                 val provider = cameraProviderFuture.get()
                 cameraProvider = provider
 
                 val imageAnalysis = ImageAnalysis.Builder()
-                    .setTargetResolution(Size(320, 240))
+                    .setTargetResolution(Size(480, 360))
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
 
@@ -63,91 +81,102 @@ class FacePresenceEngine(private val context: Context) {
                     analyzeFrame(imageProxy)
                 }
 
-                val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
                 provider.unbindAll()
                 provider.bindToLifecycle(
                     lifecycleOwner,
-                    cameraSelector,
+                    CameraSelector.DEFAULT_FRONT_CAMERA,
                     imageAnalysis
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _presenceState.value = FacePresenceState.CameraUnavailable
             }
         }, ContextCompat.getMainExecutor(context))
     }
 
-    /**
-     * Fast, lightweight on-device presence analyzer.
-     * Evaluates face presence and attention orientation on-device.
-     * Zero images are stored, zero frames are saved or transmitted off-device.
-     */
+    private fun buildDetector(): FaceDetector {
+        // FAST mode with landmark detection disabled: presence + orientation only, ~real time.
+        val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+            .setMinFaceSize(0.20f)
+            .enableTracking()
+            .build()
+        return FaceDetection.getClient(options)
+    }
+
     private fun analyzeFrame(image: ImageProxy) {
-        try {
-            val buffer: ByteBuffer = image.planes[0].buffer
-            val data = ByteArray(buffer.remaining())
-            buffer.get(data)
-
-            val width = image.width
-            val height = image.height
-
-            // Calculate luminance distribution and center variance
-            var centerLuminanceSum = 0L
-            var centerPixels = 0
-            val startX = (width * 0.25).toInt()
-            val endX = (width * 0.75).toInt()
-            val startY = (height * 0.20).toInt()
-            val endY = (height * 0.80).toInt()
-
-            var skinToneLikePixels = 0
-
-            for (y in startY until endY step 4) {
-                for (x in startX until endX step 4) {
-                    val index = y * width + x
-                    if (index < data.size) {
-                        val lum = data[index].toInt() and 0xFF
-                        centerLuminanceSum += lum
-                        centerPixels++
-                        if (lum in 45..225) {
-                            skinToneLikePixels++
-                        }
-                    }
-                }
-            }
-
-            val avgLum = if (centerPixels > 0) centerLuminanceSum / centerPixels else 0
-            val presenceRatio = if (centerPixels > 0) skinToneLikePixels.toFloat() / centerPixels else 0f
-
-            // Fast face & attention heuristic (requires adequate lighting and centered presence)
-            val isPresent = avgLum in 35..230 && presenceRatio > 0.40f
-
-            if (isPresent) {
-                consecutiveFaceFrames++
-                consecutiveNoFaceFrames = 0
-                if (consecutiveFaceFrames >= 2) {
-                    _presenceState.value = FacePresenceState.Attentive
-                } else {
-                    _presenceState.value = FacePresenceState.Detecting
-                }
-            } else {
-                consecutiveNoFaceFrames++
-                consecutiveFaceFrames = 0
-                if (consecutiveNoFaceFrames >= 4) {
-                    _presenceState.value = FacePresenceState.NoFace
-                }
-            }
-        } catch (_: Exception) {
-            _presenceState.value = FacePresenceState.NoFace
-        } finally {
+        val detector = faceDetector
+        if (detector == null || isStopped) {
             image.close()
+            return
+        }
+
+        val mediaImage = image.image
+        if (mediaImage == null) {
+            image.close()
+            return
+        }
+
+        val rotation = image.imageInfo.rotationDegrees
+        val inputImage = InputImage.fromMediaImage(mediaImage, rotation)
+
+        detector.process(inputImage)
+            .addOnSuccessListener { faces ->
+                if (isStopped) return@addOnSuccessListener
+                when {
+                    faces.isEmpty() -> onNoFace()
+                    faces.size > 1 -> {
+                        // More than one face: ambiguous attention; require single-reader focus.
+                        _presenceState.value = FacePresenceState.MultipleFaces
+                        consecutiveFaceFrames = 0
+                    }
+                    else -> onFaceDetected(faces.first())
+                }
+            }
+            .addOnFailureListener {
+                if (!isStopped) {
+                    _presenceState.value = FacePresenceState.Error("Face analysis failed on this frame.")
+                }
+            }
+            .addOnCompleteListener { image.close() }
+    }
+
+    private fun onFaceDetected(face: com.google.mlkit.vision.face.Face) {
+        consecutiveFaceFrames++
+        consecutiveNoFaceFrames = 0
+
+        // Attentive = face present and head kept within ±35° of screen-facing on both axes.
+        val roughlyFacingScreen =
+            Math.abs(face.headEulerAngleY) <= 35f && Math.abs(face.headEulerAngleX) <= 35f
+
+        _presenceState.value = if (consecutiveFaceFrames >= 2 && roughlyFacingScreen) {
+            FacePresenceState.Attentive
+        } else {
+            FacePresenceState.Detecting
+        }
+    }
+
+    private fun onNoFace() {
+        consecutiveNoFaceFrames++
+        consecutiveFaceFrames = 0
+        if (consecutiveNoFaceFrames >= 4) {
+            _presenceState.value = FacePresenceState.NoFace
+        } else {
+            _presenceState.value = FacePresenceState.Detecting
         }
     }
 
     fun stopAnalyzing() {
+        isStopped = true
+        try {
+            faceDetector?.close()
+        } catch (_: Exception) {}
+        faceDetector = null
         try {
             cameraProvider?.unbindAll()
-            cameraExecutor?.shutdown()
         } catch (_: Exception) {}
+        cameraExecutor?.shutdown()
         cameraExecutor = null
         cameraProvider = null
         _presenceState.value = FacePresenceState.Disabled
