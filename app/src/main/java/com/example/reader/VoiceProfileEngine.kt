@@ -18,7 +18,7 @@ class VoiceProfileEngine {
     fun analyzeAndCreateProfile(
         audioSamples: FloatArray,
         sampleRate: Int = 16000,
-        voiceName: String = "My Voice Narrator"
+        voiceName: String = "My Narration Profile"
     ): CustomVoiceProfile {
         if (audioSamples.isEmpty()) {
             return CustomVoiceProfile(
@@ -55,7 +55,7 @@ class VoiceProfileEngine {
             timbreDescriptor = timbre,
             preferredSpeed = 1.0f,
             acousticEmbedding = embedding,
-            isClonedVoiceActive = true
+            isPitchMatchedNarrationActive = true
         )
     }
 

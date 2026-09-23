@@ -49,25 +49,25 @@ data class SyncBackupManifest(
     val checksum: String = ""
 )
 
+/**
+ * Sync state shown in Settings. Every field is a real measurement:
+ *  - [payloadBytes] is the byte size of the last exported payload (0 when none).
+ *  - [remoteDeviceCount] counts distinct device ids actually merged from a payload.
+ * The previous version of this model shipped hardcoded "12.4 MB / 15.0 GB" quotas and three
+ * fictional devices; those fields no longer exist.
+ */
 data class CloudSyncInfo(
-    val syncStatus: CloudSyncStatus = CloudSyncStatus.Ready("reader@ahex.cloud", System.currentTimeMillis() - 3600_000L),
+    val syncStatus: CloudSyncStatus = CloudSyncStatus.SignedOut,
     val syncState: SyncState = SyncState.IDLE,
-    val lastSyncedAt: Long = System.currentTimeMillis() - 3600_000L,
+    val lastSyncedAt: Long = 0L,
     val autoSyncEnabled: Boolean = true,
     val syncOnWifiOnly: Boolean = false,
     val syncLibrary: Boolean = true,
     val syncHighlights: Boolean = true,
     val syncStreak: Boolean = true,
     val pendingChangesCount: Int = 0,
-    val cloudAccountName: String = "reader@ahex.cloud",
-    val cloudStorageUsed: String = "12.4 MB / 15.0 GB (Google Drive)",
-    val connectedDevices: List<SyncDevice> = listOf(
-        SyncDevice("dev-current", "Android Device (Current)", "Android 15 / M3", System.currentTimeMillis(), true),
-        SyncDevice("dev-tablet", "A-Hex E-Reader Tab", "Android 14 Tablet", System.currentTimeMillis() - 86400000L),
-        SyncDevice("dev-web", "A-Hex Cloud Sync", "Web Client", System.currentTimeMillis() - 172800000L)
-    ),
-    val syncLogs: List<SyncLogItem> = listOf(
-        SyncLogItem("log-1", System.currentTimeMillis() - 1000 * 60 * 25, "Synchronized library reading progress & 12 highlights with Google Drive", true, 14),
-        SyncLogItem("log-2", System.currentTimeMillis() - 1000 * 3600 * 4, "Backup manifest verified: 6 books, 24 highlights, streaks up to date", true, 30)
-    )
+    val cloudAccountName: String = "",
+    val payloadBytes: Long = 0L,
+    val remoteDeviceCount: Int = 0,
+    val syncLogs: List<SyncLogItem> = emptyList()
 )

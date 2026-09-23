@@ -39,12 +39,17 @@ class OnlineBookSearchService(private val context: Context) {
         .followSslRedirects(true)
         .build()
 
+    /**
+     * Connectivity is only a hint used to skip obviously-doomed requests. When the capability
+     * check itself fails we still attempt the call and let OkHttp report the real error.
+     */
     private fun isOnline(): Boolean {
         return try {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             val network = connectivityManager?.activeNetwork ?: return false
             val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
         } catch (_: Exception) {
             true
         }
@@ -108,32 +113,9 @@ class OnlineBookSearchService(private val context: Context) {
                 combined.addAll(noorBookResults)
             }
 
-            val distinct = combined.distinctBy { it.stableId }.toMutableList()
-
-            // If still empty (e.g. offline / rare query), provide best-effort matches from all curated catalogs
-            if (distinct.isEmpty()) {
-                val curatedArabic = NOOR_BOOK_CATALOG.filter { book ->
-                    com.example.util.TextNormalizer.matchesAny(trimmed, book.title, book.authorDisplay, book.description, book.genreKeywords.joinToString(" "))
-                }.map { it.toSearchResult() }
-                
-                val curatedGutenberg = GUTENBERG_FALLBACK_CATALOG.filter { book ->
-                    com.example.util.TextNormalizer.matchesAny(trimmed, book.title, book.authorDisplay, book.description)
-                }.map { it.toSearchResult() }
-
-                distinct.addAll(if (isArabicQuery) curatedArabic + curatedGutenberg else curatedGutenberg + curatedArabic)
-            }
-
-            // Final safety net: if completely empty, suggest top curated books
-            if (distinct.isEmpty()) {
-                val topCurated = if (isArabicQuery) {
-                    NOOR_BOOK_CATALOG.take(8).map { it.toSearchResult() }
-                } else {
-                    GUTENBERG_FALLBACK_CATALOG.take(8).map { it.toSearchResult() }
-                }
-                distinct.addAll(topCurated)
-            }
-
-            distinct.distinctBy { it.stableId }
+            // Only genuine matches are returned. An empty list is a truthful "no results" and lets
+            // the UI say so, instead of padding the list with unrelated catalogue entries.
+            combined.distinctBy { it.stableId }
         }
     }
 
@@ -169,12 +151,6 @@ class OnlineBookSearchService(private val context: Context) {
             } catch (e: Exception) {
                 Log.d("NoorBookSearch", "Live fetch fallback: ${e.message}")
             }
-        }
-
-        // If query was generic like "عربي", "رواية", "كتب", "فلسفة", "تاريخ", provide top suggestions
-        if (results.isEmpty() && trimmedQuery.any { it in '\u0600'..'\u06FF' }) {
-            val suggestions = NOOR_BOOK_CATALOG.take(8).map { it.toSearchResult() }
-            results.addAll(suggestions)
         }
 
         return@withContext results
@@ -395,7 +371,7 @@ class OnlineBookSearchService(private val context: Context) {
                                     title = title,
                                     authors = authors,
                                     description = "Indexed from Open Library (openlibrary.org) & Internet Archive. Published ${firstYear ?: "Classic Era"}.",
-                                    coverUrl = coverUrl ?: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=400",
+                                    coverUrl = coverUrl,
                                     publishedYear = firstYear?.toString(),
                                     languageCode = if (isArabic) "ar" else "en",
                                     identifiers = mapOf("OpenLibrary-Key" to key, "Source-URL" to openLibUrl),
@@ -482,18 +458,21 @@ class OnlineBookSearchService(private val context: Context) {
                              source = "Noor Book (مكتبة نور)",
                              sourceBookId = bookId,
                              title = innerText,
-                             authors = listOf("مؤلف مكتبة نور"),
-                             description = "كتاب متاح للقراءة والتحميل عبر مكتبة نور (www.noor-book.com). المصدر الرائد للكتب العربية والإسلامية والروايات المترجمة.",
-                             coverUrl = "https://www.noor-book.com/pub_book_project/site_logo.png",
+                             // The Noor Book search page does not expose the author for a result row.
+                             authors = emptyList(),
+                             description = "نتيجة بحث من مكتبة نور (www.noor-book.com). لا تتوفر بيانات وصفية كاملة من صفحة البحث؛ افتح الرابط للاطلاع على تفاصيل الطبعة.",
+                             // No verified cover image is scraped, so none is reported.
+                             coverUrl = null,
                              publishedYear = null,
                              languageCode = "ar",
                              identifiers = mapOf("Source" to "www.noor-book.com", "NoorBook-URL" to fullUrl),
                              previewUrl = fullUrl,
                              infoUrl = fullUrl,
                              downloadUrl = null,
-                             downloadMimeType = "application/pdf",
-                             availability = BookAvailability.PREVIEW_ONLY,
-                             publicDomain = true,
+                             downloadMimeType = null,
+                             availability = BookAvailability.METADATA_ONLY,
+                             // Third-party editions: no licence claim is made.
+                             publicDomain = false,
                              isPreviewable = true,
                              format = BookFormat.PDF
                          )
@@ -571,13 +550,19 @@ class OnlineBookSearchService(private val context: Context) {
         val title: String,
         val authorDisplay: String,
         val description: String,
-        val coverUrl: String,
+        /**
+         * Kept for catalogue metadata only. Generic stock imagery is deliberately not used as a
+         * stand-in for a real cover, so [toSearchResult] reports no cover and the UI renders its
+         * own generated placeholder instead.
+         */
+        val coverUrl: String?,
         val noorUrl: String,
         val genreKeywords: List<String>,
         val downloadUrl: String? = null,
         val format: BookFormat = BookFormat.PDF
     ) {
         fun toSearchResult(): SearchBookResult {
+            val hasDownload = !downloadUrl.isNullOrBlank()
             return SearchBookResult(
                 stableId = "noor-$id",
                 source = "Noor Book (مكتبة نور)",
@@ -585,16 +570,18 @@ class OnlineBookSearchService(private val context: Context) {
                 title = title,
                 authors = listOf(authorDisplay),
                 description = description,
-                coverUrl = coverUrl,
+                // No verified cover image is available for this entry.
+                coverUrl = null,
                 publishedYear = null,
                 languageCode = "ar",
                 identifiers = mapOf("Source" to "www.noor-book.com", "NoorBook-URL" to noorUrl),
                 previewUrl = noorUrl,
                 infoUrl = noorUrl,
                 downloadUrl = downloadUrl,
-                downloadMimeType = if (format == BookFormat.PDF) "application/pdf" else "application/epub+zip",
-                availability = if (!downloadUrl.isNullOrBlank()) BookAvailability.AVAILABLE_DOWNLOAD else BookAvailability.PREVIEW_ONLY,
-                publicDomain = true,
+                downloadMimeType = if (!hasDownload) null else if (format == BookFormat.PDF) "application/pdf" else "application/epub+zip",
+                availability = if (hasDownload) BookAvailability.AVAILABLE_DOWNLOAD else BookAvailability.METADATA_ONLY,
+                // Noor Book hosts third-party editions; nothing here is asserted to be public domain.
+                publicDomain = false,
                 isPreviewable = true,
                 format = format
             )

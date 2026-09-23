@@ -93,7 +93,7 @@ class TtsManager(private val context: Context) {
         _voiceMode.value = mode
         activeCustomProfile = profile
 
-        if (mode == VoiceMode.USER_CLONED_VOICE && profile != null) {
+        if (mode == VoiceMode.PITCH_MATCHED && profile != null) {
             _speechPitch.value = profile.estimatedPitch
             _speechRate.value = profile.preferredSpeed
             tts?.setPitch(profile.estimatedPitch)
@@ -164,7 +164,7 @@ class TtsManager(private val context: Context) {
 
     private fun applyCurrentVoiceSettings() {
         val currentTts = tts ?: return
-        if (_voiceMode.value == VoiceMode.USER_CLONED_VOICE && activeCustomProfile != null) {
+        if (_voiceMode.value == VoiceMode.PITCH_MATCHED && activeCustomProfile != null) {
             currentTts.setPitch(activeCustomProfile!!.estimatedPitch)
             currentTts.setSpeechRate(activeCustomProfile!!.preferredSpeed)
         } else {

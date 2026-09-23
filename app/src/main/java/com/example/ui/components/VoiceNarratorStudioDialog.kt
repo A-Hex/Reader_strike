@@ -103,7 +103,7 @@ fun VoiceNarratorStudioDialog(
                         }
                         Column {
                             Text(
-                                text = "Custom Voice Narrator",
+                                text = "Narration Profile Studio",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -173,12 +173,12 @@ fun VoiceNarratorStudioDialog(
 
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalPrimary else NaturalDarkSurfaceVariant
+                                    color = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalPrimary else NaturalDarkSurfaceVariant
                                 ) {
                                     Text(
-                                        text = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) "Active in Reader" else "Standby",
+                                        text = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) "Active in Reader" else "Standby",
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalOnPrimary else NaturalDarkTextMuted,
+                                        color = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalOnPrimary else NaturalDarkTextMuted,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -321,14 +321,14 @@ fun VoiceNarratorStudioDialog(
                                             delay(1200)
                                             val created = viewModel.voiceProfileRepository.trainAndSaveProfile(
                                                 audioSamples = audioSamples,
-                                                name = "My Voice Narrator"
+                                                name = "My Narration Profile"
                                             )
                                             isAnalyzing = false
                                             if (created != null) {
                                                 statusMessage = "Voice profile generated successfully! Ready for narration."
                                                 fineTunePitch = created.estimatedPitch
                                                 fineTuneSpeed = created.preferredSpeed
-                                                viewModel.setVoiceMode(VoiceMode.USER_CLONED_VOICE)
+                                                viewModel.setVoiceMode(VoiceMode.PITCH_MATCHED)
                                             } else {
                                                 statusMessage = "Failed to process audio. Please try again."
                                             }
@@ -412,7 +412,7 @@ fun VoiceNarratorStudioDialog(
                     Button(
                         onClick = {
                             if (currentProfile != null) {
-                                viewModel.setVoiceMode(VoiceMode.USER_CLONED_VOICE)
+                                viewModel.setVoiceMode(VoiceMode.PITCH_MATCHED)
                             }
                             onDismiss()
                         },

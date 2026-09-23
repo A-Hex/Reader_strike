@@ -86,17 +86,17 @@ fun TtsFloatingBar(
                 // Voice Mode Toggle Pill
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background,
+                    color = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background,
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalPrimary else NaturalDarkBorder
+                        if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalPrimary else NaturalDarkBorder
                     ),
                     modifier = Modifier.clickable {
                         if (customProfile != null) {
-                            val newMode = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) {
+                            val newMode = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) {
                                 VoiceMode.SYSTEM_DEFAULT
                             } else {
-                                VoiceMode.USER_CLONED_VOICE
+                                VoiceMode.PITCH_MATCHED
                             }
                             viewModel.setVoiceMode(newMode)
                         } else {
@@ -110,15 +110,15 @@ fun TtsFloatingBar(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) Icons.Default.RecordVoiceOver else Icons.Default.SmartToy,
+                            imageVector = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) Icons.Default.RecordVoiceOver else Icons.Default.SmartToy,
                             contentDescription = "Voice Mode",
-                            tint = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalPrimary else NaturalDarkTextMuted,
+                            tint = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalPrimary else NaturalDarkTextMuted,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) "Cloned Voice (${customProfile?.name ?: "User"})" else "System Voice",
+                            text = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) "Pitch-Matched (${customProfile?.name ?: "User"})" else "System Voice",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalPrimary else MaterialTheme.colorScheme.onSurface
+                            color = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalPrimary else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

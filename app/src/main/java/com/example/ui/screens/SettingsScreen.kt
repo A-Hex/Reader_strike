@@ -80,6 +80,19 @@ fun SettingsScreen(
     var showGoalPickerDialog by remember { mutableStateOf(false) }
     var showVoiceStudioDialog by remember { mutableStateOf(false) }
     var showReminderTimeDialog by remember { mutableStateOf(false) }
+    var showAccountScreen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showAccountScreen) {
+        showAccountScreen = false
+    }
+
+    if (showAccountScreen) {
+        AccountScreen(
+            viewModel = viewModel,
+            onBack = { showAccountScreen = false }
+        )
+        return
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -495,7 +508,7 @@ fun SettingsScreen(
             }
         }
 
-        // Custom AI Voice Narrator Studio (TTS Custom Voice Generation)
+        // Narration Profile Studio (measured pitch tuning for the system TTS narrator)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -522,9 +535,9 @@ fun SettingsScreen(
                         }
                         if (customVoiceProfile != null) {
                             Switch(
-                                checked = activeVoiceMode == VoiceMode.USER_CLONED_VOICE,
+                                checked = activeVoiceMode == VoiceMode.PITCH_MATCHED,
                                 onCheckedChange = { checked ->
-                                    viewModel.setVoiceMode(if (checked) VoiceMode.USER_CLONED_VOICE else VoiceMode.SYSTEM_DEFAULT)
+                                    viewModel.setVoiceMode(if (checked) VoiceMode.PITCH_MATCHED else VoiceMode.SYSTEM_DEFAULT)
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = NaturalPrimary,
@@ -580,12 +593,12 @@ fun SettingsScreen(
 
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalForestAccent.copy(alpha = 0.25f) else NaturalDarkSurfaceVariant
+                                    color = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalForestAccent.copy(alpha = 0.25f) else NaturalDarkSurfaceVariant
                                 ) {
                                     Text(
-                                        text = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) "Active" else "Standby",
+                                        text = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) "Active" else "Standby",
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (activeVoiceMode == VoiceMode.USER_CLONED_VOICE) NaturalForestAccent else NaturalDarkTextMuted,
+                                        color = if (activeVoiceMode == VoiceMode.PITCH_MATCHED) NaturalForestAccent else NaturalDarkTextMuted,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -779,7 +792,92 @@ fun SettingsScreen(
             }
         }
 
-        // Google Drive Cloud Sync & Multi-Device Synchronization
+        // Cloud Account: sign in & sync library to your private cloud storage
+        item {
+            val accountState by viewModel.accountState.collectAsState()
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalPrimary.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NaturalPrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.CloudQueue, contentDescription = null, tint = NaturalOnPrimary, modifier = Modifier.size(20.dp))
+                            }
+                            Column {
+                                Text(
+                                    text = "Cloud Account",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (accountState.isSignedIn) accountState.email ?: "Signed in" else "Sign in to sync across devices",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NaturalPrimary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            color = if (accountState.isSignedIn) NaturalSageBg else NaturalPrimary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (accountState.isSignedIn) "SYNCED" else "OFFLINE",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = if (accountState.isSignedIn) NaturalSageAccent else NaturalPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (accountState.isSignedIn) {
+                            "Back up books, highlights and streaks to your private cloud library, and restore them on any device."
+                        } else {
+                            "Create a free account so your books, highlights and reading streak survive even if this device is lost."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    Button(
+                        onClick = { showAccountScreen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                    ) {
+                        Icon(
+                            if (accountState.isSignedIn) Icons.Default.ManageAccounts else Icons.Default.Login,
+                            contentDescription = null,
+                            tint = NaturalOnPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            if (accountState.isSignedIn) "Manage Account & Sync" else "Sign In / Create Account",
+                            color = NaturalOnPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Device-to-Device Library Sync (honest local transport — no fake cloud account)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -800,12 +898,12 @@ fun SettingsScreen(
                             Icon(Icons.Default.CloudSync, contentDescription = null, tint = NaturalPrimary)
                             Column {
                                 Text(
-                                    text = "Google Drive Cloud Sync",
+                                    text = "Device-to-Device Sync",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Multi-device backup & sync manifest",
+                                    text = "Export / import reading data between your devices",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = NaturalDarkTextMuted
                                 )
@@ -864,20 +962,31 @@ fun SettingsScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Google Account",
+                                    text = "Sync Destination",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = NaturalDarkTextMuted
                                 )
                                 Text(
-                                    text = cloudSyncInfo.cloudAccountName,
+                                    text = cloudSyncInfo.cloudAccountName.ifBlank { "Not configured" },
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
-                                    text = cloudSyncInfo.cloudStorageUsed,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = NaturalPrimary
-                                )
+                                if (cloudSyncInfo.payloadBytes > 0L) {
+                                    Text(
+                                        text = "Last payload: %.1f KB • %d remote device(s) merged".format(
+                                            cloudSyncInfo.payloadBytes / 1024f,
+                                            cloudSyncInfo.remoteDeviceCount
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalPrimary
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Exports your library to a file you can move between devices",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalPrimary
+                                    )
+                                }
                             }
 
                             FilledTonalButton(
@@ -938,35 +1047,24 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Connected devices badge
-                    Text("Linked Devices (${cloudSyncInfo.connectedDevices.size})", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = NaturalDarkTextMuted)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        cloudSyncInfo.connectedDevices.forEach { dev ->
-                            Surface(
-                                color = if (dev.isCurrentDevice) NaturalPrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.background,
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(modifier = Modifier.padding(8.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(
-                                            imageVector = if (dev.platform.contains("Tab", ignoreCase = true)) Icons.Default.TabletAndroid else if (dev.platform.contains("Web", ignoreCase = true)) Icons.Default.Laptop else Icons.Default.PhoneAndroid,
-                                            contentDescription = null,
-                                            tint = if (dev.isCurrentDevice) NaturalPrimary else NaturalDarkTextMuted,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Text(
-                                            text = if (dev.isCurrentDevice) "This Device" else dev.deviceName.take(12),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
-                                            color = if (dev.isCurrentDevice) NaturalPrimary else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1
-                                        )
-                                    }
-                                }
-                            }
+                    // Real device count from imported payloads (no fabricated device list)
+                    if (cloudSyncInfo.remoteDeviceCount > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Devices,
+                                contentDescription = null,
+                                tint = NaturalPrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Merged data from ${cloudSyncInfo.remoteDeviceCount} other device(s)",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = NaturalPrimary
+                            )
                         }
                     }
                 }

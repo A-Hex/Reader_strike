@@ -144,7 +144,7 @@ object AppStrings {
 
         // Smart Face Presence Counter (Privacy-First)
         "face_presence_title" to "Smart Face-Assisted Reading Presence",
-        "face_presence_desc" to "Privacy-first on-device camera presence estimation. Pauses streak counter if you look away. Never saves images or transmits biometric data.",
+        "face_presence_desc" to "Privacy-first on-device face detection (ML Kit, offline model). Pauses the streak counter if you look away. Never saves images or transmits biometric data.",
         "face_presence_enabled" to "Face Reading Presence Enabled",
         "face_presence_attentive" to "Reading Active (Face Detected)",
         "face_presence_candidate" to "Detecting Face...",
@@ -155,11 +155,11 @@ object AppStrings {
         "face_presence_disclaimer" to "Note: Estimates attention presence on-device only. Does not guarantee reading comprehension.",
         "face_privacy_badge" to "100% On-Device & Zero Image Storage",
 
-        // Custom Voice Narrator Profile
-        "voice_narrator_title" to "Custom Voice Narrator Studio",
-        "voice_narrator_desc" to "Calibrate your personalized narrator profile to listen to books with your preferred pitch, cadence, and vocal timbre.",
-        "voice_narrator_train_btn" to "Record & Calibrate Voice Narrator",
-        "voice_narrator_active" to "Custom Voice Active",
+        // Narration Profile (pitch-matched TTS)
+        "voice_narrator_title" to "Narration Profile Studio",
+        "voice_narrator_desc" to "Record a short sample; the app measures your pitch and tunes the narrator to match it. Processed 100%% on device — this is pitch-matching, not voice cloning.",
+        "voice_narrator_train_btn" to "Record & Calibrate Narrator",
+        "voice_narrator_active" to "Pitch-matched narration active",
         "voice_narrator_system" to "System Voice Active",
 
         // PDF Extraction Quality
@@ -370,11 +370,11 @@ object AppStrings {
         "face_presence_disclaimer" to "ملاحظة: يقدر التواجد الفعلي للشخص فقط ولا يعتبر مقياساً دقيقاً للاستيعاب القرائي.",
         "face_privacy_badge" to "100% معالجة محلية بدون حفظ أي صور",
 
-        // Custom Voice Narrator Profile
-        "voice_narrator_title" to "استوديو الراوي الصوتي المخصص",
-        "voice_narrator_desc" to "أنشئ ملفك الصوتي الخاص لقراءة الكتب بصوتك وبنبرتك وسرعتك المفضلة.",
-        "voice_narrator_train_btn" to "تسجيل وتدريب الراوي الصوتي",
-        "voice_narrator_active" to "الصوت المخصص مفعل",
+        // Narration Profile (pitch-matched TTS)
+        "voice_narrator_title" to "استوديو النطق المضبوط",
+        "voice_narrator_desc" to "سجّل مقطعاً قصيراً؛ يقيس التطبيق نبرة صوتك ويضبط الراوي الآلي ليتطابق معها. تتم المعالجة بالكامل على الجهاز — هذه مطابقة للنبرة وليست استنساخاً للصوت.",
+        "voice_narrator_train_btn" to "تسجيل وضبط الراوي",
+        "voice_narrator_active" to "النطق المطابق للنبرة مفعل",
         "voice_narrator_system" to "صوت النظام مفعل",
 
         // PDF Extraction Quality
@@ -585,11 +585,11 @@ object AppStrings {
         "face_presence_disclaimer" to "Note : Estime uniquement l'attention physique devant l'écran, sans mesurer la compréhension.",
         "face_privacy_badge" to "100% sur l'appareil & Zéro stockage d'images",
 
-        // Custom Voice Narrator Profile
-        "voice_narrator_title" to "Studio du Narrateur Vocal Personnalisé",
-        "voice_narrator_desc" to "Créez votre profil vocal personnalisé pour écouter vos livres avec votre propre timbre, cadence et intonation.",
-        "voice_narrator_train_btn" to "Enregistrer et créer mon profil vocal",
-        "voice_narrator_active" to "Voix personnalisée active",
+        // Narration Profile (pitch-matched TTS)
+        "voice_narrator_title" to "Studio du Profil de Narration",
+        "voice_narrator_desc" to "Enregistrez un court échantillon : l'application mesure votre hauteur vocale et règle le narrateur pour qu'il corresponde. Traitement 100 %% sur l'appareil — il s'agit d'adaptation de hauteur, pas de clonage de voix.",
+        "voice_narrator_train_btn" to "Enregistrer et régler le narrateur",
+        "voice_narrator_active" to "Narration à hauteur adaptée active",
         "voice_narrator_system" to "Voix système active",
 
         // PDF Extraction Quality

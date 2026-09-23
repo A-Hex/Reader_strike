@@ -82,7 +82,7 @@ fun InteractiveTutorialOverlay(
                 descKey = "tutorial_step4_desc",
                 icon = Icons.Default.Mic,
                 badgeLabel = "Voice Studio & Privacy",
-                tipHighlight = "Tip: Head to Settings to train a custom Voice Profile that sounds like you—processed 100% on device."
+                tipHighlight = "Tip: Head to Settings to calibrate a narration profile matched to your pitch—processed 100% on device."
             )
         )
     }
