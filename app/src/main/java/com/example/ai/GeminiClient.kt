@@ -97,7 +97,7 @@ object GeminiClient {
     ): AiCallResult {
         if (apiKey.isBlank()) {
             return AiCallResult.MissingApiKey(
-                "No Gemini API key configured. Add GEMINI_API_KEY to .env or the Keys panel to enable AI features."
+                "No Gemini API key configured. Add one in Settings \u2192 Gemini API Key to enable AI features."
             )
         }
 

@@ -7,7 +7,7 @@ import com.example.BuildConfig
  * Resolves the Gemini API key.
  *
  * Priority:
- *  1. Runtime override saved by the user (survives without a rebuild).
+ *  1. Runtime override saved by the user in Settings → Gemini API Key (survives without a rebuild).
  *  2. `BuildConfig.GEMINI_API_KEY`, populated from the Gradle property, the `GEMINI_API_KEY`
  *     environment variable, or the `.env` file that the build injects.
  *
@@ -26,6 +26,26 @@ object AiCredentials {
     }
 
     fun hasApiKey(context: Context): Boolean = apiKey(context).isNotBlank()
+
+    /** The key the user typed into Settings, or null when only a build-time key exists. */
+    fun runtimeApiKey(context: Context): String? =
+        prefs(context).getString(PREF_API_KEY, null)?.trim()?.takeIf { it.isNotBlank() }
+
+    fun hasRuntimeApiKey(context: Context): Boolean = runtimeApiKey(context) != null
+
+    /**
+     * A non-reversible display form of the active key so Settings can show *which* key is in
+     * use without ever rendering the credential itself.
+     */
+    fun maskedApiKey(context: Context): String? {
+        val key = apiKey(context).takeIf { it.isNotBlank() } ?: return null
+        if (key.length <= 8) return "••••"
+        return "${key.take(4)}••••${key.takeLast(4)}"
+    }
+
+    /** Where the active key came from, so Settings can explain what clearing will do. */
+    fun isUsingBuildTimeKey(context: Context): Boolean =
+        !hasRuntimeApiKey(context) && hasBuildTimeApiKey()
 
     fun setRuntimeApiKey(context: Context, key: String?) {
         val clean = key?.trim()

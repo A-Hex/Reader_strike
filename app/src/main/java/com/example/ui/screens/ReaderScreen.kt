@@ -89,6 +89,7 @@ fun ReaderScreen(
     var showMindMap by remember { mutableStateOf(false) }
     var showEpubExport by remember { mutableStateOf(false) }
     var showVoiceStudioDialog by remember { mutableStateOf(false) }
+    var showActionLoop by remember { mutableStateOf(false) }
     var selectedTextForHighlight by remember { mutableStateOf("") }
 
     BackHandler {
@@ -107,6 +108,7 @@ fun ReaderScreen(
             showMindMap -> showMindMap = false
             showEpubExport -> showEpubExport = false
             showVoiceStudioDialog -> showVoiceStudioDialog = false
+            showActionLoop -> showActionLoop = false
             showTtsBar -> showTtsBar = false
             else -> handleClose()
         }
@@ -525,6 +527,10 @@ fun ReaderScreen(
                                 Icon(Icons.Default.AutoAwesome, contentDescription = "Reading Companion & Guide", tint = NaturalOchreAccent)
                             }
 
+                            IconButton(onClick = { showActionLoop = true }) {
+                                Icon(Icons.Default.Loop, contentDescription = "Read to Build Loop", tint = NaturalSageAccent)
+                            }
+
                             IconButton(onClick = { showMindMap = true }) {
                                 Icon(Icons.Default.AccountTree, contentDescription = "Character & Plot Codex", tint = activeTheme.accentColor)
                             }
@@ -779,6 +785,20 @@ fun ReaderScreen(
                 onTokensRead = { tokens -> viewModel.recordSpeedReadTokens(tokens) },
                 onDismiss = { showSpeedReader = false }
             )
+        }
+
+        // Read -> Build habit loop, seeded with the book the reader is in right now.
+        if (showActionLoop) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                ActionLoopScreen(
+                    viewModel = viewModel,
+                    onBack = { showActionLoop = false },
+                    initialBookTitle = currentBookObj.title
+                )
+            }
         }
 
         if (showAiAssistant) {

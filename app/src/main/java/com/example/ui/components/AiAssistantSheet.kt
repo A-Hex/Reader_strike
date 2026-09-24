@@ -78,7 +78,9 @@ fun AiAssistantSheet(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val repository = remember(context) { AiAssistantRepository(context) }
-    val cloudConfigured = remember(context) { AiCredentials.hasApiKey(context) }
+    // Re-read per composition (SharedPreferences is memory-cached) so a key saved in Settings
+    // is picked up the next time the sheet opens instead of being frozen at first compose.
+    val cloudConfigured = AiCredentials.hasApiKey(context)
 
     val isArabicBook = book.languageCode == "ar" || book.title.any { it in '\u0600'..'\u06FF' }
     val isRtl = isArabicBook || currentLanguage.isRtl
@@ -214,9 +216,9 @@ fun AiAssistantSheet(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (isRtl) {
-                                    "لا يوجد مفتاح Gemini. النتائج الحالية مستخرجة من النص على جهازك (اقتباسات وإحصاءات حقيقية). لتفعيل التحليل السحابي، أضف GEMINI_API_KEY في ملف .env أو لوحة المفاتيح."
+                                    "لا يوجد مفتاح Gemini. النتائج الحالية مستخرجة من النص على جهازك (اقتباسات وإحصاءات حقيقية). لتفعيل التحليل السحابي، أضف مفتاحك من الإعدادات ← مفتاح Gemini API."
                                 } else {
-                                    "No Gemini API key found. Results come from real on-device extraction (verbatim quotes and statistics). To enable grounded cloud analysis, add GEMINI_API_KEY to .env or the Keys panel."
+                                    "No Gemini API key found. Results come from real on-device extraction (verbatim quotes and statistics). To enable grounded cloud analysis, add your key in Settings → Gemini API Key."
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalOchreMuted

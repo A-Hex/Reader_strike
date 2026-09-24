@@ -44,6 +44,7 @@ fun StreakStatsScreen(
     var activeShareContent by remember { mutableStateOf<ShareContentType?>(null) }
     var showGoalPickerDialog by remember { mutableStateOf(false) }
     var showQuestsSheet by remember { mutableStateOf(false) }
+    var showActionLoopScreen by remember { mutableStateOf(false) }
     var selectedGraphMetric by remember { mutableStateOf("Minutes") } // "Minutes" or "Pages"
     var selectedDayStat by remember { mutableStateOf<DayReadingStat?>(null) }
 
@@ -70,6 +71,14 @@ fun StreakStatsScreen(
             },
             onDismiss = { showGoalPickerDialog = false }
         )
+    }
+
+    if (showActionLoopScreen) {
+        ActionLoopScreen(
+            viewModel = viewModel,
+            onBack = { showActionLoopScreen = false }
+        )
+        return
     }
 
     LazyColumn(
@@ -322,6 +331,87 @@ fun StreakStatsScreen(
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Open Quests",
+                        tint = NaturalPrimary
+                    )
+                }
+            }
+        }
+
+        // READ -> BUILD HABIT LOOP (read, compress the problem, apply the idea, build it)
+        item {
+            val loops by viewModel.actionLoops.collectAsState()
+            val builtCount = loops.count { it.isBuilt }
+            val openLoop = loops.firstOrNull { !it.isBuilt }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showActionLoopScreen = true },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = NaturalDarkSurfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalPrimary.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NaturalPrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Loop,
+                                contentDescription = null,
+                                tint = NaturalPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Read \u2192 Build Loop",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = NaturalDarkText
+                                )
+                                if (builtCount > 0) {
+                                    Surface(
+                                        color = NaturalSageBg,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = builtCount.toString() + " built",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = NaturalSageAccent,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = openLoop?.nextStage?.title?.let { "Next step: " + it }
+                                    ?: "Read it, compress the problem, apply the idea, build it",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NaturalDarkTextMuted
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Open Read to Build loop",
                         tint = NaturalPrimary
                     )
                 }

@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.Manifest
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,9 +26,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.ai.AiCredentials
 import com.example.data.repository.BackupOperationState
 import com.example.model.VoiceMode
 import com.example.notification.ReadingNotificationManager
@@ -90,6 +94,20 @@ fun SettingsScreen(
         AccountScreen(
             viewModel = viewModel,
             onBack = { showAccountScreen = false }
+        )
+        return
+    }
+
+    var showActionLoopScreen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showActionLoopScreen) {
+        showActionLoopScreen = false
+    }
+
+    if (showActionLoopScreen) {
+        ActionLoopScreen(
+            viewModel = viewModel,
+            onBack = { showActionLoopScreen = false }
         )
         return
     }
@@ -1007,16 +1025,24 @@ fun SettingsScreen(
 
                     // Granular toggles
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // No background worker exists in this app, so we no longer offer an
+                        // "automatic background sync" switch that could never run. Sync stays
+                        // explicit, user-initiated, and account-free.
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Automatic Background Sync", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
-                            Switch(
-                                checked = cloudSyncInfo.autoSyncEnabled,
-                                onCheckedChange = { viewModel.setDriveAutoSync(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = NaturalPrimary, checkedTrackColor = NaturalPrimary.copy(alpha = 0.5f))
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = NaturalDarkTextMuted,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Sync is manual. Nothing is uploaded in the background and no account or server is involved. Tap Sync Now to write a backup file you decide where to send.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NaturalDarkTextMuted
                             )
                         }
 
@@ -1067,6 +1093,281 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // Read -> Build habit loop: read, compress the real problem, apply the idea, build it.
+        item {
+            val loops by viewModel.actionLoops.collectAsState()
+            val builtCount = loops.count { it.isBuilt }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NaturalPrimary.copy(alpha = 0.6f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NaturalPrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Loop, contentDescription = null, tint = NaturalOnPrimary, modifier = Modifier.size(20.dp))
+                            }
+                            Column {
+                                Text(
+                                    text = "Read \u2192 Build",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Reading habit loop",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NaturalPrimary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            color = if (builtCount > 0) NaturalSageBg else NaturalPrimary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (loops.isEmpty()) "NOT STARTED" else builtCount.toString() + " BUILT",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = if (builtCount > 0) NaturalSageAccent else NaturalPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Read a passage, compress the real problem you are facing into a sentence or two, " +
+                            "apply the idea in the book to it, and build one action you will take in the next 24 hours.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    Button(
+                        onClick = { showActionLoopScreen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = null, tint = NaturalOnPrimary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (loops.isEmpty()) "Start a loop" else "Open my loops (" + loops.size + ")",
+                            color = NaturalOnPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // AI Assistant: bring-your-own Gemini API key. Stored only in this device's private prefs.
+        item {
+            var apiKeyInput by remember { mutableStateOf("") }
+            var revealKey by remember { mutableStateOf(false) }
+            var runtimeKeySet by remember { mutableStateOf(AiCredentials.hasRuntimeApiKey(context)) }
+            val buildTimeKeySet = remember { AiCredentials.hasBuildTimeApiKey() }
+            val isConfigured = runtimeKeySet || buildTimeKeySet
+            val maskedKey = if (isConfigured) AiCredentials.maskedApiKey(context) else null
+            val trimmedInput = apiKeyInput.trim()
+            val canSave = trimmedInput.length >= 20
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isConfigured) NaturalSageAccent.copy(alpha = 0.6f) else NaturalPrimary.copy(alpha = 0.6f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NaturalPrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = NaturalOnPrimary, modifier = Modifier.size(20.dp))
+                            }
+                            Column {
+                                Text(
+                                    text = "AI Assistant",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Gemini API Key",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NaturalPrimary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            color = if (isConfigured) NaturalSageBg else NaturalOchreAccent.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (isConfigured) "CONNECTED" else "ON-DEVICE ONLY",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = if (isConfigured) NaturalSageAccent else NaturalOchreAccent,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (isConfigured) {
+                            "Deep analysis, character maps, summaries and Ask \u0026 Quiz use Gemini on your own key. " +
+                                "Without a key the app falls back to honest on-device analysis, which is simpler."
+                        } else {
+                            "Add your own Google AI Studio (Gemini) key to unlock full AI analysis, summaries and Q\u0026A. " +
+                                "The key stays on this device and is never uploaded or included in backups."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NaturalDarkTextMuted
+                    )
+
+                    if (isConfigured && maskedKey != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.background,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "ACTIVE KEY",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                    color = NaturalDarkTextMuted
+                                )
+                                Text(
+                                    text = maskedKey,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (runtimeKeySet) "Saved on this device" else "Injected at build time",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NaturalPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Paste Gemini API key") },
+                        placeholder = { Text("AIza...") },
+                        singleLine = true,
+                        visualTransformation = if (revealKey) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { revealKey = !revealKey }) {
+                                Icon(
+                                    if (revealKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (revealKey) "Hide key" else "Show key",
+                                    tint = NaturalDarkTextMuted
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NaturalPrimary,
+                            unfocusedBorderColor = NaturalDarkBorder,
+                            focusedLabelColor = NaturalPrimary,
+                            cursorColor = NaturalPrimary
+                        )
+                    )
+
+                    if (trimmedInput.isNotEmpty() && !canSave) {
+                        Text(
+                            text = "That looks too short to be a valid Gemini key.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NaturalOchreAccent
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                AiCredentials.setRuntimeApiKey(context, trimmedInput)
+                                runtimeKeySet = true
+                                apiKeyInput = ""
+                                revealKey = false
+                                Toast.makeText(context, "Gemini key saved on this device.", Toast.LENGTH_SHORT).show()
+                            },
+                            enabled = canSave,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary)
+                        ) {
+                            Icon(Icons.Default.Key, contentDescription = null, tint = NaturalOnPrimary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Save Key", color = NaturalOnPrimary, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                AiCredentials.clearRuntimeApiKey(context)
+                                runtimeKeySet = false
+                                apiKeyInput = ""
+                                val message = if (buildTimeKeySet) {
+                                    "Saved key removed. Falling back to the build-time key."
+                                } else {
+                                    "Key removed. AI features now use on-device analysis only."
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            },
+                            enabled = runtimeKeySet,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, NaturalDarkBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Remove", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    Text(
+                        text = "Get a free key at aistudio.google.com/apikey. The key is stored in this app's private " +
+                            "preferences, excluded from library backups, and never logged.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NaturalDarkTextMuted
+                    )
                 }
             }
         }

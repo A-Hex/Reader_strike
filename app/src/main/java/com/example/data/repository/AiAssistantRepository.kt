@@ -138,7 +138,7 @@ class AiAssistantRepository(private val context: Context) {
                 AssistantResult.Success(offline, AssistantEngine.ON_DEVICE)
             } else {
                 AssistantResult.Failure(
-                    message = "Cloud AI is not configured. Add a GEMINI_API_KEY to enable grounded analysis.",
+                    message = "Cloud AI is not configured. Add your Gemini API key in Settings to enable grounded analysis.",
                     reason = AssistantFailure.MISSING_KEY,
                     offlineMarkdown = offline
                 )

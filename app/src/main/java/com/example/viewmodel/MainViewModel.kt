@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.SampleBooksData
 import com.example.data.repository.AccountManager
+import com.example.data.repository.ActionLoopRepository
 import com.example.data.repository.BookRepository
 import com.example.data.repository.BookSearchRepository
 import com.example.data.repository.LocalBackupRepository
@@ -124,6 +125,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val ambientEngine = AmbientAudioEngine()
     val vocabVaultManager = VocabVaultManager(context)
     val questsManager = QuestsAndShieldsManager(context)
+
+    // "Read -> Build" habit loop: read, compress the problem, apply the book's idea, build one action.
+    val actionLoopRepository = ActionLoopRepository(context)
+    val actionLoops: StateFlow<List<ActionLoop>> = actionLoopRepository.loops
 
     // Voice Narration Profile Studio (TTS Book Reading)
     val voiceProfileRepository = VoiceProfileRepository(context)
@@ -1164,6 +1169,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         syncManager.setSyncStreak(enabled)
     }
 
+    // ------------------------------------------------------------------
+    // "Read -> Build" habit loop actions
+    // ------------------------------------------------------------------
+
+    /** Creates a new loop (blank id) or updates an existing one, then returns the stored record. */
+    fun saveActionLoop(loop: ActionLoop): ActionLoop = actionLoopRepository.save(loop)
+
+    fun deleteActionLoop(id: String) {
+        actionLoopRepository.delete(id)
+    }
+
+    /**
+     * Marks a loop built. XP is granted only on the first transition, so the reward cannot be
+     * farmed by tapping the button repeatedly.
+     */
+    fun markActionLoopBuilt(id: String) {
+        val firstTime = actionLoopRepository.markBuilt(id)
+        if (!firstTime) return
+        questsManager.addXp(BUILT_LOOP_XP)
+        Toast.makeText(context, "Loop built. +$BUILT_LOOP_XP XP", Toast.LENGTH_SHORT).show()
+    }
+
     private fun startReadingSession(book: Book) {
         sessionAccumulatedSeconds = 0L
         sessionPagesTurned = 0
@@ -1273,5 +1300,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ambientEngine.release()
         pdfManager.close()
         facePresenceEngine.stopAnalyzing()
+    }
+
+    private companion object {
+        /** Real XP grant for completing one full Read -> Build loop. */
+        const val BUILT_LOOP_XP = 120
     }
 }
