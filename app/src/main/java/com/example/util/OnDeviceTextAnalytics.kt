@@ -248,7 +248,7 @@ object OnDeviceTextAnalytics {
         sb.appendLine()
 
         val chosen = sentences
-            .filter { it.wordCount() >= 8 }
+            .filter { it.text.wordCount() >= 8 }
             .take(count * 3)
             .shuffled(java.util.Random(seedFor(chapter)))
 

@@ -104,7 +104,7 @@ fun AccountAuthSheet(
                             icon = Icons.Default.Email,
                             keyboardType = KeyboardType.Email
                         )
-                        AuthPasswordField(password, { password = it; errorText = null }, passwordVisible, { passwordVisible = it })
+                        AuthPasswordField(password, { password = it; errorText = null }, passwordVisible, { passwordVisible = !passwordVisible })
 
                         errorText?.let {
                             ErrorBanner(it)
@@ -151,7 +151,7 @@ fun AccountAuthSheet(
                             icon = Icons.Default.Email,
                             keyboardType = KeyboardType.Email
                         )
-                        AuthPasswordField(password, { password = it; errorText = null }, passwordVisible, { passwordVisible = it })
+                        AuthPasswordField(password, { password = it; errorText = null }, passwordVisible, { passwordVisible = !passwordVisible })
 
                         errorText?.let { ErrorBanner(it) }
 
@@ -189,7 +189,7 @@ fun AccountAuthSheet(
 
                         errorText?.let { ErrorBanner(it) }
 
-                        AuthButton("Send Reset Link", Icons.Default.OutgoingMail, busy) {
+                        AuthButton("Send Reset Link", Icons.Default.Send, busy) {
                             if (email.isBlank()) {
                                 errorText = "Enter your email first."
                             } else {

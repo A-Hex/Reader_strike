@@ -120,7 +120,6 @@ class LibrarySyncManager(
             )
 
             transport.deliver(json, suggestedFileName = "ahex_sync_${System.currentTimeMillis()}.json")
-                .getOrThrow()
 
             val now = System.currentTimeMillis()
             prefs.edit().putLong("last_sync_time", now).apply()
@@ -383,8 +382,12 @@ class LibrarySyncManager(
                     BookmarkEntity(
                         id = id,
                         bookId = o.getString("bookId"),
+                        bookTitle = o.optString("bookTitle", ""),
+                        chapterIndex = o.optInt("chapterIndex", 0),
+                        chapterTitle = o.optString("chapterTitle", ""),
                         page = o.optInt("page", 1),
                         title = o.optString("title", ""),
+                        note = o.optString("note").ifBlank { null },
                         timestamp = o.optLong("timestamp", System.currentTimeMillis())
                     )
                 )
@@ -397,8 +400,8 @@ class LibrarySyncManager(
             val seen = database.readingSessionDao().getAllSessions().first().map { it.id }.toSet()
             for (i in 0 until sessArray.length()) {
                 val o = sessArray.getJSONObject(i)
-                val id = o.getString("id")
-                if (id in seen) continue
+                val id = o.optLong("id", 0L)
+                if (id != 0L && id in seen) continue
                 database.readingSessionDao().insertSession(
                     ReadingSessionEntity(
                         id = id,

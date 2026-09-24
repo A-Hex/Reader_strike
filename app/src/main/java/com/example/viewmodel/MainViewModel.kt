@@ -40,6 +40,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val localBackupRepository = LocalBackupRepository(database)
     val bookSearchRepository = BookSearchRepository(context, database)
     val syncManager = LibrarySyncManager(context, database)
+    val cloudSyncInfo = syncManager.syncInfo
 
     // Cloud account (Firebase Auth) + cloud library sync (Firestore)
     val accountManager = AccountManager(context, database)
