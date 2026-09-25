@@ -196,8 +196,7 @@ class LibrarySyncManager(
         val root = JSONObject()
         root.put("version", 2)
         root.put("timestamp", System.currentTimeMillis())
-        root.put("deviceId", deviceId())
-        root.put("app", "A-Hex Streak")
+        root.put("deviceId", deviceId())            root.put("app", "SecureMind")
 
         if (_syncInfo.value.syncLibrary) {
             val booksArray = JSONArray()

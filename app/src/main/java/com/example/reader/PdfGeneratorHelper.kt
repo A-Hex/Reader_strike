@@ -235,7 +235,7 @@ object PdfGeneratorHelper {
             coverCanvas.drawLine(MARGIN_HORIZONTAL.toFloat(), divY.toFloat(), (PAGE_WIDTH - MARGIN_HORIZONTAL).toFloat(), divY.toFloat(), linePaint)
 
             // Description / Intro summary
-            val descIntro = book.description.ifBlank { "A-Hex Reader Digital Edition" }
+            val descIntro = book.description.ifBlank { "SecureMind Digital Edition" }
             val descLayout = StaticLayout.Builder.obtain(descIntro, 0, descIntro.length, textPaint, contentWidth)
                 .setAlignment(if (isArabic) Layout.Alignment.ALIGN_OPPOSITE else Layout.Alignment.ALIGN_NORMAL)
                 .setLineSpacing(4f, 1.2f)
@@ -247,7 +247,7 @@ object PdfGeneratorHelper {
             coverCanvas.restore()
 
             // Footer note
-            val footerText = if (isArabic) "نسخة قارئ A-Hex الرقمية • وثيقة PDF قياسية" else "A-Hex Reader Edition • Standard PDF"
+            val footerText = if (isArabic) "نسخة SecureMind الرقمية • وثيقة PDF قياسية" else "SecureMind Edition • Standard PDF"
             coverCanvas.drawText(
                 footerText,
                 if (isArabic) (PAGE_WIDTH - MARGIN_HORIZONTAL).toFloat() else MARGIN_HORIZONTAL.toFloat(),

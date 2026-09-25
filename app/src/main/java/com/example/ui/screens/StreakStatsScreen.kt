@@ -14,6 +14,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -186,7 +192,7 @@ fun StreakStatsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "A-HEX READING STREAK",
+                            text = "SECUREMIND READING STREAK",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.5.sp,
@@ -610,7 +616,7 @@ fun StreakStatsScreen(
         item {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "A-Hex Achievements & Badges",
+                text = "SecureMind Achievements & Badges",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold,
                     color = NaturalDarkTextMuted
@@ -850,7 +856,7 @@ fun DailyGoalPickerDialog(
                             color = NaturalPrimary
                         )
                         Text(
-                            text = "~${(selectedMinutes.toInt() * 1.25f).toInt()} estimated pages per day",
+                            text = "Your daily reading target",
                             style = MaterialTheme.typography.bodySmall,
                             color = NaturalDarkTextMuted
                         )
@@ -1036,10 +1042,29 @@ fun StreakBadgeCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = badge.iconName.ifBlank { "🏆" },
-                    fontSize = 22.sp
-                )
+                // iconName stores a Material icon identifier (e.g. "local_fire_department"),
+                // not an emoji — map it to a real vector instead of printing the raw string.
+                val badgeIcon: androidx.compose.ui.graphics.vector.ImageVector = when (badge.iconName) {
+                    "flag" -> Icons.Default.Flag
+                    "local_fire_department" -> Icons.Default.LocalFireDepartment
+                    "whatshot" -> Icons.Default.Whatshot
+                    "auto_stories" -> Icons.Default.AutoStories
+                    "edit_note" -> Icons.Default.EditNote
+                    else -> Icons.Default.WorkspacePremium
+                }
+                if (badge.iconName.isBlank()) {
+                    Text(
+                        text = "🏆",
+                        fontSize = 22.sp
+                    )
+                } else {
+                    Icon(
+                        imageVector = badgeIcon,
+                        contentDescription = badge.title,
+                        tint = NaturalDarkText,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Column(modifier = Modifier.weight(1f)) {

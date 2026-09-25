@@ -21,7 +21,7 @@ class AppArchitectureTest {
     fun testAndroid11ContextAndResources() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val appName = context.getString(R.string.app_name)
-        assertEquals("A-Hex streak", appName)
+        assertEquals("SecureMind", appName)
     }
 
     @Test
@@ -75,7 +75,7 @@ class AppArchitectureTest {
         )
         val shareText = SocialShareHelper.formatStatsShareText(streak)
         assertTrue(shareText.contains("7 Consecutive Days"))
-        assertTrue(shareText.contains("A-Hex streak"))
+        assertTrue(shareText.contains("SecureMind"))
 
         val highlight = Highlight(
             id = "hl_1",

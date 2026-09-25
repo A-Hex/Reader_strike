@@ -2,42 +2,53 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Natural Tones Palette (Slate Graphite, Powder Blue, Sage Earth, Warm Ochre)
-val NaturalDarkBackground = Color(0xFF1A1C1E)
-val NaturalDarkSurface = Color(0xFF222426)
-val NaturalDarkSurfaceVariant = Color(0xFF2D2F31)
-val NaturalDarkSurfaceElevated = Color(0xFF3D3F41)
-val NaturalDarkBorder = Color(0xFF4A4C4E)
+// ---------------------------------------------------------------------------------------------
+// SecureMind palette
+//
+// Obsidian depth + an electric mint-cyan "signal" + warm amber highlight. The theme is meant to
+// read as a private, encrypted vault for reading and thinking: dark, calm, high-contrast, and
+// deliberately free of the generic purple/teal template colours.
+//
+// Every token name below is intentionally kept identical to the previous palette so the whole app
+// re-skins from this one file.
+// ---------------------------------------------------------------------------------------------
 
-val NaturalPrimary = Color(0xFFD1E8FF)       // Ice Powder Blue
-val NaturalOnPrimary = Color(0xFF003355)     // Deep Blue on Primary
-val NaturalPrimaryContainer = Color(0xFF004A73)
-val NaturalSecondary = Color(0xFFA8C8EB)     // Soft Blue-Gray
-val NaturalTertiary = Color(0xFFD9C4A0)      // Warm Sand Ochre
+// Surfaces: obsidian, layered by elevation.
+val NaturalDarkBackground = Color(0xFF080B10)
+val NaturalDarkSurface = Color(0xFF0F141C)
+val NaturalDarkSurfaceVariant = Color(0xFF172029)
+val NaturalDarkSurfaceElevated = Color(0xFF212C38)
+val NaturalDarkBorder = Color(0xFF2E3B49)
 
-val NaturalDarkText = Color(0xFFE2E2E6)
-val NaturalDarkTextMuted = Color(0xFF909194)
+// The SecureMind signal colour: a mint-cyan that stays legible as text on obsidian.
+val NaturalPrimary = Color(0xFF5CE1C6)
+val NaturalOnPrimary = Color(0xFF00201B)
+val NaturalPrimaryContainer = Color(0xFF0C4F44)
+val NaturalSecondary = Color(0xFF8FC7E8)     // Cool steel blue
+val NaturalTertiary = Color(0xFFF2C879)      // Warm amber
 
-// Earth Tonal Accent Palettes
-val NaturalWarmOchre = Color(0xFFE89A3C)
-val NaturalSageBg = Color(0xFF242A20)
-val NaturalSageBorder = Color(0xFF384530)
-val NaturalSageAccent = Color(0xFFB4CCB9)
-val NaturalSageMuted = Color(0xFF8BA190)
-val NaturalSageSuccess = Color(0xFF81C784)
-val NaturalForestAccent = Color(0xFF66BB6A)
+val NaturalDarkText = Color(0xFFE6ECF2)
+val NaturalDarkTextMuted = Color(0xFF8A98A8)
 
-val NaturalOchreBg = Color(0xFF2A2620)
-val NaturalOchreBorder = Color(0xFF453C30)
-val NaturalOchreAccent = Color(0xFFD9C4A0)
-val NaturalOchreMuted = Color(0xFFA19177)
+// Accent families (kept for compatibility with existing screens, re-tuned to the new identity).
+val NaturalWarmOchre = Color(0xFFF2A93B)
+val NaturalSageBg = Color(0xFF101F1B)
+val NaturalSageBorder = Color(0xFF1F3A32)
+val NaturalSageAccent = Color(0xFF7EE0C0)
+val NaturalSageMuted = Color(0xFF5FA890)
+val NaturalSageSuccess = Color(0xFF5FE0A8)
+val NaturalForestAccent = Color(0xFF3ED9A5)
 
-// Light Theme Equivalents
-val NaturalLightBackground = Color(0xFFF9F9FB)
+val NaturalOchreBg = Color(0xFF211B10)
+val NaturalOchreBorder = Color(0xFF3D3220)
+val NaturalOchreAccent = Color(0xFFF2C879)
+val NaturalOchreMuted = Color(0xFFA08B63)
+
+// Light theme equivalents.
+val NaturalLightBackground = Color(0xFFF6F8FA)
 val NaturalLightSurface = Color(0xFFFFFFFF)
-val NaturalLightSurfaceVariant = Color(0xFFEEF0F2)
-val NaturalLightPrimary = Color(0xFF00639B)
+val NaturalLightSurfaceVariant = Color(0xFFE9EEF3)
+val NaturalLightPrimary = Color(0xFF0E7C6B)
 val NaturalLightOnPrimary = Color(0xFFFFFFFF)
-val NaturalLightText = Color(0xFF1A1C1E)
-val NaturalLightTextSecondary = Color(0xFF72777A)
-
+val NaturalLightText = Color(0xFF10151B)
+val NaturalLightTextSecondary = Color(0xFF5A6672)

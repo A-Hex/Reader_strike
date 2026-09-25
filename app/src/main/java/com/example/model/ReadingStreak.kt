@@ -1,10 +1,10 @@
 package com.example.model
 
 enum class BadgeTier(val displayName: String, val colorLong: Long) {
-    BRONZE("Bronze Hex", 0xFFCD7F32),
-    SILVER("Silver Hex", 0xFFC0C0C0),
-    GOLD("Gold Hex", 0xFFFFD700),
-    DIAMOND("A-Hex Diamond", 0xFF00E5FF)
+    BRONZE("Bronze Shield", 0xFFCD7F32),
+    SILVER("Silver Shield", 0xFFC0C0C0),
+    GOLD("Gold Shield", 0xFFFFD700),
+    DIAMOND("Diamond Shield", 0xFF00E5FF)
 }
 
 data class StreakBadge(
@@ -36,10 +36,9 @@ data class ReadingStreakData(
     val avgSessionMinutes: Float = 0f,
     val totalSessionsCount: Int = 0,
     val dailyGoalMinutes: Int = 20,
-    val dailyGoalPages: Int = 25,
     val todayMinutesRead: Int = 0,
     val todayPagesRead: Int = 0,
-    val readingSpeedWpm: Int = 240,
+    val readingSpeedWpm: Int = 0, // 0 = not measured yet; never a placeholder figure
     val lastReadDate: String = "",
     val weeklyStats: List<DayReadingStat> = emptyList(),
     val monthlyStats: List<DayReadingStat> = emptyList(),

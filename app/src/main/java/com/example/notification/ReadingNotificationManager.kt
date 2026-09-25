@@ -259,7 +259,7 @@ object ReadingNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = "📚 A-Hex streak Notifications Active!"
+        val title = "📚 SecureMind Notifications Active!"
         val text = "Your daily reading reminders and streak alerts are configured and working smoothly."
 
         val builder = NotificationCompat.Builder(context, CHANNEL_REMINDERS_ID)

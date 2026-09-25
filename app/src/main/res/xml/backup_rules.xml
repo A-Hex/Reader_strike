@@ -5,4 +5,7 @@
     <exclude domain="no_backup" path="." />
     <exclude domain="file" path="share/" />
     <exclude domain="file" path="tmp/" />
+    <!-- On-device LLM bundles are large, machine-specific and always re-installable. -->
+    <exclude domain="file" path="models/" />
+    <exclude domain="external" path="models/" />
 </full-backup-content>

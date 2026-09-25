@@ -33,8 +33,6 @@ import com.example.ui.components.BookReviewsSheet
 import com.example.ui.components.EpubConverterModal
 import com.example.ui.components.TrustedBookSearchDialog
 import com.example.ui.theme.*
-import com.example.util.AppLanguage
-import com.example.util.AppStrings
 import com.example.viewmodel.MainViewModel
 
 @Composable
@@ -66,6 +64,11 @@ fun DiscoverStoreScreen(
         } else {
             catalogBooks.filter { it.genre == selectedGenreFilter }
         }
+    }
+
+    // A match percentage is only shown when the reader has given the engine something to match on.
+    val hasPersonalisedRecommendations = remember(recommendations) {
+        recommendations.any { it.matchScorePercent > 0 }
     }
 
     // Reviews Sheet Dialog
@@ -123,7 +126,7 @@ fun DiscoverStoreScreen(
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = "A-Hex Smart Discovery & Catalog",
+                            text = "SecureMind Discovery & Catalog",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = NaturalDarkText
@@ -218,12 +221,16 @@ fun DiscoverStoreScreen(
                         )
                         Column {
                             Text(
-                                text = "Recommended For You",
+                                text = if (hasPersonalisedRecommendations) "Recommended For You" else "Suggested Classics",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Based on reading history, genres & highlighted quotes",
+                                text = if (hasPersonalisedRecommendations) {
+                                    "Matched against books you have read and quotes you highlighted"
+                                } else {
+                                    "Public-domain classics you have not added yet — read something to get personalised matches"
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalDarkTextMuted
                             )
@@ -235,7 +242,7 @@ fun DiscoverStoreScreen(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = "Smart Engine",
+                            text = "On-device",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = NaturalPrimary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -293,7 +300,8 @@ fun DiscoverStoreScreen(
         items(filteredCatalog, key = { it.id }) { book ->
             val isAlreadyInLibrary = downloadedIds.contains(book.id)
             val reviewsForBook = allReviews.filter { it.bookId == book.id }
-            val avgRating = if (reviewsForBook.isNotEmpty()) reviewsForBook.map { it.rating }.average().toFloat() else book.rating
+            // Only ever a real average of reviews that exist — never a placeholder score.
+            val avgRating = if (reviewsForBook.isNotEmpty()) reviewsForBook.map { it.rating }.average().toFloat() else 0f
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -347,14 +355,29 @@ fun DiscoverStoreScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Icon(Icons.Filled.Star, contentDescription = null, tint = NaturalOchreAccent, modifier = Modifier.size(14.dp))
+                                if (reviewsForBook.isNotEmpty()) {
+                                    Icon(Icons.Filled.Star, contentDescription = null, tint = NaturalOchreAccent, modifier = Modifier.size(14.dp))
+                                    Text(
+                                        text = String.format("%.1f", avgRating),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = NaturalOchreAccent
+                                    )
+                                    Text(
+                                        text = "(${reviewsForBook.size})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalDarkTextMuted
+                                    )
+                                } else {
+                                    // Nothing has been rated yet, so no score is shown at all.
+                                    Icon(Icons.Outlined.StarOutline, contentDescription = null, tint = NaturalDarkTextMuted, modifier = Modifier.size(14.dp))
+                                    Text(
+                                        text = "No ratings yet",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NaturalDarkTextMuted
+                                    )
+                                }
                                 Text(
-                                    text = String.format("%.1f", avgRating),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = NaturalOchreAccent
-                                )
-                                Text(
-                                    text = "• ${book.totalPages}p • ${book.fileSize}",
+                                    text = "• ${book.totalPages} pages",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = NaturalDarkTextMuted
                                 )
@@ -422,9 +445,9 @@ fun DiscoverStoreScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary, contentColor = NaturalOnPrimary),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                             ) {
-                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.LibraryAdd, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Download ${book.format.displayName}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Add to Library", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -508,7 +531,11 @@ fun RecommendationCard(
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "${recommendation.matchScorePercent}% Match",
+                            text = if (recommendation.matchScorePercent > 0) {
+                                "${recommendation.matchScorePercent}% match"
+                            } else {
+                                "Suggested"
+                            },
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = NaturalPrimary
                         )
@@ -557,7 +584,7 @@ fun RecommendationCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${book.totalPages} pages • ${book.fileSize}",
+                        text = "${book.totalPages} pages",
                         style = MaterialTheme.typography.labelSmall,
                         color = NaturalDarkTextMuted
                     )
@@ -617,9 +644,9 @@ fun RecommendationCard(
                         colors = ButtonDefaults.buttonColors(containerColor = NaturalPrimary, contentColor = NaturalOnPrimary),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.LibraryAdd, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Download & Read", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Add to Library", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

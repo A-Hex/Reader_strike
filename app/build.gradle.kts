@@ -141,6 +141,8 @@ dependencies {
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
+  // On-device LLM (LiteRT-LM) backing the reading assistant when a model is installed.
+  implementation(libs.litertlm.android)
   implementation(libs.mlkit.face.detection)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)

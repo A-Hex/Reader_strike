@@ -149,7 +149,7 @@ fun SocialShareModal(
                             }
                             Column {
                                 Text(
-                                    text = "A-Hex streak",
+                                    text = "SecureMind",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     color = NaturalDarkText
                                 )
@@ -425,7 +425,7 @@ fun SocialShareModal(
                             color = NaturalDarkTextMuted
                         )
                         Text(
-                            text = "Tracked with A-Hex",
+                            text = "Tracked with SecureMind",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             color = NaturalPrimary
                         )
@@ -441,7 +441,7 @@ fun SocialShareModal(
                         SocialShareHelper.shareContent(
                             context = context,
                             content = shareText,
-                            subject = "My Reading Progress - A-Hex Streak"
+                            subject = "My Reading Progress - SecureMind"
                         )
                         onDismiss()
                     },

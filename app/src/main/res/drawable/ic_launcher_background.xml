@@ -4,15 +4,21 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Obsidian field -->
     <path
-        android:fillColor="#0A0E17"
+        android:fillColor="#080B10"
         android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Hex plate -->
     <path
-        android:fillColor="#151E2E"
-        android:pathData="M54,14 L88,34 L88,74 L54,94 L20,74 L20,34 Z" />
+        android:fillColor="#0E1A19"
+        android:pathData="M54,12 L90,33 L90,75 L54,96 L18,75 L18,33 Z" />
+
+    <!-- Hex rim -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#264A7F"
-        android:strokeWidth="1.5"
-        android:pathData="M54,8 L94,31 L94,77 L54,100 L14,77 L14,31 Z" />
+        android:strokeColor="#1E3A35"
+        android:strokeWidth="1.6"
+        android:pathData="M54,5 L95,29 L95,79 L54,103 L13,79 L13,29 Z" />
 </vector>

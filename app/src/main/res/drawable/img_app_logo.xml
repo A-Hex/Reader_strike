@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SecureMind brand mark.
+  A shield (privacy / on-device) enclosing a circuit "mind" (spine, branches, amber core).
+  Drawn on a transparent background so the same vector can sit on the surface colour in-app and
+  inside the adaptive launcher icon.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shield body -->
+    <path
+        android:fillColor="#5CE1C6"
+        android:pathData="M54,12 L89,26 L89,54 C89,74.5 74,90 54,96 C34,90 19,74.5 19,54 L19,26 Z" />
+
+    <!-- Inset face -->
+    <path
+        android:fillColor="#080B10"
+        android:pathData="M54,27 L77,37 L77,55 C77,69 67,79.5 54,84.5 C41,79.5 31,69 31,55 L31,37 Z" />
+
+    <!-- Circuit spine -->
+    <path
+        android:strokeColor="#5CE1C6"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,50 L54,74" />
+
+    <!-- Circuit branches -->
+    <path
+        android:strokeColor="#5CE1C6"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:pathData="M41,56 L51,56" />
+    <path
+        android:strokeColor="#5CE1C6"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:pathData="M57,66 L67,66" />
+
+    <!-- Amber core (the "mind") -->
+    <path
+        android:fillColor="#F2C879"
+        android:pathData="M54,47 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+
+    <!-- Outer rim -->
+    <path
+        android:strokeColor="#5CE1C6"
+        android:strokeWidth="1.4"
+        android:strokeAlpha="0.55"
+        android:fillColor="#00000000"
+        android:pathData="M54,6 L94,23 L94,55 C94,78 77,95 54,102 C31,95 14,78 14,55 L14,23 Z" />
+</vector>

@@ -268,7 +268,7 @@ private fun OnboardingWelcomePage(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.img_onboarding_welcome),
-                contentDescription = "Welcome to A-Hex streak",
+                contentDescription = "Welcome to SecureMind",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
