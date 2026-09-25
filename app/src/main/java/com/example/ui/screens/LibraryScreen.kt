@@ -65,6 +65,10 @@ fun LibraryScreen(
     val streakData by viewModel.streakData.collectAsState()
     val allReviews by viewModel.allReviews.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
+    val accountState by viewModel.accountState.collectAsState()
+
+    // The header reports the real backup state instead of a hardcoded "synchronised" claim.
+    val syncStatusLabel = if (accountState.isSignedIn) "CLOUD BACKUP ON" else "ON-DEVICE ONLY \u00b7 PRIVATE"
 
     val context = LocalContext.current
     var showSortMenu by remember { mutableStateOf(false) }
@@ -125,22 +129,22 @@ fun LibraryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.AutoStories,
-                                contentDescription = "A-Hex streak logo",
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "SecureMind logo",
                                 tint = NaturalOnPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                         Column {
                             Text(
-                                text = "A-Hex streak",
+                                text = "SecureMind",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 0.3.sp
                                 )
                             )
                             Text(
-                                text = "CLOUD SYNCHRONIZED",
+                                text = syncStatusLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     letterSpacing = 1.2.sp,

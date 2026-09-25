@@ -24,7 +24,7 @@ sealed class BackupResult {
 object BackupManager {
 
     const val BACKUP_SCHEMA_VERSION = 1
-    const val APP_IDENTIFIER = "A-Hex streak"
+    const val APP_IDENTIFIER = "SecureMind"
     private const val MAX_BACKUP_BYTES = 25 * 1024 * 1024
     private const val MAX_RECORDS_PER_COLLECTION = 10_000
     private const val MAX_TEXT_FIELD_CHARS = 100_000

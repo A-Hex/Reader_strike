@@ -32,10 +32,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ai.AiCredentials
+import com.example.ai.LocalLlmModel
 import com.example.data.repository.BackupOperationState
 import com.example.model.VoiceMode
 import com.example.notification.ReadingNotificationManager
 import com.example.ui.components.DailyGoalPickerDialog
+import com.example.ui.components.OnDeviceModelCard
 import com.example.ui.components.VoiceNarratorStudioDialog
 import com.example.ui.theme.*
 import com.example.util.AppLanguage
@@ -133,6 +135,32 @@ fun SettingsScreen(
         uri?.let { viewModel.restoreBackup(it) }
     }
 
+    // On-device model import. The copy is asynchronous because a model bundle is large, and it is
+    // driven from screen level so scrolling the list cannot cancel it half way through.
+    var pendingModelUri by remember { mutableStateOf<Uri?>(null) }
+    var isImportingModel by remember { mutableStateOf(false) }
+    var modelRevision by remember { mutableStateOf(0) }
+
+    val modelPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) pendingModelUri = uri
+    }
+
+    LaunchedEffect(pendingModelUri) {
+        val uri = pendingModelUri ?: return@LaunchedEffect
+        isImportingModel = true
+        val outcome = LocalLlmModel.importModel(context, uri)
+        isImportingModel = false
+        pendingModelUri = null
+        val message = outcome.fold(
+            onSuccess = { "On-device model installed (${LocalLlmModel.formatSize(it.length())})." },
+            onFailure = { it.message ?: "The model could not be imported." }
+        )
+        if (outcome.isSuccess) modelRevision++
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    }
+
     if (showGoalPickerDialog) {
         DailyGoalPickerDialog(
             currentGoalMinutes = dailyGoalMinutes,
@@ -188,7 +216,7 @@ fun SettingsScreen(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_app_logo),
-                        contentDescription = "A-Hex streak logo",
+                        contentDescription = "SecureMind logo",
                         modifier = Modifier
                             .size(60.dp)
                             .clip(RoundedCornerShape(16.dp))
@@ -197,7 +225,7 @@ fun SettingsScreen(
 
                     Column {
                         Text(
-                            text = "A-Hex streak",
+                            text = "SecureMind",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
@@ -213,6 +241,16 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        // Reading AI: the real on-device LLM (LiteRT-LM) the reader installs themselves.
+        item {
+            OnDeviceModelCard(
+                isImporting = isImportingModel,
+                modelRevision = modelRevision,
+                onRequestImport = { modelPickerLauncher.launch(arrayOf("*/*")) },
+                onModelRemoved = { modelRevision++ }
+            )
         }
 
         // Dedicated Local Space Vault Card
@@ -782,7 +820,7 @@ fun SettingsScreen(
                         Button(
                             onClick = {
                                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
-                                exportBackupLauncher.launch("ahex_streak_backup_$timestamp.json")
+                                exportBackupLauncher.launch("securemind_backup_$timestamp.json")
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
@@ -1584,7 +1622,7 @@ fun ReminderTimePickerDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Choose when you want A-Hex streak to nudge you for your daily reading habit:",
+                    text = "Choose when you want SecureMind to nudge you for your daily reading habit:",
                     style = MaterialTheme.typography.bodySmall,
                     color = NaturalDarkTextMuted
                 )

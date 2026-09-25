@@ -1,6 +1,6 @@
 {
-  "name": "A-Hex streak",
-  "description": "Books reader and library manager with offline access, EPUB & PDF reading, customizable themes, highlight system, full library search, and reading streak statistics.",
+  "name": "SecureMind",
+  "description": "A private reading mind. Offline EPUB & PDF library, on-device AI analysis that never leaves your phone, encrypted cloud backup to your own account, highlights, vocabulary vault and reading streaks.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

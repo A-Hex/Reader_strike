@@ -12,9 +12,16 @@ import com.example.model.ReadingStreakData
 
 object SocialShareHelper {
 
-    const val APP_NAME = "A-Hex streak"
+    const val APP_NAME = "SecureMind"
 
     fun formatStatsShareText(streakData: ReadingStreakData): String {
+        // Reading speed is estimated from pages and minutes, so it only appears once the reader has
+        // actually logged a session — never as a placeholder number.
+        val speedLine = if (streakData.readingSpeedWpm > 0) {
+            "\n🚀 Reading Speed: ~${streakData.readingSpeedWpm} WPM (estimated)"
+        } else {
+            ""
+        }
         return """
 🔥 My Reading Streak & Stats on $APP_NAME!
 
@@ -22,8 +29,7 @@ object SocialShareHelper {
 🎯 Daily Goal: ${streakData.dailyGoalMinutes} min/day
 📖 Total Pages Read: ${streakData.totalPagesRead} Pages
 📚 Books Finished: ${streakData.totalBooksRead} Books
-⏱️ Avg Session: ${(streakData.avgSessionMinutes).toInt()} mins
-🚀 Reading Speed: ${streakData.readingSpeedWpm} WPM
+⏱️ Avg Session: ${(streakData.avgSessionMinutes).toInt()} mins$speedLine
 
 Building consistent daily reading habits with $APP_NAME! 📚✨
 #ReadingStreak #BookLover #ReadingHabits #DailyReading #Bookworm

@@ -7,12 +7,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,12 +35,21 @@ enum class NavigationTab(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
-    LIBRARY("tab_library", "Library", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    STREAK("tab_streak", "Streak", Icons.Filled.LocalFireDepartment, Icons.Outlined.LocalFireDepartment),
-    HIGHLIGHTS("tab_highlights", "Highlights", Icons.Filled.Highlight, Icons.Outlined.Highlight),
-    DISCOVER("tab_discover", "Discover", Icons.Filled.Public, Icons.Outlined.Public),
-    SETTINGS("tab_settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    LIBRARY("tab_library", "Library", Icons.Filled.MenuBook, Icons.Outlined.MenuBook),
+    STREAK("tab_streak", "Streak", Icons.Filled.Insights, Icons.Outlined.Insights),
+    HIGHLIGHTS("tab_highlights", "Highlights", Icons.Filled.Bookmark, Icons.Outlined.Bookmark),
+    DISCOVER("tab_discover", "Discover", Icons.Filled.TravelExplore, Icons.Outlined.TravelExplore),
+    SETTINGS("tab_settings", "Settings", Icons.Filled.Tune, Icons.Outlined.Tune)
 }
+
+/**
+ * Which surface owns the screen right now.
+ *
+ * SecureMind launches through a short sequence: the brand visual, then a sign-in gate (until the
+ * reader signs in or chooses to continue without an account), then first-run onboarding, and only
+ * then the library.
+ */
+private enum class StartupStage { VISUAL, LOGIN, ONBOARDING, MAIN }
 
 class MainActivity : ComponentActivity() {
 
@@ -86,7 +97,20 @@ fun MainAppContent(
     val isTutorialVisible by viewModel.isTutorialVisible.collectAsState()
     val currentBook by viewModel.currentBook.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
+    val authGateResolved by viewModel.authGateResolved.collectAsState()
+    val accountState by viewModel.accountState.collectAsState()
+
     var currentTab by remember { mutableStateOf(initialTab) }
+    // Saved so a configuration change (rotation) doesn't replay the intro visual.
+    var startupVisualDone by rememberSaveable { mutableStateOf(false) }
+
+    val stage = when {
+        !startupVisualDone -> StartupStage.VISUAL
+        // Wait out the Firebase session restore so a signed-in reader never sees a login flash.
+        !accountState.isRestoring && !accountState.isSignedIn && !authGateResolved -> StartupStage.LOGIN
+        !isOnboardingCompleted -> StartupStage.ONBOARDING
+        else -> StartupStage.MAIN
+    }
 
     LaunchedEffect(requestedTabFlow) {
         requestedTabFlow.collect { newTab ->
@@ -105,16 +129,26 @@ fun MainAppContent(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AnimatedContent(
-                    targetState = isOnboardingCompleted,
+                    targetState = stage,
                     transitionSpec = {
-                        (fadeIn() + scaleIn(initialScale = 0.95f)).togetherWith(fadeOut() + scaleOut(targetScale = 1.05f))
+                        (fadeIn(animationSpec = tween(420)) + scaleIn(initialScale = 0.96f))
+                            .togetherWith(fadeOut(animationSpec = tween(320)))
                     },
-                    label = "OnboardingTransition"
-                ) { completed ->
-                    if (!completed) {
-                        OnboardingScreen(viewModel = viewModel)
-                    } else {
-                        AnimatedContent(
+                    label = "StartupStage"
+                ) { current ->
+                    when (current) {
+                        StartupStage.VISUAL -> SecureMindStartupScreen(
+                            onFinished = { startupVisualDone = true }
+                        )
+
+                        StartupStage.LOGIN -> SecureMindLoginScreen(
+                            viewModel = viewModel,
+                            onDone = { /* stage is derived from authGateResolved / accountState */ }
+                        )
+
+                        StartupStage.ONBOARDING -> OnboardingScreen(viewModel = viewModel)
+
+                        StartupStage.MAIN -> AnimatedContent(
                             targetState = currentBook != null,
                             transitionSpec = {
                                 if (targetState) {

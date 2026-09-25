@@ -24,7 +24,7 @@ class GreetingScreenshotTest {
   fun greeting_screenshot() {
     composeTestRule.setContent {
       MyApplicationTheme(darkTheme = true) {
-        Text("A-Hex streak")
+        Text("SecureMind")
       }
     }
 

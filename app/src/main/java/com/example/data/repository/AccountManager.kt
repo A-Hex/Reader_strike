@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 
 /**
- * Cloud accounts for A-Hex streak, built on Firebase Authentication + Cloud Firestore.
+ * Cloud accounts for SecureMind, built on Firebase Authentication + Cloud Firestore.
  *
  * Responsibilities:
  *  1. **Account lifecycle** — email/password sign-up, sign-in, password reset, sign-out.

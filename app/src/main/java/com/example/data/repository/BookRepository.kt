@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.example.data.AppDatabase
 import com.example.data.SampleBooksData
+import com.example.data.asFreshShelfEntry
 import com.example.data.entity.BookEntity
 import com.example.data.entity.BookmarkEntity
 import com.example.data.entity.BookReviewEntity
@@ -68,17 +69,12 @@ class BookRepository(private val context: Context, private val database: AppData
 
         val existing = bookDao.getAllBooks().first()
         if (existing.isEmpty()) {
-            val entities = SampleBooksData.INITIAL_BOOKS.map { BookEntity.fromModel(it) }
+            // First run: offer the bundled classics as a real, untouched shelf. Every book starts
+            // genuinely unread, and nothing is invented on the reader's behalf — no fake progress,
+            // highlights, reviews or badges — so every later screen only reports what they actually
+            // did. Sample titles and their cover art stay; the fabricated reader history does not.
+            val entities = SampleBooksData.INITIAL_BOOKS.map { BookEntity.fromModel(it.asFreshShelfEntry()) }
             bookDao.insertBooks(entities)
-
-            SampleBooksData.INITIAL_HIGHLIGHTS.forEach { hl ->
-                highlightDao.insertHighlight(HighlightEntity.fromModel(hl))
-            }
-
-            // Seed initial community reviews for classic literature
-            SampleBooksData.INITIAL_REVIEWS.forEach { rev ->
-                bookReviewDao.insertReview(BookReviewEntity.fromModel(rev))
-            }
         }
     }
 
@@ -94,14 +90,15 @@ class BookRepository(private val context: Context, private val database: AppData
             id = "rev-" + UUID.randomUUID().toString().take(8),
             bookId = bookId,
             bookTitle = bookTitle,
-            userName = userName.ifBlank { "A-Hex Reader" },
+            userName = userName.ifBlank { "SecureMind Reader" },
             userAvatarColor = 0xFF5A8E72,
             rating = rating,
             reviewTitle = reviewTitle,
             reviewText = reviewText,
             timestamp = System.currentTimeMillis(),
             isUserReview = true,
-            helpfulCount = 1
+            // Nobody has marked this helpful yet; the count only rises when a reader taps it.
+            helpfulCount = 0
         )
         bookReviewDao.insertReview(BookReviewEntity.fromModel(review))
     }
@@ -584,10 +581,10 @@ class BookRepository(private val context: Context, private val database: AppData
             avgSessionMinutes = avgSessionMinutes,
             totalSessionsCount = totalSessionsCount,
             dailyGoalMinutes = dailyGoalMinutes,
-            dailyGoalPages = (dailyGoalMinutes * 1.25f).toInt(),
             todayMinutesRead = todayMinutes,
             todayPagesRead = todayPages,
-            readingSpeedWpm = if (totalMinutes > 0 && totalPages > 0) ((totalPages * 250) / totalMinutes).coerceIn(150, 400) else 240,
+            // 0 means "not measured yet" — the UI omits the figure rather than showing a default.
+            readingSpeedWpm = if (totalMinutes > 0 && totalPages > 0) ((totalPages * 250) / totalMinutes).coerceIn(150, 400) else 0,
             lastReadDate = todayDateStr,
             weeklyStats = weeklyStats,
             monthlyStats = monthlyStats,
@@ -598,7 +595,7 @@ class BookRepository(private val context: Context, private val database: AppData
     suspend fun exportHighlightsToMarkdown(): String = withContext(Dispatchers.IO) {
         val highlights = highlightDao.getAllHighlights().first().map { it.toModel() }
         val sb = StringBuilder()
-        sb.append("# A-Hex streak - Reading Highlights & Notes\n\n")
+        sb.append("# SecureMind - Reading Highlights & Notes\n\n")
         sb.append("Exported on: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())}\n")
         sb.append("Creator / Contact: @ahex0_01\n\n")
         sb.append("---\n\n")

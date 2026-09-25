@@ -174,7 +174,7 @@ class OnlineBookSearchService(private val context: Context) {
             val url = "https://gutendex.com/books/?search=$encodedQuery"
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "A-Hex-Reader/1.0 (https://www.gutenberg.org)")
+                .header("User-Agent", "SecureMind/1.0 (https://www.gutenberg.org)")
                 .build()
 
             try {
@@ -315,7 +315,7 @@ class OnlineBookSearchService(private val context: Context) {
         val url = "https://openlibrary.org/search.json?q=$encodedQuery&limit=12"
         val request = Request.Builder()
             .url(url)
-            .header("User-Agent", "A-Hex-Reader/1.0 (Android; openlibrary.org)")
+            .header("User-Agent", "SecureMind/1.0 (Android; openlibrary.org)")
             .build()
 
         try {
@@ -497,7 +497,7 @@ class OnlineBookSearchService(private val context: Context) {
         try {
             val request = Request.Builder()
                 .url(downloadUrl)
-                .header("User-Agent", "A-Hex-Reader/1.0 (Android; EPUB/PDF Reader)")
+                .header("User-Agent", "SecureMind/1.0 (Android; EPUB/PDF Reader)")
                 .build()
 
             val response = downloadHttpClient.newCall(request).execute()

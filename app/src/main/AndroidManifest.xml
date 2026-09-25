@@ -21,9 +21,23 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:largeHeap="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+
+        <!--
+            The on-device LLM (LiteRT-LM) loads its runtime through the vendor OpenCL/vndk shims.
+            `required="false"` keeps the app installable on devices that do not expose them; the
+            CPU backend does not need either library.
+        -->
+        <uses-native-library
+            android:name="libvndksupport.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libOpenCL.so"
+            android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

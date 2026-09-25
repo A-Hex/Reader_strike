@@ -638,7 +638,7 @@ fun EpubConverterModal(
                                 type = "application/epub+zip"
                                 putExtra(Intent.EXTRA_STREAM, result.shareableUri)
                                 putExtra(Intent.EXTRA_SUBJECT, result.bookTitle)
-                                putExtra(Intent.EXTRA_TEXT, "Here is '${result.bookTitle}' converted to EPUB with A-Hex Reader.")
+                                putExtra(Intent.EXTRA_TEXT, "Here is '${result.bookTitle}' converted to EPUB with SecureMind.")
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             context.startActivity(Intent.createChooser(shareIntent, "Share or Open EPUB With"))

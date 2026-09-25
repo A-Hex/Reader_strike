@@ -100,7 +100,7 @@ fun HighlightsScreen(
                             coroutineScope.launch {
                                 val md = viewModel.bookRepository.exportHighlightsToMarkdown()
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText("A-Hex streak Highlights", md)
+                                val clip = ClipData.newPlainText("SecureMind Highlights", md)
                                 clipboard.setPrimaryClip(clip)
                                 Toast.makeText(context, "Exported Markdown copied to clipboard!", Toast.LENGTH_LONG).show()
                             }

@@ -31,7 +31,7 @@ object AppStrings {
     }
 
     private val englishStrings = mapOf(
-        "app_name" to "A-Hex streak",
+        "app_name" to "SecureMind",
         "tab_library" to "Library",
         "tab_local_space" to "Local Space",
         "tab_streak" to "Streak",
@@ -103,7 +103,7 @@ object AppStrings {
         "features_title" to "Included Engine Features",
         "speed_reader" to "RSVP Speed Reader",
         "ai_assistant" to "Smart Reading Assistant",
-        "reading_streak" to "A-HEX READING STREAK",
+        "reading_streak" to "SECUREMIND READING STREAK",
         "active_habit" to "Active Habit",
         "open_in_browser" to "Search Online",
         "direct_pdf_download" to "Download PDF",
@@ -194,7 +194,7 @@ object AppStrings {
         "tutorial_title" to "Interactive Walkthrough",
         "tutorial_step1_title" to "Universal Library Engine",
         "tutorial_step1_desc" to "Access your EPUB, PDF, and TXT books offline. Filter by format, search instantly, and import files from your device.",
-        "tutorial_step2_title" to "A-Hex Reading Streak & Quests",
+        "tutorial_step2_title" to "SecureMind Reading Streak & Quests",
         "tutorial_step2_desc" to "Every minute of attentive reading powers your daily streak. Earn Streak Shields and complete reading quests.",
         "tutorial_step3_title" to "RSVP Speed Reading & Narration",
         "tutorial_step3_desc" to "Accelerate comprehension with RSVP rapid word flashing, or relax with natural Text-to-Speech audio reading.",
@@ -246,7 +246,7 @@ object AppStrings {
     )
 
     private val arabicStrings = mapOf(
-        "app_name" to "A-Hex streak",
+        "app_name" to "SecureMind",
         "tab_library" to "المكتبة",
         "tab_local_space" to "المساحة المحلية",
         "tab_streak" to "الإنجاز",
@@ -318,7 +318,7 @@ object AppStrings {
         "features_title" to "الميزات المضمنة",
         "speed_reader" to "القراءة السريعة RSVP",
         "ai_assistant" to "مساعد القراءة الذكي",
-        "reading_streak" to "سلسلة القراءة A-HEX",
+        "reading_streak" to "سلسلة القراءة SecureMind",
         "active_habit" to "عادة نشطة",
         "open_in_browser" to "بحث على الإنترنت",
         "direct_pdf_download" to "تحميل PDF",
@@ -461,7 +461,7 @@ object AppStrings {
     )
 
     private val frenchStrings = mapOf(
-        "app_name" to "A-Hex streak",
+        "app_name" to "SecureMind",
         "tab_library" to "Bibliothèque",
         "tab_local_space" to "Espace Local",
         "tab_streak" to "Série",
@@ -533,7 +533,7 @@ object AppStrings {
         "features_title" to "Fonctionnalités incluses",
         "speed_reader" to "Lecteur rapide RSVP",
         "ai_assistant" to "Assistant de lecture intelligent",
-        "reading_streak" to "SÉRIE DE LECTURE A-HEX",
+        "reading_streak" to "SÉRIE DE LECTURE SECUREMIND",
         "active_habit" to "Habitude active",
         "open_in_browser" to "Rechercher en ligne",
         "direct_pdf_download" to "Télécharger le PDF",
@@ -624,7 +624,7 @@ object AppStrings {
         "tutorial_title" to "Visite guidée interactive",
         "tutorial_step1_title" to "Bibliothèque universelle",
         "tutorial_step1_desc" to "Lisez vos fichiers EPUB, PDF et TXT hors-ligne. Filtrez, recherchez et importez vos documents en un clic.",
-        "tutorial_step2_title" to "Série A-Hex et Quêtes",
+        "tutorial_step2_title" to "Série SecureMind et Quêtes",
         "tutorial_step2_desc" to "Chaque minute de lecture attentive alimente votre série. Gagnez des Boucliers et accomplissez des quêtes.",
         "tutorial_step3_title" to "Lecture rapide RSVP & Audio",
         "tutorial_step3_desc" to "Accélérez votre vitesse avec le défilement de mots RSVP, ou profitez de la lecture vocale naturelle.",

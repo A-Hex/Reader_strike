@@ -399,7 +399,7 @@ hr.divider {
         <hr class="divider"/>
         <p class="book-meta">$escapedDesc</p>
         <div style="margin-top: 25%;">
-            <p class="book-meta" style="font-size: 0.8em;">Exported from <strong>A-Hex Reader</strong></p>
+            <p class="book-meta" style="font-size: 0.8em;">Exported from <strong>SecureMind</strong></p>
         </div>
     </div>
 </body>
@@ -619,7 +619,7 @@ $navPoints
         <dc:date>$creationDate</dc:date>
         <dc:subject>${escapeXml(genre)}</dc:subject>
         <dc:description>${escapeXml(description)}</dc:description>
-        <dc:publisher>A-Hex E-Reader Suite</dc:publisher>
+        <dc:publisher>SecureMind Reader Suite</dc:publisher>
         <meta property="dcterms:modified">${creationDate}T00:00:00Z</meta>
     </metadata>
     <manifest>

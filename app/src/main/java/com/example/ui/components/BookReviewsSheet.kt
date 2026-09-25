@@ -43,14 +43,13 @@ fun BookReviewsSheet(
     var selectedRating by remember { mutableStateOf(5) }
     var reviewTitle by remember { mutableStateOf("") }
     var reviewText by remember { mutableStateOf("") }
-    var reviewerName by remember { mutableStateOf("A-Hex Reader") }
+    var reviewerName by remember { mutableStateOf("SecureMind Reader") }
 
-    val avgRating = remember(reviews, book.rating) {
-        if (reviews.isNotEmpty()) {
-            reviews.map { it.rating }.average().toFloat()
-        } else {
-            book.rating
-        }
+    // Only a real average of submitted reviews is shown. With no reviews we show
+    // no rating at all rather than falling back to a seeded catalogue figure.
+    val hasReviews = reviews.isNotEmpty()
+    val avgRating = remember(reviews) {
+        if (reviews.isNotEmpty()) reviews.map { it.rating }.average().toFloat() else 0f
     }
 
     ModalBottomSheet(
@@ -127,14 +126,18 @@ fun BookReviewsSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = String.format(Locale.getDefault(), "%.1f", avgRating),
+                            text = if (hasReviews) String.format(Locale.getDefault(), "%.1f", avgRating) else "—",
                             style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                             color = NaturalOchreAccent
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             for (i in 1..5) {
                                 Icon(
-                                    imageVector = if (i <= avgRating.toInt()) Icons.Filled.Star else Icons.Filled.StarHalf,
+                                    imageVector = when {
+                                        !hasReviews -> Icons.Outlined.StarBorder
+                                        i <= avgRating.toInt() -> Icons.Filled.Star
+                                        else -> Icons.Filled.StarHalf
+                                    },
                                     contentDescription = null,
                                     tint = NaturalOchreAccent,
                                     modifier = Modifier.size(16.dp)
@@ -143,7 +146,7 @@ fun BookReviewsSheet(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${reviews.size} community review${if (reviews.size != 1) "s" else ""}",
+                            text = if (hasReviews) "${reviews.size} community review${if (reviews.size != 1) "s" else ""}" else "No ratings yet",
                             style = MaterialTheme.typography.labelSmall,
                             color = NaturalDarkTextMuted
                         )
@@ -158,7 +161,8 @@ fun BookReviewsSheet(
                     ) {
                         for (star in 5 downTo 1) {
                             val count = reviews.count { it.rating.toInt() == star }
-                            val fraction = if (reviews.isNotEmpty()) count.toFloat() / reviews.size else if (star >= 4) 0.7f else 0.1f
+                            // Real distribution only; no invented bars when there are no reviews.
+                            val fraction = if (hasReviews) count.toFloat() / reviews.size else 0f
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)

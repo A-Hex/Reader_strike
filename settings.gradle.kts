@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "A-Hex streak"
+rootProject.name = "SecureMind"
 
 include(":app")

@@ -10,10 +10,19 @@ import com.example.ai.GeminiGenerationConfig
 import com.example.ai.GeminiPart
 import com.example.ai.GeminiRequest
 import com.example.ai.GeminiSystemInstruction
+import com.example.ai.LocalLlmEngine
+import com.example.ai.LocalLlmEvent
+import com.example.ai.LocalLlmModel
 import com.example.model.Book
 import com.example.model.BookChapter
 import com.example.util.LocalAiRelationDetector
 import com.example.util.OnDeviceTextAnalytics
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.last
 import java.util.Locale
 
 enum class AssistantTask {
@@ -27,7 +36,13 @@ enum class AssistantTask {
 }
 
 enum class AssistantEngine(val label: String) {
+    /** A real LLM the user installed on the device (LiteRT-LM) - private and offline. */
+    LOCAL_LLM("On-device model"),
+
+    /** Gemini, called with the user's own key. */
     GEMINI("Gemini"),
+
+    /** Deterministic extraction from the passage itself (quotes, counts, statistics). */
     ON_DEVICE("On-device")
 }
 
@@ -37,7 +52,10 @@ enum class AssistantFailure {
     RATE_LIMIT,
     SAFETY,
     SERVER,
-    EMPTY_RESPONSE
+    EMPTY_RESPONSE,
+
+    /** A model bundle is installed but the on-device runtime failed to run it. */
+    LOCAL_MODEL_ERROR
 }
 
 sealed interface AssistantResult {
@@ -57,6 +75,19 @@ sealed interface AssistantResult {
     ) : AssistantResult
 }
 
+/** One step of a streamed answer. */
+sealed interface AssistantProgress {
+
+    /**
+     * Markdown produced so far by an engine that can write incrementally. It is a snapshot, not a
+     * delta: replace what is rendered instead of appending it.
+     */
+    data class Partial(val markdown: String, val engine: AssistantEngine) : AssistantProgress
+
+    /** The finished outcome. Always the last element a collector sees. */
+    data class Done(val result: AssistantResult) : AssistantProgress
+}
+
 /**
  * Single entry point for every "ask the assistant" action in the reader.
  *
@@ -73,76 +104,143 @@ class AiAssistantRepository(private val context: Context) {
         const val MAX_PASSAGE_CHARS = 12_000
         const val MIN_PASSAGE_CHARS = 120
 
+        /**
+         * A phone-sized model has a fraction of Gemini's context, so the on-device prompt is fed a
+         * smaller window. The head of a chapter carries the topic; the tail carries the payoff.
+         */
+        const val LOCAL_MAX_PASSAGE_CHARS = 4_000
+
         const val MAX_CACHE_ENTRIES = 24
-
-        val SYSTEM_INSTRUCTION = """
-            You are the reading assistant inside an offline-first e-book reader.
-
-            NON-NEGOTIABLE RULES:
-            1. Ground every statement in the PASSAGE provided. Do not use outside knowledge about the book, its author, other chapters, or how the story ends.
-            2. Quotations must be copied character-for-character from the passage and stay under 25 words. Never invent, translate, or embellish a quotation.
-            3. If the passage does not contain what is needed, write exactly "The passage does not establish this." and then state which part of the text would be required.
-            4. Never invent character names, events, publication facts, statistics, or research findings.
-            5. Write in the same language as the passage (Arabic passage implies Arabic answer).
-            6. Reply with GitHub-flavoured Markdown only. No preamble and no commentary about being an AI.
-            7. Prefer specific, checkable statements over atmospheric generalities.
-        """.trimIndent()
     }
 
+    private data class CachedInsight(val markdown: String, val engine: AssistantEngine)
+
     /** Small LRU keyed by book + chapter + task + query so re-opening a sheet is instant. */
-    private val cache = object : LinkedHashMap<String, String>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean =
+    private val cache = object : LinkedHashMap<String, CachedInsight>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedInsight>): Boolean =
             size > MAX_CACHE_ENTRIES
     }
 
     fun isCloudAiAvailable(): Boolean = AiCredentials.hasApiKey(context)
 
-    /** True when no key is available at all, so the UI can explain how to enable it. */
-    fun needsSetup(): Boolean = !AiCredentials.hasApiKey(context)
+    /** True when an on-device model bundle is installed and ready to load. */
+    fun hasLocalModel(): Boolean = LocalLlmModel.isInstalled(context)
+
+    /** True when the user asked for the on-device model to win over the cloud key. */
+    fun prefersLocalModel(): Boolean = LocalLlmModel.preferLocal(context)
+
+    /** Name of the installed model bundle, for status text; blank when none is installed. */
+    fun localModelName(): String = LocalLlmModel.displayName(context)
+
+    /** True when no engine (neither local model nor cloud key) is available at all. */
+    fun needsSetup(): Boolean = !AiCredentials.hasApiKey(context) && !hasLocalModel()
 
     fun cachedResult(task: AssistantTask, book: Book, chapter: BookChapter, query: String): String? =
-        synchronized(cache) { cache[cacheKey(task, book, chapter, query)] }
+        synchronized(cache) { cache[cacheKey(task, book, chapter, query)]?.markdown }
 
     fun clearCache() = synchronized(cache) { cache.clear() }
 
-    suspend fun run(
+    /**
+     * Streams the assistant's answer as it is produced.
+     *
+     * An engine that can write incrementally (the on-device model) emits
+     * [AssistantProgress.Partial] events while generating; every run finishes with exactly one
+     * [AssistantProgress.Done], so a collector always reaches a terminal state.
+     */
+    fun runStreaming(
         task: AssistantTask,
         book: Book,
         chapter: BookChapter,
         query: String = "",
         allowOfflineFallback: Boolean = true
-    ): AssistantResult {
+    ): Flow<AssistantProgress> = flow {
         val passage = chapter.content.trim()
 
         if (passage.length < MIN_PASSAGE_CHARS) {
-            return AssistantResult.Failure(
-                message = if (isArabic(book, passage)) {
-                    "هذا المقطع قصير جداً لتحليله."
-                } else {
-                    "This passage is too short to analyse."
-                },
-                reason = AssistantFailure.EMPTY_RESPONSE,
-                offlineMarkdown = null
+            emit(
+                AssistantProgress.Done(
+                    AssistantResult.Failure(
+                        message = if (isArabic(book, passage)) {
+                            "هذا المقطع قصير جداً لتحليله."
+                        } else {
+                            "This passage is too short to analyse."
+                        },
+                        reason = AssistantFailure.EMPTY_RESPONSE,
+                        offlineMarkdown = null
+                    )
+                )
             )
+            return@flow
         }
 
         val key = cacheKey(task, book, chapter, query)
         synchronized(cache) { cache[key] }?.let { cached ->
-            return AssistantResult.Success(cached, AssistantEngine.GEMINI)
+            emit(AssistantProgress.Done(AssistantResult.Success(cached.markdown, cached.engine)))
+            return@flow
         }
 
+        // 1. An installed on-device model is the preferred engine: private, offline and free.
+        // A failure here is remembered so it can be reported honestly if nothing else succeeds.
+        var localFailure: String? = null
+        if (prefersLocalModel() && hasLocalModel()) {
+            var finished: String? = null
+            LocalLlmEngine.generateStreaming(
+                context = context,
+                systemInstruction = AssistantPrompts.LOCAL_SYSTEM_INSTRUCTION,
+                prompt = AssistantPrompts.buildReadingTurn(
+                    task = task,
+                    instructions = taskInstructions(task, query),
+                    bookTitle = book.title,
+                    author = book.author,
+                    genre = book.genre,
+                    chapterTitle = chapter.title,
+                    passage = passage,
+                    isArabic = isArabic(book, passage),
+                    query = query,
+                    maxChars = LOCAL_MAX_PASSAGE_CHARS
+                ),
+                temperature = if (task == AssistantTask.ASK) 0.25 else 0.4
+            ).collect { event ->
+                when (event) {
+                    // Forward each snapshot so the reader watches the answer being written.
+                    is LocalLlmEvent.Progress ->
+                        emit(AssistantProgress.Partial(event.markdown, AssistantEngine.LOCAL_LLM))
+
+                    is LocalLlmEvent.Completed -> finished = event.markdown
+
+                    is LocalLlmEvent.Failed -> localFailure = event.message
+
+                    LocalLlmEvent.NotInstalled -> Unit
+                }
+            }
+
+            val markdown = finished
+            if (markdown != null) {
+                synchronized(cache) { cache[key] = CachedInsight(markdown, AssistantEngine.LOCAL_LLM) }
+                emit(AssistantProgress.Done(AssistantResult.Success(markdown, AssistantEngine.LOCAL_LLM)))
+                return@flow
+            }
+        }
+
+        // 2. Otherwise the user's own Gemini key, when one is configured.
         val apiKey = AiCredentials.apiKey(context)
         if (apiKey.isBlank()) {
             val offline = offlineResult(task, book, chapter, query)
-            return if (allowOfflineFallback && offline != null) {
-                AssistantResult.Success(offline, AssistantEngine.ON_DEVICE)
-            } else {
-                AssistantResult.Failure(
-                    message = "Cloud AI is not configured. Add your Gemini API key in Settings to enable grounded analysis.",
-                    reason = AssistantFailure.MISSING_KEY,
-                    offlineMarkdown = offline
+            emit(
+                AssistantProgress.Done(
+                    if (allowOfflineFallback && offline != null && localFailure == null) {
+                        AssistantResult.Success(offline, AssistantEngine.ON_DEVICE)
+                    } else {
+                        AssistantResult.Failure(
+                            message = localFailure
+                                ?: "No AI engine is configured. Add your Gemini API key or install an on-device model in Settings to enable grounded analysis.",
+                            reason = if (localFailure != null) AssistantFailure.LOCAL_MODEL_ERROR else AssistantFailure.MISSING_KEY,
+                            offlineMarkdown = offline
+                        )
+                    }
                 )
-            }
+            )
+            return@flow
         }
 
         val request = buildRequest(task, book, chapter, query)
@@ -155,49 +253,68 @@ class AiAssistantRepository(private val context: Context) {
             AiCallResult.NetworkError("Unexpected failure calling Gemini.", t.message)
         }
 
-        return when (call) {
-            is AiCallResult.Success -> {
-                synchronized(cache) { cache[key] = call.text }
-                AssistantResult.Success(call.text, AssistantEngine.GEMINI)
-            }
+        emit(
+            AssistantProgress.Done(
+                when (call) {
+                    is AiCallResult.Success -> {
+                        synchronized(cache) { cache[key] = CachedInsight(call.text, AssistantEngine.GEMINI) }
+                        AssistantResult.Success(call.text, AssistantEngine.GEMINI)
+                    }
 
-            is AiCallResult.MissingApiKey -> AssistantResult.Failure(
-                message = call.message,
-                reason = AssistantFailure.MISSING_KEY,
-                offlineMarkdown = offlineResult(task, book, chapter, query)
-            )
+                    is AiCallResult.MissingApiKey -> AssistantResult.Failure(
+                        message = call.message,
+                        reason = AssistantFailure.MISSING_KEY,
+                        offlineMarkdown = offlineResult(task, book, chapter, query)
+                    )
 
-            is AiCallResult.NetworkError -> AssistantResult.Failure(
-                message = call.message,
-                reason = AssistantFailure.NETWORK,
-                offlineMarkdown = offlineResult(task, book, chapter, query)
-            )
+                    is AiCallResult.NetworkError -> AssistantResult.Failure(
+                        message = call.message,
+                        reason = AssistantFailure.NETWORK,
+                        offlineMarkdown = offlineResult(task, book, chapter, query)
+                    )
 
-            is AiCallResult.RateLimited -> AssistantResult.Failure(
-                message = call.message,
-                reason = AssistantFailure.RATE_LIMIT,
-                offlineMarkdown = offlineResult(task, book, chapter, query)
-            )
+                    is AiCallResult.RateLimited -> AssistantResult.Failure(
+                        message = call.message,
+                        reason = AssistantFailure.RATE_LIMIT,
+                        offlineMarkdown = offlineResult(task, book, chapter, query)
+                    )
 
-            is AiCallResult.SafetyBlocked -> AssistantResult.Failure(
-                message = call.message,
-                reason = AssistantFailure.SAFETY,
-                offlineMarkdown = offlineResult(task, book, chapter, query)
-            )
+                    is AiCallResult.SafetyBlocked -> AssistantResult.Failure(
+                        message = call.message,
+                        reason = AssistantFailure.SAFETY,
+                        offlineMarkdown = offlineResult(task, book, chapter, query)
+                    )
 
-            is AiCallResult.EmptyResponse -> AssistantResult.Failure(
-                message = call.message,
-                reason = AssistantFailure.EMPTY_RESPONSE,
-                offlineMarkdown = offlineResult(task, book, chapter, query)
-            )
+                    is AiCallResult.EmptyResponse -> AssistantResult.Failure(
+                        message = call.message,
+                        reason = AssistantFailure.EMPTY_RESPONSE,
+                        offlineMarkdown = offlineResult(task, book, chapter, query)
+                    )
 
-            is AiCallResult.ApiError -> AssistantResult.Failure(
-                message = call.message,
-                reason = AssistantFailure.SERVER,
-                offlineMarkdown = offlineResult(task, book, chapter, query)
+                    is AiCallResult.ApiError -> AssistantResult.Failure(
+                        message = call.message,
+                        reason = AssistantFailure.SERVER,
+                        offlineMarkdown = offlineResult(task, book, chapter, query)
+                    )
+                }
             )
-        }
-    }
+        )
+    }.flowOn(Dispatchers.Default)
+
+    /**
+     * Convenience for callers that only want the finished answer: collects [runStreaming] and
+     * returns its terminal result.
+     */
+    suspend fun run(
+        task: AssistantTask,
+        book: Book,
+        chapter: BookChapter,
+        query: String = "",
+        allowOfflineFallback: Boolean = true
+    ): AssistantResult = runStreaming(task, book, chapter, query, allowOfflineFallback)
+        .filterIsInstance<AssistantProgress.Done>()
+        .last()
+        .result
 
     // -----------------------------------------------------------------------------------------
     // Prompt construction
@@ -209,37 +326,26 @@ class AiAssistantRepository(private val context: Context) {
         chapter: BookChapter,
         query: String
     ): GeminiRequest {
-        val passage = windowPassage(chapter.content.trim())
-        val metadata = buildString {
-            appendLine("WORK: ${book.title}")
-            appendLine("AUTHOR: ${book.author}")
-            appendLine("GENRE LABEL (library metadata, may be inaccurate): ${book.genre}")
-            appendLine("PASSAGE TITLE: ${chapter.title}")
-            appendLine("PASSAGE LANGUAGE: ${if (isArabic(book, passage)) "Arabic" else "English"}")
-        }
-
-        val instructions = taskInstructions(task, query)
-
-        val body = buildString {
-            appendLine(instructions)
-            appendLine()
-            appendLine("--- LIBRARY METADATA ---")
-            appendLine(metadata)
-            appendLine("--- BEGIN PASSAGE ---")
-            appendLine(passage)
-            appendLine("--- END PASSAGE ---")
-            if (query.isNotBlank() && task == AssistantTask.ASK) {
-                appendLine()
-                appendLine("READER QUESTION: ${query.trim().take(600)}")
-            }
-        }
+        val passage = chapter.content.trim()
+        val body = AssistantPrompts.buildReadingTurn(
+            task = task,
+            instructions = taskInstructions(task, query),
+            bookTitle = book.title,
+            author = book.author,
+            genre = book.genre,
+            chapterTitle = chapter.title,
+            passage = passage,
+            isArabic = isArabic(book, passage),
+            query = query,
+            maxChars = MAX_PASSAGE_CHARS
+        )
 
         return GeminiRequest(
             contents = listOf(
                 GeminiContent(role = "user", parts = listOf(GeminiPart(body)))
             ),
             systemInstruction = GeminiSystemInstruction(
-                parts = listOf(GeminiPart(SYSTEM_INSTRUCTION))
+                parts = listOf(GeminiPart(AssistantPrompts.SYSTEM_INSTRUCTION))
             ),
             generationConfig = GeminiGenerationConfig(
                 temperature = if (task == AssistantTask.ASK) 0.25 else 0.4,
@@ -328,13 +434,6 @@ class AiAssistantRepository(private val context: Context) {
             ## Limits
             Anything the question asks for that this passage cannot supply.
         """.trimIndent()
-    }
-
-    private fun windowPassage(passage: String): String {
-        if (passage.length <= MAX_PASSAGE_CHARS) return passage
-        val head = passage.take(MAX_PASSAGE_CHARS * 2 / 3)
-        val tail = passage.takeLast(MAX_PASSAGE_CHARS / 3)
-        return "$head\n\n[... middle of the passage omitted to fit the request ...]\n\n$tail"
     }
 
     // -----------------------------------------------------------------------------------------
@@ -484,5 +583,83 @@ class AiAssistantRepository(private val context: Context) {
         val arabic = text.count { it in '\u0600'..'\u06FF' }
         val latin = text.count { it in 'a'..'z' || it in 'A'..'Z' }
         return arabic > latin
+    }
+}
+
+/**
+ * Prompt assembly shared by the cloud engine and the on-device model, so both engines are asked
+ * the same question about the same text and produce comparable answers.
+ *
+ * Kept free of Android and I/O so the wording and the windowing are unit tested.
+ *
+ * The on-device model gets its own shorter system instruction: a 1B model obeys a handful of hard
+ * rules far more reliably than a long policy, and its context window is a small fraction of
+ * Gemini's.
+ */
+internal object AssistantPrompts {
+
+    val SYSTEM_INSTRUCTION = """
+        You are the reading assistant inside an offline-first e-book reader.
+
+        NON-NEGOTIABLE RULES:
+        1. Ground every statement in the PASSAGE provided. Do not use outside knowledge about the book, its author, other chapters, or how the story ends.
+        2. Quotations must be copied character-for-character from the passage and stay under 25 words. Never invent, translate, or embellish a quotation.
+        3. If the passage does not contain what is needed, write exactly "The passage does not establish this." and then state which part of the text would be required.
+        4. Never invent character names, events, publication facts, statistics, or research findings.
+        5. Write in the same language as the passage (Arabic passage implies Arabic answer).
+        6. Reply with GitHub-flavoured Markdown only. No preamble and no commentary about being an AI.
+        7. Prefer specific, checkable statements over atmospheric generalities.
+    """.trimIndent()
+
+    val LOCAL_SYSTEM_INSTRUCTION = """
+        You are the reading assistant inside an offline e-book reader. Everything you write must come from the PASSAGE.
+
+        RULES:
+        1. Use only the PASSAGE. Never add outside knowledge about the book, its author or later chapters.
+        2. Copy quotations from the passage exactly and keep them under 25 words. Never invent or embellish a quotation.
+        3. If the passage cannot answer something, write exactly "The passage does not establish this." and say what would be needed.
+        4. Never invent names, events, numbers or facts.
+        5. Answer in the same language as the passage.
+        6. Output GitHub-flavoured Markdown using the requested headings. No preamble.
+    """.trimIndent()
+
+    /**
+     * Keeps the head and the tail of a long passage: the opening states the subject and the ending
+     * carries the conclusion, while the middle is where the detail is least likely to be quoted.
+     */
+    fun window(passage: String, maxChars: Int): String {
+        if (maxChars <= 0 || passage.length <= maxChars) return passage
+        val head = passage.take(maxChars * 2 / 3)
+        val tail = passage.takeLast(maxChars / 3)
+        return "$head\n\n[... middle of the passage omitted to fit the request ...]\n\n$tail"
+    }
+
+    fun buildReadingTurn(
+        task: AssistantTask,
+        instructions: String,
+        bookTitle: String,
+        author: String,
+        genre: String,
+        chapterTitle: String,
+        passage: String,
+        isArabic: Boolean,
+        query: String,
+        maxChars: Int
+    ): String = buildString {
+        appendLine(instructions)
+        appendLine()
+        appendLine("--- LIBRARY METADATA ---")
+        appendLine("WORK: $bookTitle")
+        appendLine("AUTHOR: $author")
+        appendLine("GENRE LABEL (library metadata, may be inaccurate): $genre")
+        appendLine("PASSAGE TITLE: $chapterTitle")
+        appendLine("PASSAGE LANGUAGE: ${if (isArabic) "Arabic" else "English"}")
+        appendLine("--- BEGIN PASSAGE ---")
+        appendLine(window(passage, maxChars))
+        appendLine("--- END PASSAGE ---")
+        if (query.isNotBlank() && task == AssistantTask.ASK) {
+            appendLine()
+            appendLine("READER QUESTION: ${query.trim().take(600)}")
+        }
     }
 }

@@ -11,14 +11,14 @@ private val DarkColorScheme = darkColorScheme(
     primary = NaturalPrimary,
     onPrimary = NaturalOnPrimary,
     primaryContainer = NaturalPrimaryContainer,
-    onPrimaryContainer = NaturalPrimary,
+    onPrimaryContainer = Color(0xFFB8F5E8),
     secondary = NaturalSecondary,
-    onSecondary = Color(0xFF0C314B),
-    secondaryContainer = Color(0xFF264963),
+    onSecondary = Color(0xFF0A2A3D),
+    secondaryContainer = Color(0xFF1E4054),
     onSecondaryContainer = NaturalSecondary,
     tertiary = NaturalTertiary,
-    onTertiary = Color(0xFF3C2E15),
-    tertiaryContainer = Color(0xFF55442A),
+    onTertiary = Color(0xFF33260B),
+    tertiaryContainer = Color(0xFF4C3A16),
     onTertiaryContainer = NaturalTertiary,
     background = NaturalDarkBackground,
     onBackground = NaturalDarkText,
@@ -33,13 +33,13 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = NaturalLightPrimary,
     onPrimary = NaturalLightOnPrimary,
-    primaryContainer = Color(0xFFD1E8FF),
-    onPrimaryContainer = Color(0xFF001D33),
-    secondary = Color(0xFF4F616E),
+    primaryContainer = Color(0xFFB8F2E4),
+    onPrimaryContainer = Color(0xFF00201B),
+    secondary = Color(0xFF41627A),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD2E5F5),
-    onSecondaryContainer = Color(0xFF0B1D29),
-    tertiary = Color(0xFF705D00),
+    secondaryContainer = Color(0xFFCFE4F2),
+    onSecondaryContainer = Color(0xFF071E2C),
+    tertiary = Color(0xFF6B4E00),
     onTertiary = Color.White,
     background = NaturalLightBackground,
     onBackground = NaturalLightText,
@@ -47,8 +47,8 @@ private val LightColorScheme = lightColorScheme(
     onSurface = NaturalLightText,
     surfaceVariant = NaturalLightSurfaceVariant,
     onSurfaceVariant = NaturalLightTextSecondary,
-    outline = Color(0xFF70787D),
-    outlineVariant = Color(0xFFC0C7CD)
+    outline = Color(0xFF6B7783),
+    outlineVariant = Color(0xFFBFC8D1)
 )
 
 @Composable
@@ -69,6 +69,7 @@ fun MyApplicationTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = SecureMindShapes,
         content = content
     )
 }

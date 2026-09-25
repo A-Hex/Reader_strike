@@ -7,8 +7,9 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,14 +28,17 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ai.AiCredentials
+import com.example.ai.LocalLlmModel
 import com.example.data.repository.AiAssistantRepository
 import com.example.data.repository.AssistantEngine
+import com.example.data.repository.AssistantProgress
 import com.example.data.repository.AssistantResult
 import com.example.data.repository.AssistantTask
 import com.example.model.Book
 import com.example.model.BookChapter
 import com.example.ui.theme.*
 import com.example.util.AppLanguage
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 enum class AiTaskType(
@@ -52,10 +56,47 @@ enum class AiTaskType(
     ASK("Ask & Quiz", "حوار واختبار", Icons.Default.Chat, AssistantTask.ASK)
 }
 
+/**
+ * The answer text. While an on-device model is still writing, the newest words are kept in view so
+ * the reader follows the answer instead of hunting for it.
+ */
+@Composable
+private fun AnswerBody(
+    markdown: String,
+    followWhileGrowing: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+    if (followWhileGrowing) {
+        LaunchedEffect(markdown.length) {
+            // Let the new text be measured before following it, or the scroll lands one frame short.
+            withFrameNanos { }
+            scrollState.scrollTo(scrollState.maxValue)
+        }
+    }
+    Column(modifier = modifier.verticalScroll(scrollState)) {
+        Text(
+            text = markdown,
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp, letterSpacing = 0.2.sp),
+            color = NaturalDarkText
+        )
+    }
+}
+
 private sealed interface AssistantUiState {
     object Idle : AssistantUiState
     data class Loading(val message: String) : AssistantUiState
-    data class Ready(val markdown: String, val engine: AssistantEngine) : AssistantUiState
+
+    /** Text arriving from the on-device model while it is still writing. */
+    data class Streaming(val markdown: String, val engine: AssistantEngine) : AssistantUiState
+
+    data class Ready(
+        val markdown: String,
+        val engine: AssistantEngine,
+        /** True when the reader stopped the model part way through. */
+        val stoppedEarly: Boolean = false
+    ) : AssistantUiState
+
     data class Failed(val message: String, val offline: String?) : AssistantUiState
 }
 
@@ -74,38 +115,83 @@ fun AiAssistantSheet(
     var userQuery by remember { mutableStateOf("") }
     var uiState by remember { mutableStateOf<AssistantUiState>(AssistantUiState.Idle) }
     var engineInUse by remember { mutableStateOf<AssistantEngine?>(null) }
+    var streamJob by remember { mutableStateOf<Job?>(null) }
+    // Bumped for every run and every stop, so a cancelled or superseded generation can never write
+    // into the sheet after the reader has moved on.
+    var runToken by remember { mutableStateOf(0) }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val repository = remember(context) { AiAssistantRepository(context) }
-    // Re-read per composition (SharedPreferences is memory-cached) so a key saved in Settings
-    // is picked up the next time the sheet opens instead of being frozen at first compose.
+    // Re-read per composition (SharedPreferences is memory-cached) so a key or model installed in
+    // Settings is picked up the next time the sheet opens instead of being frozen at first compose.
     val cloudConfigured = AiCredentials.hasApiKey(context)
+    val localModelReady = LocalLlmModel.isInstalled(context)
+    val localModelPreferred = localModelReady && repository.prefersLocalModel()
 
     val isArabicBook = book.languageCode == "ar" || book.title.any { it in '\u0600'..'\u06FF' }
     val isRtl = isArabicBook || currentLanguage.isRtl
 
+    fun applyResult(result: AssistantResult) {
+        when (result) {
+            is AssistantResult.Success -> {
+                engineInUse = result.engine
+                uiState = AssistantUiState.Ready(result.markdown, result.engine)
+            }
+
+            is AssistantResult.Failure -> {
+                engineInUse = null
+                uiState = AssistantUiState.Failed(result.message, result.offlineMarkdown)
+            }
+        }
+    }
+
     fun runTask(task: AiTaskType, prompt: String = "") {
-        coroutineScope.launch {
+        val token = ++runToken
+        streamJob?.cancel()
+        streamJob = coroutineScope.launch {
             uiState = AssistantUiState.Loading(
-                if (isArabicBook) "جارٍ تحليل المقطع..." else "Analysing the passage..."
+                when {
+                    localModelPreferred && isArabicBook -> "يعمل النموذج على جهازك..."
+                    localModelPreferred -> "Writing on your device..."
+                    isArabicBook -> "جارٍ تحليل المقطع..."
+                    else -> "Analysing the passage..."
+                }
             )
-            val result = repository.run(
+            repository.runStreaming(
                 task = task.task,
                 book = book,
                 chapter = chapter,
                 query = prompt
-            )
-            uiState = when (result) {
-                is AssistantResult.Success -> {
-                    engineInUse = result.engine
-                    AssistantUiState.Ready(result.markdown, result.engine)
-                }
-                is AssistantResult.Failure -> {
-                    engineInUse = null
-                    AssistantUiState.Failed(result.message, result.offlineMarkdown)
+            ).collect { progress ->
+                if (token != runToken) return@collect
+                when (progress) {
+                    // Repaint with the answer so far while the on-device model keeps writing.
+                    is AssistantProgress.Partial -> {
+                        engineInUse = progress.engine
+                        uiState = AssistantUiState.Streaming(progress.markdown, progress.engine)
+                    }
+
+                    is AssistantProgress.Done -> applyResult(progress.result)
                 }
             }
+        }
+    }
+
+    /** Stops the on-device model and keeps whatever it had already written. */
+    fun stopStreaming() {
+        val streaming = uiState as? AssistantUiState.Streaming
+        val partial = streaming?.markdown?.trim().orEmpty()
+        val engine = streaming?.engine ?: AssistantEngine.LOCAL_LLM
+
+        runToken++
+        streamJob?.cancel()
+        streamJob = null
+
+        uiState = if (partial.isEmpty()) {
+            AssistantUiState.Idle
+        } else {
+            AssistantUiState.Ready(partial, engine, stoppedEarly = true)
         }
     }
 
@@ -166,11 +252,16 @@ fun AiAssistantSheet(
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+                                val localLabel = if (isRtl) "نموذج محلي" else "Local model"
+                                val extractionLabel = if (isRtl) "على الجهاز" else "On-device"
                                 val badgeLabel = when {
-                                    engineInUse == AssistantEngine.GEMINI -> if (isRtl) "Gemini" else "Gemini"
-                                    engineInUse == AssistantEngine.ON_DEVICE -> if (isRtl) "على الجهاز" else "On-device"
+                                    engineInUse == AssistantEngine.LOCAL_LLM -> localLabel
+                                    engineInUse == AssistantEngine.GEMINI -> "Gemini"
+                                    engineInUse == AssistantEngine.ON_DEVICE -> extractionLabel
+                                    localModelPreferred -> localLabel
                                     cloudConfigured -> "Gemini"
-                                    else -> if (isRtl) "على الجهاز" else "On-device"
+                                    localModelReady -> localLabel
+                                    else -> extractionLabel
                                 }
                                 Surface(
                                     color = NaturalPrimary.copy(alpha = 0.15f),
@@ -201,24 +292,49 @@ fun AiAssistantSheet(
                     }
                 }
 
-                if (!cloudConfigured) {
-                    Surface(
+                // Exactly one honest status line: a real local model, a cloud key, or neither.
+                when {
+                    localModelReady -> Surface(
+                        color = NaturalSageBg,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, NaturalSageAccent.copy(alpha = 0.6f))
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = if (isRtl) "نموذج محلي على الجهاز" else "On-device model",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = NaturalSageAccent
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isRtl) {
+                                    "التحليل يجري على جهازك عبر ${repository.localModelName()}. لا يُرسَل النص إلى أي خدمة. أوقف «تفضيل النموذج المحلي» من الإعدادات لاستخدام مفتاح Gemini."
+                                } else {
+                                    "Analysis runs on this device with ${repository.localModelName()}. Your text is never uploaded. Turn off \"Prefer the on-device model\" in Settings to use a Gemini key instead."
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NaturalSageAccent
+                            )
+                        }
+                    }
+
+                    !cloudConfigured -> Surface(
                         color = NaturalOchreBg,
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, NaturalOchreBorder)
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
                             Text(
-                                text = if (isRtl) "وضع التحليل المحلي مُفعّل" else "On-device mode",
+                                text = if (isRtl) "وضع التحليل المحلي مُفعّل" else "On-device extraction mode",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = NaturalOchreAccent
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (isRtl) {
-                                    "لا يوجد مفتاح Gemini. النتائج الحالية مستخرجة من النص على جهازك (اقتباسات وإحصاءات حقيقية). لتفعيل التحليل السحابي، أضف مفتاحك من الإعدادات ← مفتاح Gemini API."
+                                    "لا يوجد نموذج محلي ولا مفتاح Gemini. النتائج الحالية مستخرجة من النص على جهازك (اقتباسات وإحصاءات حقيقية). لتشغيل نموذج لغوي، أضِفه من الإعدادات ← نموذج على الجهاز، أو أضف مفتاح Gemini."
                                 } else {
-                                    "No Gemini API key found. Results come from real on-device extraction (verbatim quotes and statistics). To enable grounded cloud analysis, add your key in Settings → Gemini API Key."
+                                    "No on-device model and no Gemini API key. Results come from real on-device extraction (verbatim quotes and statistics). To run a real LLM offline, add a model bundle in Settings → On-device model, or add a Gemini key."
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NaturalOchreMuted
@@ -431,6 +547,50 @@ fun AiAssistantSheet(
                                 }
                             }
 
+                            is AssistantUiState.Streaming -> {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(12.dp),
+                                                color = NaturalPrimary,
+                                                strokeWidth = 2.dp
+                                            )
+                                            Text(
+                                                text = if (isRtl) "النموذج يكتب على جهازك..." else "Writing on your device...",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = NaturalPrimary
+                                            )
+                                        }
+                                        TextButton(
+                                            onClick = { stopStreaming() },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(14.dp), tint = NaturalPrimary)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(if (isRtl) "إيقاف" else "Stop", fontSize = 12.sp, color = NaturalPrimary)
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    AnswerBody(
+                                        markdown = state.markdown,
+                                        followWhileGrowing = true,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                    )
+                                }
+                            }
+
                             is AssistantUiState.Ready -> {
                                 Column(modifier = Modifier.fillMaxSize()) {
                                     Row(
@@ -439,10 +599,33 @@ fun AiAssistantSheet(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = if (state.engine == AssistantEngine.GEMINI) {
-                                                if (isRtl) "مُولّد بواسطة Gemini — راجع الاقتباسات" else "Generated with Gemini — verify quotations"
-                                            } else {
-                                                if (isRtl) "استخلاص محلي — اقتباسات حرفية وإحصاءات" else "On-device extraction — verbatim quotes and statistics"
+                                            text = if (state.stoppedEarly) {
+                                                if (isRtl) {
+                                                    "تم الإيقاف — إجابة جزئية، راجع الاقتباسات"
+                                                } else {
+                                                    "Stopped early — partial answer, verify quotations"
+                                                }
+                                            } else when (state.engine) {
+                                                AssistantEngine.LOCAL_LLM ->
+                                                    if (isRtl) {
+                                                        "مُولّد على جهازك بواسطة نموذج محلي — راجع الاقتباسات"
+                                                    } else {
+                                                        "Generated on this device by a local model — verify quotations"
+                                                    }
+
+                                                AssistantEngine.GEMINI ->
+                                                    if (isRtl) {
+                                                        "مُولّد بواسطة Gemini — راجع الاقتباسات"
+                                                    } else {
+                                                        "Generated with Gemini — verify quotations"
+                                                    }
+
+                                                AssistantEngine.ON_DEVICE ->
+                                                    if (isRtl) {
+                                                        "استخلاص محلي — اقتباسات حرفية وإحصاءات"
+                                                    } else {
+                                                        "On-device extraction — verbatim quotes and statistics"
+                                                    }
                                             },
                                             style = MaterialTheme.typography.labelSmall,
                                             color = NaturalDarkTextMuted,
@@ -451,22 +634,13 @@ fun AiAssistantSheet(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    LazyColumn(
+                                    AnswerBody(
+                                        markdown = state.markdown,
+                                        followWhileGrowing = false,
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxWidth()
-                                    ) {
-                                        item {
-                                            Text(
-                                                text = state.markdown,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    lineHeight = 22.sp,
-                                                    letterSpacing = 0.2.sp
-                                                ),
-                                                color = NaturalDarkText
-                                            )
-                                        }
-                                    }
+                                    )
 
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Divider(color = NaturalDarkBorder.copy(alpha = 0.5f))

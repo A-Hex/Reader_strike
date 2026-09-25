@@ -60,7 +60,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = accountManager.signUp(email, password, displayName)
             if (result is AccountManager.AuthResult.Success) {
-                Toast.makeText(context, "Account created — welcome to A-Hex streak!", Toast.LENGTH_LONG).show()
+                resolveAuthGate()
+                Toast.makeText(context, "Account created — welcome to SecureMind!", Toast.LENGTH_LONG).show()
             }
             onResult(result)
         }
@@ -70,6 +71,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = accountManager.signIn(email, password)
             if (result is AccountManager.AuthResult.Success) {
+                resolveAuthGate()
                 Toast.makeText(context, "Signed in. Your library can now sync to the cloud.", Toast.LENGTH_SHORT).show()
             }
             onResult(result)
@@ -88,6 +90,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun signOutAccount() {
         accountManager.signOut()
+        // Bring the sign-in screen back on the next launch, and keep the library on-device.
+        resetAuthGate()
         Toast.makeText(context, "Signed out — library stays on this device", Toast.LENGTH_SHORT).show()
     }
 
@@ -168,6 +172,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isTutorialVisible = MutableStateFlow(false)
     val isTutorialVisible: StateFlow<Boolean> = _isTutorialVisible.asStateFlow()
+
+    /**
+     * The launch gate in front of the app: the intro visual, then the sign-in screen until the
+     * reader either signs in or explicitly chooses to continue without an account.
+     *
+     * Persisted so the login screen is a first-run decision rather than a toll gate on every launch.
+     */
+    private val _authGateResolved = MutableStateFlow(prefs.getBoolean("auth_gate_resolved", false))
+    val authGateResolved: StateFlow<Boolean> = _authGateResolved.asStateFlow()
+
+    /** Called when the reader signs in or picks "continue without an account". */
+    fun resolveAuthGate() {
+        if (!_authGateResolved.value) {
+            _authGateResolved.value = true
+            prefs.edit().putBoolean("auth_gate_resolved", true).apply()
+        }
+    }
+
+    /** Used on sign-out so the sign-in screen comes back on the next launch. */
+    fun resetAuthGate() {
+        _authGateResolved.value = false
+        prefs.edit().putBoolean("auth_gate_resolved", false).apply()
+    }
 
     private val _selectedGenres = MutableStateFlow(
         prefs.getStringSet("user_genres", setOf("Philosophy", "Classics", "Sci-Fi"))?.toSet() ?: setOf("Philosophy", "Classics")
@@ -946,7 +973,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun downloadBook(book: Book) {
         viewModelScope.launch {
             bookRepository.downloadCatalogBook(book)
-            Toast.makeText(context, "Downloaded '${book.title}' for offline reading!", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Added '${book.title}' to your library", Toast.LENGTH_LONG).show()
             refreshStreakData()
         }
     }

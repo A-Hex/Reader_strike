@@ -5,12 +5,35 @@ import com.example.model.BookRecommendation
 import com.example.model.Highlight
 import com.example.model.ReadingStatus
 
+/**
+ * Suggests catalogue titles from what the reader has actually done in the app.
+ *
+ * Honesty rules this engine follows, because a "match percentage" the reader cannot influence is
+ * worse than no percentage at all:
+ *  - Only books the reader has genuinely engaged with count as a signal. A freshly installed shelf
+ *    of unread bundled classics is a catalogue, not a reading history.
+ *  - Every point is awarded for a concrete, checkable overlap (genre, author, tag, highlighted
+ *    theme). There is no base score and no floor, so a weak suggestion really reads as weak.
+ *  - [BookRecommendation.matchScorePercent] is 0 when no signal exists at all, and the UI shows
+ *    "Suggested" instead of inventing a number.
+ */
 object RecommendationEngine {
 
-    /**
-     * Analyzes reading history, genre preferences, and highlighted content
-     * to suggest relevant new e-books (PDF, EPUB) for download and reading.
-     */
+    // Points are only ever awarded for a real overlap. The maximum is 100, so the score is a
+    // genuine ratio of "how much of this the reader has evidence for".
+    private const val POINTS_GENRE = 30
+    private const val POINTS_AUTHOR = 20
+    private const val POINTS_TAGS = 25
+    private const val POINTS_HIGHLIGHT_THEME = 25
+
+    private val HIGHLIGHT_THEMES = listOf(
+        "stoic", "stoicism", "control", "mind", "nature", "virtue", "wisdom", "soul", "resilience",
+        "war", "strategy", "enemy", "victory", "tactics", "leadership", "discipline",
+        "mystery", "detective", "crime", "deduction", "clue", "logic",
+        "gothic", "horror", "monster", "darkness", "fear", "creature",
+        "justice", "truth", "morality", "ethics", "philosophy", "freedom", "society"
+    )
+
     fun generateRecommendations(
         userLibrary: List<Book>,
         userHighlights: List<Highlight>,
@@ -18,115 +41,97 @@ object RecommendationEngine {
     ): List<BookRecommendation> {
         val ownedBookIds = userLibrary.map { it.id }.toSet()
         val candidateBooks = catalog.filter { it.id !in ownedBookIds }
-
         if (candidateBooks.isEmpty()) return emptyList()
 
-        // 1. Analyze Reading History & Genre Preferences
+        // 1. Signal: only books the reader has actually opened, finished or favourited.
+        val engagedBooks = userLibrary.filter { book ->
+            book.status == ReadingStatus.FINISHED ||
+                book.readingProgress > 0f ||
+                book.isFavorite
+        }
+
         val genreFrequency = mutableMapOf<String, Int>()
         val authorFrequency = mutableMapOf<String, Int>()
         val tagFrequency = mutableMapOf<String, Int>()
 
-        userLibrary.forEach { book ->
+        engagedBooks.forEach { book ->
             val weight = when {
                 book.status == ReadingStatus.FINISHED -> 3
                 book.readingProgress > 0.5f -> 2
-                book.isFavorite -> 2
                 else -> 1
             }
-            genreFrequency[book.genre] = (genreFrequency[book.genre] ?: 0) + weight
-            authorFrequency[book.author] = (authorFrequency[book.author] ?: 0) + weight
-            book.tags.forEach { tag ->
-                tagFrequency[tag] = (tagFrequency[tag] ?: 0) + weight
+            if (book.genre.isNotBlank()) genreFrequency[book.genre] = (genreFrequency[book.genre] ?: 0) + weight
+            if (book.author.isNotBlank()) authorFrequency[book.author] = (authorFrequency[book.author] ?: 0) + weight
+            book.tags.forEach { tag -> tagFrequency[tag] = (tagFrequency[tag] ?: 0) + weight }
+        }
+
+        // 2. Signal: themes the reader actually highlighted or annotated.
+        val highlightThemes = mutableSetOf<String>()
+        userHighlights.forEach { highlight ->
+            val content = (highlight.text + " " + (highlight.note ?: "")).lowercase()
+            HIGHLIGHT_THEMES.forEach { theme ->
+                if (content.contains(theme)) highlightThemes.add(theme)
             }
         }
 
-        // 2. Analyze Highlight Content & Keywords
-        val highlightKeywords = mutableSetOf<String>()
-        val highlightThematicKeywords = listOf(
-            "stoic", "stoicism", "control", "mind", "nature", "virtue", "wisdom", "soul", "resilience",
-            "war", "strategy", "enemy", "victory", "tactics", "leadership", "discipline",
-            "mystery", "detective", "crime", "deduction", "clue", "logic",
-            "gothic", "horror", "monster", "darkness", "fear", "creature",
-            "justice", "truth", "morality", "ethics", "philosophy", "freedom", "society"
-        )
+        val hasPersonalSignal = engagedBooks.isNotEmpty() || highlightThemes.isNotEmpty()
 
-        userHighlights.forEach { hl ->
-            val content = (hl.text + " " + (hl.note ?: "")).lowercase()
-            highlightThematicKeywords.forEach { kw ->
-                if (content.contains(kw)) {
-                    highlightKeywords.add(kw)
-                }
-            }
-        }
-
-        // 3. Score candidates
+        // 3. Score each candidate strictly from those signals.
         val recommendations = candidateBooks.map { candidate ->
-            var score = 65 // base compatibility score
+            var score = 0
             val reasons = mutableListOf<String>()
             val matchedThemes = mutableListOf<String>()
 
-            // Match genre
-            val genreMatches = genreFrequency.keys.filter {
-                candidate.genre.contains(it, ignoreCase = true) || it.contains(candidate.genre, ignoreCase = true) ||
-                (it.contains("Philosophy", true) && candidate.genre.contains("Philosophy", true)) ||
-                (it.contains("Gothic", true) && candidate.genre.contains("Gothic", true))
+            val matchingGenre = genreFrequency.keys.firstOrNull { genre ->
+                candidate.genre.contains(genre, ignoreCase = true) ||
+                    genre.contains(candidate.genre, ignoreCase = true)
             }
-            if (genreMatches.isNotEmpty()) {
-                score += 15
-                reasons.add("Matches your interest in ${candidate.genre}")
+            if (matchingGenre != null) {
+                score += POINTS_GENRE
+                reasons.add("You read $matchingGenre")
             }
 
-            // Match tags
-            val tagOverlap = candidate.tags.filter { tag ->
-                tagFrequency.containsKey(tag) || tagFrequency.keys.any { it.contains(tag, true) }
-            }
-            if (tagOverlap.isNotEmpty()) {
-                score += (tagOverlap.size * 5).coerceAtMost(15)
+            if (authorFrequency.containsKey(candidate.author)) {
+                score += POINTS_AUTHOR
+                reasons.add("More from ${candidate.author}")
             }
 
-            // Match highlighted keywords
-            val matchedHighlightKeywords = highlightKeywords.filter { kw ->
-                candidate.description.lowercase().contains(kw) ||
-                candidate.tags.any { it.lowercase().contains(kw) } ||
-                candidate.title.lowercase().contains(kw) ||
-                candidate.genre.lowercase().contains(kw)
+            val matchingTags = candidate.tags.filter { tag ->
+                tagFrequency.containsKey(tag) || tagFrequency.keys.any { it.contains(tag, ignoreCase = true) }
             }
-            if (matchedHighlightKeywords.isNotEmpty()) {
-                score += 12
-                matchedThemes.addAll(matchedHighlightKeywords)
-                reasons.add("Aligns with themes in your notes: ${matchedHighlightKeywords.take(2).joinToString(", ")}")
+            if (matchingTags.isNotEmpty()) {
+                score += (matchingTags.size * (POINTS_TAGS / 5)).coerceAtMost(POINTS_TAGS)
+                reasons.add("Shares ${matchingTags.take(2).joinToString(", ")} with your books")
             }
 
-            // Specific book association logic
-            if (candidate.id == "cat-letters-stoic" && userLibrary.any { it.id == "book-meditations" }) {
-                score += 10
-                reasons.add("Perfect companion to Marcus Aurelius's Meditations")
-            } else if (candidate.id == "cat-republic" && userLibrary.any { it.genre.contains("Philosophy", true) }) {
-                score += 8
-                reasons.add("Foundational classical dialogue expanding on virtue and justice")
-            } else if (candidate.id == "cat-dracula" && userLibrary.any { it.id == "book-frankenstein" || it.id == "book-sherlock-holmes" }) {
-                score += 10
-                reasons.add("Top classic gothic literature recommendation")
-            } else if (candidate.id == "cat-dorian-gray" && userLibrary.any { it.id == "book-metamorphosis" }) {
-                score += 9
-                reasons.add("Psychological masterwork exploring transformation and identity")
+            val matchingHighlightThemes = highlightThemes.filter { theme ->
+                candidate.description.lowercase().contains(theme) ||
+                    candidate.title.lowercase().contains(theme) ||
+                    candidate.genre.lowercase().contains(theme) ||
+                    candidate.tags.any { it.lowercase().contains(theme) }
             }
-
-            val finalScore = score.coerceIn(78, 99)
-            val primaryReason = if (reasons.isNotEmpty()) {
-                reasons.first()
-            } else {
-                "Recommended based on your ${candidate.genre} reading habits"
+            if (matchingHighlightThemes.isNotEmpty()) {
+                score += POINTS_HIGHLIGHT_THEME
+                matchedThemes.addAll(matchingHighlightThemes)
+                reasons.add("Matches themes you highlighted: ${matchingHighlightThemes.take(2).joinToString(", ")}")
             }
 
             BookRecommendation(
                 book = candidate,
-                matchScorePercent = finalScore,
-                matchReason = primaryReason,
+                // 0 = no evidence yet; the UI shows "Suggested" rather than a made-up number.
+                matchScorePercent = score.coerceIn(0, 99),
+                matchReason = when {
+                    reasons.isNotEmpty() -> reasons.joinToString(" · ")
+                    hasPersonalSignal -> "Related to your library, but no direct overlap found yet"
+                    else -> "A public-domain classic from the SecureMind catalogue"
+                },
                 matchedGenre = candidate.genre,
                 relatedHighlights = matchedThemes
             )
-        }.sortedByDescending { it.matchScorePercent }
+        }.sortedWith(
+            compareByDescending<BookRecommendation> { it.matchScorePercent }
+                .thenBy { it.book.title }
+        )
 
         return recommendations
     }

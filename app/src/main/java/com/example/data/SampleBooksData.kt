@@ -4,11 +4,25 @@ import com.example.R
 import com.example.model.Book
 import com.example.model.BookChapter
 import com.example.model.BookFormat
-import com.example.model.Highlight
-import com.example.model.HighlightColor
 import com.example.model.ReadingStatus
 import com.example.model.StreakBadge
 import com.example.model.BadgeTier
+
+/**
+ * A bundled classic as it should appear on a brand-new install: real title, author, description and
+ * cover art, with the reader's own state reset. The shelf carries no invented history — no
+ * "19% read", no favourites, no logged minutes — so streaks, stats and progress screens only ever
+ * reflect what the reader actually did.
+ */
+internal fun Book.asFreshShelfEntry(): Book = copy(
+    status = ReadingStatus.WANT_TO_READ,
+    currentPage = 1,
+    readingProgress = 0f,
+    isFavorite = false,
+    isDownloaded = true,
+    totalMinutesSpent = 0,
+    lastReadTimestamp = 0L
+)
 
 object SampleBooksData {
 
@@ -290,130 +304,10 @@ object SampleBooksData {
         )
     )
 
-    val INITIAL_REVIEWS = listOf(
-        com.example.model.BookReview(
-            id = "rev-1",
-            bookId = "book-meditations",
-            bookTitle = "Meditations",
-            userName = "MarcusReader",
-            userAvatarColor = 0xFFB4CCB9,
-            rating = 5.0f,
-            reviewTitle = "A daily compass for mental resilience",
-            reviewText = "Marcus Aurelius wrote this purely for self-examination, yet 2,000 years later it feels like the most grounded therapy. The lessons on not getting angry at difficult people and focusing strictly on what is within control are timeless.",
-            timestamp = System.currentTimeMillis() - 86400000L * 3,
-            isUserReview = true,
-            helpfulCount = 42
-        ),
-        com.example.model.BookReview(
-            id = "rev-2",
-            bookId = "book-meditations",
-            bookTitle = "Meditations",
-            userName = "Elena Vance",
-            userAvatarColor = 0xFFD1E8FF,
-            rating = 4.8f,
-            reviewTitle = "Pure Stoic gold in bite-sized entries",
-            reviewText = "Perfect book to read 5-10 minutes every morning as part of my A-Hex reading streak. Highlights make it easy to review favorite passages later.",
-            timestamp = System.currentTimeMillis() - 86400000L * 6,
-            isUserReview = false,
-            helpfulCount = 19
-        ),
-        com.example.model.BookReview(
-            id = "rev-3",
-            bookId = "book-art-of-war",
-            bookTitle = "The Art of War",
-            userName = "DevStrategist",
-            userAvatarColor = 0xFFE89A3C,
-            rating = 5.0f,
-            reviewTitle = "Applicable far beyond military strategy",
-            reviewText = "Sun Tzu's emphasis on winning before the conflict begins, avoiding pointless friction, and knowing oneself inside and out provides direct value to everyday leadership and problem solving.",
-            timestamp = System.currentTimeMillis() - 86400000L * 4,
-            isUserReview = true,
-            helpfulCount = 31
-        ),
-        com.example.model.BookReview(
-            id = "rev-4",
-            bookId = "book-metamorphosis",
-            bookTitle = "The Metamorphosis",
-            userName = "Clara K.",
-            userAvatarColor = 0xFF9E86C8,
-            rating = 4.7f,
-            reviewTitle = "Haunting, heartbreaking, and brilliant",
-            reviewText = "Kafka captures the burden of expectation and the alienation of modern work like no one else. A fast read that stays with you forever.",
-            timestamp = System.currentTimeMillis() - 86400000L * 8,
-            isUserReview = false,
-            helpfulCount = 27
-        ),
-        com.example.model.BookReview(
-            id = "rev-5",
-            bookId = "book-sherlock-holmes",
-            bookTitle = "A Study in Scarlet",
-            userName = "Arthur_W",
-            userAvatarColor = 0xFF5A8E72,
-            rating = 4.9f,
-            reviewTitle = "The birth of the world's greatest detective",
-            reviewText = "Watson meeting Holmes for the first time is legendary. The deduction methods and Victorian atmosphere make this an absolute delight in PDF reader mode.",
-            timestamp = System.currentTimeMillis() - 86400000L * 10,
-            isUserReview = false,
-            helpfulCount = 15
-        )
-    )
-
-
-    val INITIAL_HIGHLIGHTS = listOf(
-        Highlight(
-            id = "hl-1",
-            bookId = "book-art-of-war",
-            bookTitle = "The Art of War",
-            chapterIndex = 0,
-            chapterTitle = "I. Laying Plans",
-            text = "The supreme art of war is to subdue the enemy without fighting.",
-            note = "Core strategic principle applicable to business negotiation and life decisions.",
-            color = HighlightColor.AMBER,
-            pageOrLocation = 3,
-            timestamp = System.currentTimeMillis() - 1000 * 3600 * 5
-        ),
-        Highlight(
-            id = "hl-2",
-            bookId = "book-art-of-war",
-            bookTitle = "The Art of War",
-            chapterIndex = 2,
-            chapterTitle = "III. Attack by Stratagem",
-            text = "If you know the enemy and know yourself, you need not fear the result of a hundred battles.",
-            note = "Self-awareness paired with accurate environmental observation yields clarity.",
-            color = HighlightColor.EMERALD,
-            pageOrLocation = 18,
-            timestamp = System.currentTimeMillis() - 1000 * 3600 * 24
-        ),
-        Highlight(
-            id = "hl-3",
-            bookId = "book-metamorphosis",
-            bookTitle = "The Metamorphosis",
-            chapterIndex = 0,
-            chapterTitle = "Chapter 1",
-            text = "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin.",
-            note = "One of the most iconic opening lines in world literature.",
-            color = HighlightColor.VIOLET,
-            pageOrLocation = 1,
-            timestamp = System.currentTimeMillis() - 1000 * 3600 * 48
-        ),
-        Highlight(
-            id = "hl-4",
-            bookId = "book-meditations",
-            bookTitle = "Meditations",
-            chapterIndex = 1,
-            chapterTitle = "Book II",
-            text = "You have power over your mind - not outside events. Realize this, and you will find strength.",
-            note = "The fundamental Dichotomy of Control in Stoic philosophy.",
-            color = HighlightColor.SKY,
-            pageOrLocation = 22,
-            timestamp = System.currentTimeMillis() - 1000 * 3600 * 72
-        )
-    )
-
     val INITIAL_BADGES = listOf(
         StreakBadge(
             id = "badge-first-step",
-            title = "A-Hex Pioneer",
+            title = "First Light",
             description = "Complete your first reading session to ignite your streak.",
             iconName = "flag",
             tier = BadgeTier.BRONZE,
@@ -423,7 +317,7 @@ object SampleBooksData {
         ),
         StreakBadge(
             id = "badge-3-day",
-            title = "Hex Tri-Flame",
+            title = "Triple Ward",
             description = "Maintain an unbroken 3-day reading streak.",
             iconName = "local_fire_department",
             tier = BadgeTier.BRONZE,
@@ -433,7 +327,7 @@ object SampleBooksData {
         ),
         StreakBadge(
             id = "badge-7-day",
-            title = "Hex Archon (7-Day)",
+            title = "Sevenfold Guard (7-Day)",
             description = "Read for 7 consecutive days without breaking the chain.",
             iconName = "whatshot",
             tier = BadgeTier.SILVER,
@@ -463,7 +357,7 @@ object SampleBooksData {
         ),
         StreakBadge(
             id = "badge-30-day",
-            title = "A-Hex Grandmaster (30-Day)",
+            title = "Thirty-Day Mind",
             description = "Ascend to ultimate literacy discipline with a 30-day streak.",
             iconName = "workspace_premium",
             tier = BadgeTier.DIAMOND,
